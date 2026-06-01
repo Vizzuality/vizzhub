@@ -5,11 +5,25 @@ import { useAccrualMutations } from '@/modules/accrual/hooks/useAccrualMutations
 import { AccrualGrid } from '@/modules/accrual/components/AccrualGrid';
 import { AccrualToolbar } from '@/modules/accrual/components/AccrualToolbar';
 import type { AccrualFilters } from '@/modules/accrual/components/AccrualToolbar';
+import {
+  STATIC_COLUMNS,
+  type AccrualSort,
+} from '@/modules/accrual/components/AccrualGridColumns';
 import { AccrualLineEditor } from '@/modules/accrual/components/AccrualLineEditor';
+import { filterLinesBySearch, sortLines } from '@/modules/accrual/utils/grid';
 import { Button } from '@/shared/components/ui/button';
+import { useLocalStorage } from '@/shared/hooks/useLocalStorage';
 import { usePermission, Action } from '@/core/permissions';
 
 const CURRENT_YEAR = new Date().getFullYear();
+
+// localStorage keys for grid preferences that persist across sessions.
+const HIDDEN_COLUMNS_KEY = 'accrual.grid.hiddenColumns';
+const COLLAPSED_KEY = 'accrual.grid.collapsed';
+
+// When collapsed, only the Line column stays pinned so the month grid gets the
+// horizontal room — critical on laptop-width screens.
+const COLLAPSED_STATIC_IDS: readonly string[] = ['name'];
 
 function clampYear(year: number, min: number, max: number): number {
   return Math.max(min, Math.min(year, max));
@@ -20,7 +34,40 @@ export function Accrual(): JSX.Element {
     year_from: CURRENT_YEAR,
     year_to: CURRENT_YEAR,
     issues_only: false,
+    search: '',
   });
+  const [hiddenColumnIds, setHiddenColumnIds] = useLocalStorage<string[]>(
+    HIDDEN_COLUMNS_KEY,
+    [],
+  );
+  const [collapsed, setCollapsed] = useLocalStorage<boolean>(COLLAPSED_KEY, false);
+  const [sort, setSort] = useState<AccrualSort | null>(null);
+
+  const hiddenColumns = useMemo(() => new Set(hiddenColumnIds), [hiddenColumnIds]);
+
+  // Collapsed → Line only; otherwise the user's selected (non-hidden) columns.
+  const visibleStaticIds = useMemo(() => {
+    if (collapsed) return COLLAPSED_STATIC_IDS;
+    return STATIC_COLUMNS.filter((c) => !hiddenColumns.has(c.id)).map((c) => c.id);
+  }, [collapsed, hiddenColumns]);
+
+  const toggleColumn = (id: string): void => {
+    setHiddenColumnIds((prev) => {
+      const next = new Set(prev);
+      // Guard against hiding the last visible column — keep at least one.
+      if (next.has(id)) next.delete(id);
+      else if (prev.length < STATIC_COLUMNS.length - 1) next.add(id);
+      return [...next];
+    });
+  };
+
+  const handleSort = (key: string): void => {
+    setSort((prev) =>
+      prev?.key === key
+        ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : { key, dir: 'asc' },
+    );
+  };
 
   const apiFilters = useMemo(
     () => ({ year_from: filters.year_from, year_to: filters.year_to }),
@@ -72,12 +119,15 @@ export function Accrual(): JSX.Element {
 
   const visibleLines = useMemo(() => {
     if (!data) return [];
-    const withCells = data.lines.filter((l) => linesWithCells.has(l.id));
-    if (!filters.issues_only) return withCells;
-    return withCells.filter(
-      (l) => l.health.status === 'critical' || l.health.status === 'warning',
-    );
-  }, [data, linesWithCells, filters.issues_only]);
+    let result = data.lines.filter((l) => linesWithCells.has(l.id));
+    if (filters.issues_only) {
+      result = result.filter(
+        (l) => l.health.status === 'critical' || l.health.status === 'warning',
+      );
+    }
+    result = filterLinesBySearch(result, filters.search);
+    return sortLines(result, sort);
+  }, [data, linesWithCells, filters.issues_only, filters.search, sort]);
 
   const issuesCount = useMemo(
     () =>
@@ -90,7 +140,10 @@ export function Accrual(): JSX.Element {
     if (error) return <p className="text-sm text-destructive">Failed to load grid.</p>;
     if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
     if (visibleLines.length === 0) {
-      return <p className="text-sm text-muted-foreground">No accrual lines with data in this range.</p>;
+      const msg = filters.search.trim()
+        ? 'No lines match the filter.'
+        : 'No accrual lines with data in this range.';
+      return <p className="text-sm text-muted-foreground">{msg}</p>;
     }
     return (
       <AccrualGrid
@@ -101,6 +154,9 @@ export function Accrual(): JSX.Element {
         canEdit={canEdit}
         failedCells={failedCells}
         onEditLine={canEdit ? setEditingLineId : undefined}
+        visibleStaticIds={visibleStaticIds}
+        sort={sort}
+        onSort={handleSort}
       />
     );
   }
@@ -121,6 +177,10 @@ export function Accrual(): JSX.Element {
         onChange={setFilters}
         minYear={data?.bounds?.min_year}
         maxYear={data?.bounds?.max_year}
+        hiddenColumns={hiddenColumns}
+        onToggleColumn={toggleColumn}
+        collapsed={collapsed}
+        onToggleCollapsed={() => setCollapsed((c) => !c)}
       />
       {issuesCount > 0 && !filters.issues_only && (
         <button

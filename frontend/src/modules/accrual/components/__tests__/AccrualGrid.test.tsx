@@ -240,11 +240,36 @@ describe('AccrualGrid', () => {
 
   it('shows the per-line CEO rate next to the original amount when present', () => {
     renderGrid({ lines: [{ ...line, value_orig: '1200.00', currency: 'USD', rate: '1.08' }] });
-    expect(screen.getByText(/@ 1\.0800/)).toBeInTheDocument();
+    expect(screen.getByText(/@1\.0800/)).toBeInTheDocument();
+  });
+
+  it('renders an em-dash for the Original column when the line has no foreign value', () => {
+    renderGrid({ lines: [{ ...line, value_orig: null, currency: null, rate: null }] });
+    // The line keeps its excel_code, so the only em-dash is the empty Original cell.
+    expect(screen.getByText('—')).toBeInTheDocument();
   });
 
   it('badges non-excel provenance but not excel lines', () => {
     renderGrid({ lines: [{ ...line, source: 'team_budget' }] });
     expect(screen.getByText('Team budget')).toBeInTheDocument();
+  });
+
+  it('hides a static column when its id is absent from visibleStaticIds', () => {
+    // Drop the Projects column → its project link should disappear.
+    renderGrid({ visibleStaticIds: ['code', 'name', 'original', 'value_eur'] });
+    expect(screen.queryByRole('link', { name: 'A.1' })).toBeNull();
+  });
+
+  it('calls onSort with the column key when a sortable header is clicked', async () => {
+    const onSort = vi.fn();
+    renderGrid({ onSort, sort: null });
+    await userEvent.click(screen.getByRole('button', { name: /sort by line/i }));
+    expect(onSort).toHaveBeenCalledWith('name');
+  });
+
+  it('marks the active sort header with its direction indicator', () => {
+    renderGrid({ sort: { key: 'value_eur', dir: 'desc' }, onSort: vi.fn() });
+    const header = screen.getByRole('button', { name: /sort by value/i });
+    expect(header).toHaveClass('text-foreground');
   });
 });

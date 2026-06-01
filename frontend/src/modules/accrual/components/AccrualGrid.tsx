@@ -8,10 +8,11 @@ import type {
 import {
   buildColumns,
   computeMonthTotals,
-  STICKY_LEFT_OFFSETS,
+  DEFAULT_STATIC_IDS,
+  type AccrualSort,
 } from '@/modules/accrual/components/AccrualGridColumns';
 
-const STICKY_COL_COUNT = STICKY_LEFT_OFFSETS.length;
+const ROW_HEIGHT = 36;
 
 const fmt = new Intl.NumberFormat('en-US', {
   minimumFractionDigits: 2,
@@ -26,6 +27,9 @@ export interface AccrualGridProps {
   readonly canEdit?: boolean;
   readonly failedCells?: ReadonlySet<string>;
   readonly onEditLine?: (lineId: string) => void;
+  readonly visibleStaticIds?: readonly string[];
+  readonly sort?: AccrualSort | null;
+  readonly onSort?: (key: string) => void;
 }
 
 export function AccrualGrid({
@@ -36,10 +40,18 @@ export function AccrualGrid({
   canEdit = false,
   failedCells,
   onEditLine,
+  visibleStaticIds = DEFAULT_STATIC_IDS,
+  sort = null,
+  onSort,
 }: AccrualGridProps): JSX.Element {
   const columns = useMemo(
-    () => buildColumns(months, cells, onCellChange, canEdit, failedCells, onEditLine),
-    [months, cells, onCellChange, canEdit, failedCells, onEditLine],
+    () =>
+      buildColumns(months, cells, onCellChange, canEdit, failedCells, onEditLine, {
+        visibleStaticIds,
+        sort,
+        onSort,
+      }),
+    [months, cells, onCellChange, canEdit, failedCells, onEditLine, visibleStaticIds, sort, onSort],
   );
 
   const table = useReactTable({
@@ -70,28 +82,43 @@ export function AccrualGrid({
   const allColumns = table.getAllLeafColumns();
   const tableWidth = allColumns.reduce((sum, c) => sum + c.getSize(), 0);
 
+  // The leading N columns (N = visible static columns) are pinned left. Their
+  // left offsets are the running sum of the preceding sticky widths — derived
+  // here rather than hardcoded, so hiding a column re-pins the rest correctly.
+  const stickyCount = visibleStaticIds.length;
+  const nameColIdx = visibleStaticIds.indexOf('name');
+  const stickyOffsets = useMemo(() => {
+    const offsets: number[] = [];
+    let acc = 0;
+    for (let i = 0; i < stickyCount; i++) {
+      offsets.push(acc);
+      acc += allColumns[i]?.getSize() ?? 0;
+    }
+    return offsets;
+  }, [allColumns, stickyCount]);
+
   return (
     <div
-      className="relative overflow-auto overscroll-x-contain rounded-md border"
+      className="relative overflow-auto overscroll-x-contain rounded-lg border bg-card shadow-sm"
       style={{ maxHeight: 'calc(100vh - 120px)' }}
       role="grid"
       aria-label="Accrual grid"
     >
-      <table className="border-collapse table-fixed" style={{ width: tableWidth }}>
+      <table className="border-collapse table-fixed text-sm" style={{ width: tableWidth }}>
         <colgroup>
           {allColumns.map((col) => (
             <col key={col.id} style={{ width: col.getSize() }} />
           ))}
         </colgroup>
-        <thead className="sticky top-0 z-20" style={{ boxShadow: '0 1px 0 hsl(var(--border))' }}>
+        <thead className="sticky top-0 z-20">
           {/* Year group row */}
-          <tr className="bg-background">
-            <th colSpan={STICKY_COL_COUNT} className="sticky left-0 z-20 bg-background" />
+          <tr className="bg-muted">
+            <th colSpan={stickyCount} className="sticky left-0 z-20 bg-muted" />
             {yearGroups.map(([year, count]) => (
               <th
                 key={year}
                 colSpan={count}
-                className="border-l px-1 py-1 text-center text-xs font-medium text-muted-foreground"
+                className="border-l px-1 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
               >
                 {year}
               </th>
@@ -99,19 +126,20 @@ export function AccrualGrid({
           </tr>
           {/* Column header row */}
           {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id} className="bg-background">
+            <tr key={headerGroup.id} className="border-b bg-muted">
               {headerGroup.headers.map((header) => {
                 const colIdx = header.index;
-                const isSticky = colIdx < STICKY_COL_COUNT;
+                const isSticky = colIdx < stickyCount;
+                const isFirstMonth = colIdx === stickyCount;
                 return (
                   <th
                     key={header.id}
-                    className={`px-2 py-1 text-left text-xs font-medium ${
-                      isSticky ? 'sticky z-20 bg-background' : 'border-l'
-                    }`}
+                    className={`px-3 py-2 text-left text-[11px] font-semibold text-muted-foreground ${
+                      isSticky ? 'sticky z-20 bg-muted' : 'border-l'
+                    } ${isFirstMonth ? 'border-l-2 border-l-border' : ''}`}
                     style={{
                       width: header.getSize(),
-                      left: isSticky ? STICKY_LEFT_OFFSETS[colIdx] : undefined,
+                      left: isSticky ? stickyOffsets[colIdx] : undefined,
                     }}
                   >
                     {flexRender(header.column.columnDef.header, header.getContext())}
@@ -123,22 +151,25 @@ export function AccrualGrid({
         </thead>
         <tbody>
           {table.getRowModel().rows.map((row) => (
-            <tr key={row.id} className="border-b hover:bg-muted/10">
+            <tr key={row.id} className="group border-b transition-colors hover:bg-muted/40">
               {row.getVisibleCells().map((cell) => {
                 const colIdx = cell.column.getIndex();
-                const isSticky = colIdx < STICKY_COL_COUNT;
-                const isNameCol = colIdx === 1;
+                const isSticky = colIdx < stickyCount;
+                const isNameCol = colIdx === nameColIdx;
+                const isFirstMonth = colIdx === stickyCount;
                 return (
                   <td
                     key={cell.id}
-                    className={`px-0 py-0 ${
-                      isSticky ? 'sticky z-10 bg-background px-2' : 'border-l'
-                    } ${isNameCol ? 'max-w-0 overflow-hidden' : ''}`}
+                    className={`align-middle ${
+                      isSticky ? 'sticky z-10 bg-card px-3 group-hover:bg-muted/40' : 'border-l p-0'
+                    } ${isNameCol ? 'max-w-0 overflow-hidden' : ''} ${
+                      isFirstMonth ? 'border-l-2 border-l-border' : ''
+                    }`}
                     style={{
                       width: cell.column.getSize(),
                       maxWidth: isNameCol ? cell.column.getSize() : undefined,
-                      height: 32,
-                      left: isSticky ? STICKY_LEFT_OFFSETS[colIdx] : undefined,
+                      height: ROW_HEIGHT,
+                      left: isSticky ? stickyOffsets[colIdx] : undefined,
                     }}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -148,26 +179,23 @@ export function AccrualGrid({
             </tr>
           ))}
         </tbody>
-        <tfoot className="sticky bottom-0 z-20 bg-background border-t-2">
+        <tfoot className="sticky bottom-0 z-20 border-t-2 bg-card">
           <tr>
             <td
-              colSpan={STICKY_COL_COUNT}
-              className="sticky left-0 z-20 bg-background px-2 py-1 text-xs font-semibold text-muted-foreground"
+              colSpan={stickyCount}
+              className="sticky left-0 z-20 bg-card px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
               style={{ left: 0 }}
             >
               Totals (EUR)
             </td>
-            {months.map((m) => {
-              const total = monthTotals.get(`${m.year}_${m.month}`) ?? 0;
-              return (
-                <td
-                  key={`total_${m.year}_${m.month}`}
-                  className="border-l px-1 py-1 text-right text-xs font-semibold tabular-nums"
-                >
-                  {fmt.format(total)}
-                </td>
-              );
-            })}
+            {months.map((m) => (
+              <td
+                key={`total_${m.year}_${m.month}`}
+                className="border-l px-2 py-1.5 text-right text-xs font-semibold tabular-nums"
+              >
+                {fmt.format(monthTotals.get(`${m.year}_${m.month}`) ?? 0)}
+              </td>
+            ))}
           </tr>
         </tfoot>
       </table>

@@ -1,6 +1,15 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, AlertCircle, Info, Pencil, type LucideIcon } from 'lucide-react';
+import {
+  AlertTriangle,
+  AlertCircle,
+  Info,
+  Pencil,
+  ArrowUp,
+  ArrowDown,
+  ChevronsUpDown,
+  type LucideIcon,
+} from 'lucide-react';
 import { MONTHS_SHORT } from '@/shared/constants/dates';
 import { AccrualCell } from '@/modules/accrual/components/AccrualCell';
 import { buildCellKey } from '@/modules/accrual/types/accrual';
@@ -13,9 +22,34 @@ import type {
   AccrualLineSource,
 } from '@/modules/accrual/types/accrual';
 
-// Pixel offsets for each of the 5 sticky-left columns.
-// code=0, name=160, projects=360, original=520, value=630
-export const STICKY_LEFT_OFFSETS: readonly number[] = [0, 160, 360, 520, 630];
+export type SortDir = 'asc' | 'desc';
+
+export interface AccrualSort {
+  readonly key: string;
+  readonly dir: SortDir;
+}
+
+export interface StaticColumn {
+  readonly id: string;
+  readonly label: string;
+  readonly width: number;
+  readonly sortable: boolean;
+  readonly align: 'left' | 'right';
+}
+
+// The five non-month columns, in canonical left-to-right order. The grid renders
+// only the subset present in `visibleStaticIds` (preserving this order) and
+// derives the sticky-left offsets from these widths — so widths here are
+// load-bearing, not cosmetic.
+export const STATIC_COLUMNS: readonly StaticColumn[] = [
+  { id: 'code', label: 'Code', width: 150, sortable: true, align: 'left' },
+  { id: 'name', label: 'Line', width: 220, sortable: true, align: 'left' },
+  { id: 'projects', label: 'Projects', width: 170, sortable: false, align: 'left' },
+  { id: 'original', label: 'Original', width: 168, sortable: false, align: 'right' },
+  { id: 'value_eur', label: 'Value €', width: 124, sortable: true, align: 'right' },
+];
+
+export const DEFAULT_STATIC_IDS: readonly string[] = STATIC_COLUMNS.map((c) => c.id);
 
 const fmt = new Intl.NumberFormat('en-US', {
   minimumFractionDigits: 2,
@@ -89,6 +123,54 @@ function DataQualityIndicator({ note }: { readonly note: string | null }): JSX.E
     >
       <title>{note}</title>
     </AlertTriangle>
+  );
+}
+
+function SortableHeader({
+  column,
+  sort,
+  onSort,
+}: {
+  readonly column: StaticColumn;
+  readonly sort: AccrualSort | null;
+  readonly onSort?: (key: string) => void;
+}): JSX.Element {
+  const active = sort?.key === column.id;
+  const Indicator = !active ? ChevronsUpDown : sort?.dir === 'asc' ? ArrowUp : ArrowDown;
+  return (
+    <button
+      type="button"
+      onClick={() => onSort?.(column.id)}
+      className={`group inline-flex items-center gap-1 select-none border-0 bg-transparent p-0 font-inherit uppercase tracking-wide transition-colors hover:text-foreground ${
+        active ? 'text-foreground' : ''
+      }`}
+      aria-label={`Sort by ${column.label}`}
+    >
+      {column.label}
+      <Indicator
+        className={`h-3 w-3 shrink-0 ${active ? '' : 'opacity-0 group-hover:opacity-60'}`}
+      />
+    </button>
+  );
+}
+
+function StaticHeader({
+  column,
+  sort,
+  onSort,
+}: {
+  readonly column: StaticColumn;
+  readonly sort: AccrualSort | null;
+  readonly onSort?: (key: string) => void;
+}): JSX.Element {
+  return (
+    <div className={`w-full ${column.align === 'right' ? 'text-right' : 'text-left'}`}>
+      {column.sortable ? (
+        <SortableHeader column={column} sort={sort} onSort={onSort} />
+      ) : (
+        <span className="uppercase tracking-wide">{column.label}</span>
+      )}
+    </div>
   );
 }
 
@@ -176,15 +258,20 @@ function LineProjectsCellRenderer({ line }: { readonly line: AccrualGridLine }):
 }
 
 function LineOriginalCellRenderer({ line }: { readonly line: AccrualGridLine }): JSX.Element {
+  // EUR passthrough (and any line without a foreign original) has nothing to show.
+  if (!line.value_orig) {
+    return <span className="block text-right text-xs text-muted-foreground">—</span>;
+  }
   return (
-    <span className="text-xs tabular-nums">
-      {formatAmount(line.value_orig)}
-      {line.value_orig && line.currency ? (
-        <span className="ml-1 text-muted-foreground">{line.currency}</span>
-      ) : null}
+    <span className="flex items-baseline justify-end gap-1 whitespace-nowrap text-xs tabular-nums">
+      <span>{formatAmount(line.value_orig)}</span>
+      {line.currency ? <span className="text-muted-foreground">{line.currency}</span> : null}
       {line.rate ? (
-        <span className="ml-1 text-muted-foreground" title="Rate for this line (foreign per €)">
-          @ {Number(line.rate).toFixed(4)}
+        <span
+          className="text-muted-foreground/70"
+          title="Rate for this line (foreign per €)"
+        >
+          · @{Number(line.rate).toFixed(4)}
         </span>
       ) : null}
     </span>
@@ -202,7 +289,7 @@ function LineValueCellRenderer({ line }: { readonly line: AccrualGridLine }): JS
   const { diff_pct, diff_eur } = line.health;
   const isNegative = diff_eur?.startsWith('-') ?? false;
   return (
-    <span className="flex items-baseline gap-1 text-xs tabular-nums">
+    <span className="flex items-baseline justify-end gap-1 text-xs tabular-nums">
       <span>{formatAmount(line.value_eur)}</span>
       {diff_pct !== null && Math.abs(diff_pct) > 0.5 ? (
         <span className={`${diffBadgeClass(diff_pct)} text-[10px]`}>
@@ -214,6 +301,27 @@ function LineValueCellRenderer({ line }: { readonly line: AccrualGridLine }): JS
   );
 }
 
+function renderStaticCell(
+  id: string,
+  line: AccrualGridLine,
+  onEditLine?: (lineId: string) => void,
+): JSX.Element | null {
+  switch (id) {
+    case 'code':
+      return <LineCodeCellRenderer line={line} onEditLine={onEditLine} />;
+    case 'name':
+      return <LineNameCellRenderer line={line} />;
+    case 'projects':
+      return <LineProjectsCellRenderer line={line} />;
+    case 'original':
+      return <LineOriginalCellRenderer line={line} />;
+    case 'value_eur':
+      return <LineValueCellRenderer line={line} />;
+    default:
+      return null;
+  }
+}
+
 // Index cells by `${line_id}:${year}:${month}` for constant-time lookup.
 function indexCells(cells: AccrualCellType[]): Map<string, AccrualCellType> {
   const map = new Map<string, AccrualCellType>();
@@ -223,6 +331,12 @@ function indexCells(cells: AccrualCellType[]): Map<string, AccrualCellType> {
   return map;
 }
 
+export interface BuildColumnsOptions {
+  readonly visibleStaticIds?: readonly string[];
+  readonly sort?: AccrualSort | null;
+  readonly onSort?: (key: string) => void;
+}
+
 export function buildColumns(
   months: AccrualGridMonth[],
   cells: AccrualCellType[],
@@ -230,47 +344,27 @@ export function buildColumns(
   canEdit: boolean,
   failedCells: ReadonlySet<string> | undefined,
   onEditLine?: (lineId: string) => void,
+  options: BuildColumnsOptions = {},
 ): ColumnDef<AccrualGridLine>[] {
+  const { visibleStaticIds = DEFAULT_STATIC_IDS, sort = null, onSort } = options;
   const cellIndex = indexCells(cells);
-  const sticky: ColumnDef<AccrualGridLine>[] = [
-    {
-      id: 'code',
-      header: 'Code',
-      size: 160,
-      cell: ({ row }) => <LineCodeCellRenderer line={row.original} onEditLine={onEditLine} />,
-    },
-    {
-      id: 'name',
-      header: 'Line',
-      size: 200,
-      cell: ({ row }) => <LineNameCellRenderer line={row.original} />,
-    },
-    {
-      id: 'projects',
-      header: 'Projects',
-      size: 160,
-      cell: ({ row }) => <LineProjectsCellRenderer line={row.original} />,
-    },
-    {
-      id: 'original',
-      header: 'Original',
-      size: 110,
-      cell: ({ row }) => <LineOriginalCellRenderer line={row.original} />,
-    },
-    {
-      id: 'value_eur',
-      header: 'Value €',
-      size: 110,
-      cell: ({ row }) => <LineValueCellRenderer line={row.original} />,
-    },
-  ];
+  const visibleSet = new Set(visibleStaticIds);
+
+  const sticky: ColumnDef<AccrualGridLine>[] = STATIC_COLUMNS.filter((c) =>
+    visibleSet.has(c.id),
+  ).map((c) => ({
+    id: c.id,
+    size: c.width,
+    header: () => <StaticHeader column={c} sort={sort} onSort={onSort} />,
+    cell: ({ row }) => renderStaticCell(c.id, row.original, onEditLine),
+  }));
 
   const monthCols: ColumnDef<AccrualGridLine>[] = months.map((m) => ({
     id: `month_${m.year}_${m.month}`,
     header: () => {
       const showYear = m.month === 1;
       return (
-        <div className="flex flex-col leading-none gap-0.5">
+        <div className="flex flex-col items-end gap-0.5 leading-none">
           {showYear && <span className="text-[10px] text-muted-foreground">{m.year}</span>}
           <span>{monthLabel(m.month)}</span>
         </div>
