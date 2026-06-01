@@ -134,6 +134,44 @@ async def test_backlog_is_contracted_minus_all_recognized(db_session: AsyncSessi
 
 
 @pytest.mark.asyncio
+async def test_yoy_compares_same_elapsed_months_against_prior_year(
+    db_session: AsyncSession,
+) -> None:
+    """Open year: YoY weighs only the elapsed months against the same months a year
+    earlier, and exposes the prior-year total on those months for the burn-up curve."""
+    line = await _line(db_session)
+    await _rotate_to(db_session, 2025)
+    # 2025: Feb recognized within the (then) open period, Aug is later → both live,
+    # but only Feb falls inside 2026's recognized window (months < June).
+    await _cell(db_session, line, year=2025, month=2, amount="400")
+    await _cell(db_session, line, year=2025, month=8, amount="999")
+    await _rotate_to(db_session, 2026)  # closes + freezes 2025
+    await _cell(db_session, line, year=2026, month=2, amount="600")  # elapsed → recognized
+
+    summary = await dashboard_service.build_summary(db_session, year=2026, today=date(2026, 6, 1))
+    assert summary.kpis.recognized_ytd_eur == 600.0
+    # Prior-year comparison covers Feb only (the one recognized month of 2026), so Aug
+    # 2025 is excluded — 400, not 1399.
+    assert summary.kpis.recognized_prev_ytd_eur == 400.0
+    assert summary.kpis.yoy_pct == 50.0  # (600 - 400) / 400
+    # Burn-up reference: each month carries its prior-year amount.
+    feb = next(m for m in summary.months if m.month == 2)
+    assert feb.prev_amount_eur == 400.0
+    aug = next(m for m in summary.months if m.month == 8)
+    assert aug.prev_amount_eur == 999.0
+
+
+@pytest.mark.asyncio
+async def test_yoy_is_none_without_prior_year_recognition(db_session: AsyncSession) -> None:
+    await _rotate_to(db_session, 2026)
+    line = await _line(db_session)
+    await _cell(db_session, line, year=2026, month=2, amount="600")
+    summary = await dashboard_service.build_summary(db_session, year=2026, today=date(2026, 6, 1))
+    assert summary.kpis.recognized_prev_ytd_eur == 0.0
+    assert summary.kpis.yoy_pct is None
+
+
+@pytest.mark.asyncio
 async def test_plan_recognized_pct_and_available_years(db_session: AsyncSession) -> None:
     await _rotate_to(db_session, 2026)
     line = await _line(db_session)

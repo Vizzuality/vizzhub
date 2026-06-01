@@ -159,6 +159,7 @@ export interface DashboardMonth {
   month: number;
   amount_eur: number;
   status: MonthStatus;
+  prev_amount_eur: number;
 }
 
 export interface DashboardKpis {
@@ -167,6 +168,8 @@ export interface DashboardKpis {
   contracted_total_eur: number;
   backlog_eur: number;
   plan_recognized_pct: number;
+  recognized_prev_ytd_eur: number;
+  yoy_pct: number | null;
 }
 
 export interface AccrualDashboardSummary {

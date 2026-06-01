@@ -876,6 +876,7 @@ export const handlers = [
         month: i + 1,
         amount_eur: 0,
         status: 'forecast',
+        prev_amount_eur: 0,
       })),
       kpis: {
         recognized_ytd_eur: 0,
@@ -883,6 +884,8 @@ export const handlers = [
         contracted_total_eur: 0,
         backlog_eur: 0,
         plan_recognized_pct: 0,
+        recognized_prev_ytd_eur: 0,
+        yoy_pct: null,
       },
     });
   }),

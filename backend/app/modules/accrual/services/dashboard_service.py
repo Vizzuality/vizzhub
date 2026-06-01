@@ -97,14 +97,28 @@ def _build_kpis(
     recognized_ytd = _ZERO
     recognized_quarter = _ZERO
     recognized_to_date = _ZERO
+    recognized_months: set[int] = set()
     for (yy, mm), amount in amount_by_ym.items():
         if (yy, mm) >= cutoff:  # current month or later → forecast
             continue
         recognized_to_date += amount
         if yy == year:
             recognized_ytd += amount
+            recognized_months.add(mm)
             if mm in quarter_months:
                 recognized_quarter += amount
+
+    # Same-period prior year: sum the previous year over exactly the months that count
+    # as recognized this year, so the YoY comparison stays apples-to-apples (open year
+    # → elapsed months only; closed year → the full twelve).
+    recognized_prev_ytd = sum(
+        (amount_by_ym.get((year - 1, mm), _ZERO) for mm in recognized_months), _ZERO
+    )
+    yoy_pct = (
+        float((recognized_ytd - recognized_prev_ytd) / recognized_prev_ytd * 100)
+        if recognized_prev_ytd != _ZERO
+        else None
+    )
 
     backlog = contracted - recognized_to_date
     if backlog < _ZERO:
@@ -120,6 +134,8 @@ def _build_kpis(
         contracted_total_eur=_to_float(contracted),
         backlog_eur=_to_float(backlog),
         plan_recognized_pct=plan_recognized_pct,
+        recognized_prev_ytd_eur=_to_float(recognized_prev_ytd),
+        yoy_pct=yoy_pct,
     )
 
 
@@ -132,6 +148,7 @@ async def build_summary(db: AsyncSession, *, year: int, today: date) -> Dashboar
             month=month,
             amount_eur=_to_float(amount_by_ym.get((year, month), _ZERO)),
             status="recognized" if (year, month) < cutoff else "forecast",
+            prev_amount_eur=_to_float(amount_by_ym.get((year - 1, month), _ZERO)),
         )
         for month in range(1, 13)
     ]

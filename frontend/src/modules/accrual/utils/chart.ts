@@ -2,6 +2,8 @@
 
 export const RECOGNIZED_COLOR = 'var(--score-green)';
 export const FORECAST_COLOR = 'var(--muted-foreground)';
+/** YoY reference line (prior year) — a blue distinct from green and the muted plan. */
+export const PRIOR_YEAR_COLOR = 'var(--chart-2)';
 
 /**
  * Compact euro label for chart Y-axis ticks (e.g. €2.4M, €450k). Full-precision

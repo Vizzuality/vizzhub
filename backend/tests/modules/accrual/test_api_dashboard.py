@@ -19,6 +19,8 @@ async def test_summary_returns_well_formed_payload_for_empty_year(
         "contracted_total_eur",
         "backlog_eur",
         "plan_recognized_pct",
+        "recognized_prev_ytd_eur",
+        "yoy_pct",
     } <= set(body["kpis"].keys())
     assert isinstance(body["available_years"], list)
 

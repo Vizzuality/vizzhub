@@ -7,6 +7,7 @@ const MONTHS: DashboardMonth[] = Array.from({ length: 12 }, (_, i) => ({
   month: i + 1,
   amount_eur: i < 3 ? 1000 : 500,
   status: i < 3 ? 'recognized' : 'forecast',
+  prev_amount_eur: 0,
 }));
 
 describe('RecognitionByMonthChart', () => {

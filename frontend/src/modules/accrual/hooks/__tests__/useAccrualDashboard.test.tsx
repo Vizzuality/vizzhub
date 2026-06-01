@@ -21,13 +21,15 @@ describe('useAccrualDashboard', () => {
         return HttpResponse.json({
           year,
           available_years: [2025, 2026],
-          months: [{ month: 1, amount_eur: 100, status: 'recognized' }],
+          months: [{ month: 1, amount_eur: 100, status: 'recognized', prev_amount_eur: 80 }],
           kpis: {
             recognized_ytd_eur: 100,
             recognized_quarter_eur: 100,
             contracted_total_eur: 1000,
             backlog_eur: 900,
             plan_recognized_pct: 10,
+            recognized_prev_ytd_eur: 80,
+            yoy_pct: 25,
           },
         });
       }),

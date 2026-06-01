@@ -29,6 +29,7 @@ describe('AccrualDashboard', () => {
             month: i + 1,
             amount_eur: 100,
             status: 'recognized',
+            prev_amount_eur: 90,
           })),
           kpis: {
             recognized_ytd_eur: 1200,
@@ -36,6 +37,8 @@ describe('AccrualDashboard', () => {
             contracted_total_eur: 5000,
             backlog_eur: 3800,
             plan_recognized_pct: 57,
+            recognized_prev_ytd_eur: 1080,
+            yoy_pct: 11.1,
           },
         }),
       ),
