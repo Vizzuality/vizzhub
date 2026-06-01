@@ -21,7 +21,7 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, Setter<T>]
   const setValue = useCallback<Setter<T>>(
     (value) => {
       setStored((prev) => {
-        const next = value instanceof Function ? value(prev) : value;
+        const next = typeof value === 'function' ? (value as (prev: T) => T)(prev) : value;
         try {
           localStorage.setItem(key, JSON.stringify(next));
         } catch {
