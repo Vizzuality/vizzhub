@@ -74,8 +74,8 @@ export interface MetricsCreate {
     prs_without_review: number;
     total_merged_prs: number;
     pr_review_ratio?: number;
-    high_severity_vulns: number;
-    high_severity_vulns_total?: number;
+    high_severity_vulns: number | null;
+    high_severity_vulns_total: number | null;
     pr_size_median?: number;
     review_turnaround_hours?: number;
     deployment_frequency?: number;

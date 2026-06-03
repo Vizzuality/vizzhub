@@ -1,4 +1,4 @@
-import { Info, BellOff } from 'lucide-react';
+import { Info, BellOff, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Separator } from '@/shared/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip';
@@ -72,6 +72,41 @@ function AlertsOffBadge({ tooltip }: { tooltip: string }): JSX.Element {
       </Tooltip>
     </TooltipProvider>
   );
+}
+
+function NoAccessBadge({ tooltip }: { tooltip: string }): JSX.Element {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            data-testid="vulns-no-access-badge"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-xs font-medium text-amber-700 cursor-help dark:bg-amber-950 dark:text-amber-400"
+          >
+            <AlertTriangle className="h-3 w-3" />
+            No access
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p className="text-xs max-w-xs">{tooltip}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+function vulnerabilityBadge(highVulns: number | null, hasDependabotAlerts: boolean): JSX.Element | undefined {
+  if (highVulns == null) {
+    return (
+      <NoAccessBadge tooltip="Could not read Dependabot alerts — the GitHub token lacks access to this repo, or Dependabot is disabled. Excluded from the score." />
+    );
+  }
+  if (!hasDependabotAlerts) {
+    return (
+      <AlertsOffBadge tooltip="Dependabot Slack alerting is disabled in project settings. The score reflects collected vulnerability data; only the alert workflow is muted." />
+    );
+  }
+  return undefined;
 }
 
 function MutedCard({ title, dimension, description, message }: { title: string; dimension: Dimension; description: string; message: string }): JSX.Element {
@@ -286,13 +321,11 @@ export default function QualityMetricsGrid({
                   lowerIsBetter={true}
                   formula="count(high/critical vulns >30d)"
                   metrics={[
-                    { label: 'Total Open', value: metrics.github_metrics.high_severity_vulns_total ?? 0 },
-                    { label: 'Older than 30d', value: metrics.github_metrics.high_severity_vulns },
+                    { label: 'Total Open', value: metrics.github_metrics.high_severity_vulns_total ?? null },
+                    { label: 'Older than 30d', value: metrics.github_metrics.high_severity_vulns ?? null },
                   ]}
                   historicalData={getHistoricalData(snapshots, 'high_vulns')}
-                  badge={!project.has_dependabot_alerts ? (
-                    <AlertsOffBadge tooltip="Dependabot Slack alerting is disabled in project settings. The score reflects collected vulnerability data; only the alert workflow is muted." />
-                  ) : undefined}
+                  badge={vulnerabilityBadge(metrics.github_metrics.high_severity_vulns, project.has_dependabot_alerts)}
                 />
               ) : (
                 <MutedCard title="Security Vulnerabilities" dimension="Quality" description="Dependabot alerts unaddressed for 30+ days" message="No GitHub data available" />
