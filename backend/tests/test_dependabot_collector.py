@@ -251,3 +251,19 @@ class TestExtractAlertInfo:
         assert info["package_name"] == "express"
         assert info["severity"] == "high"
         assert info["cve_id"] is None
+
+
+import logging
+
+
+class TestFetchAlertsInaccessible:
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_non_200_returns_empty_and_logs(self, caplog: pytest.LogCaptureFixture) -> None:
+        respx.get(ALERTS_URL).mock(return_value=Response(404))
+
+        with caplog.at_level(logging.WARNING):
+            result = await DependabotCollector.fetch_alerts("owner/repo", "token")
+
+        assert result == []
+        assert any("dependabot_alerts_inaccessible" in str(r.message) for r in caplog.records)

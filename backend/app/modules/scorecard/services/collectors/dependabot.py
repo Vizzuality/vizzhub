@@ -7,6 +7,9 @@ high and critical severity vulnerabilities only.
 from typing import Any
 
 import httpx
+import structlog
+
+logger = structlog.get_logger()
 
 
 class DependabotCollector:
@@ -42,6 +45,11 @@ class DependabotCollector:
             )
 
             if response.status_code != 200:
+                logger.warning(
+                    "dependabot_alerts_inaccessible",
+                    repo=repo,
+                    status_code=response.status_code,
+                )
                 return []
 
             alerts = response.json()
