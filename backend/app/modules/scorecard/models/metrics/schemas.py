@@ -202,8 +202,8 @@ class MetricsCreate(BaseModel):
             prs_without_review=db.prs_without_review or 0,
             total_merged_prs=db.total_merged_prs or 0,
             pr_review_ratio=MetricsCreate._compute_pr_review_ratio(db),
-            high_severity_vulns=db.high_severity_vulns or 0,
-            high_severity_vulns_total=db.high_severity_vulns_total or 0,
+            high_severity_vulns=db.high_severity_vulns,
+            high_severity_vulns_total=db.high_severity_vulns_total,
             pr_size_median=float(db.pr_size_median) if db.pr_size_median is not None else None,
             review_turnaround_hours=float(db.review_turnaround_hours)
             if db.review_turnaround_hours is not None

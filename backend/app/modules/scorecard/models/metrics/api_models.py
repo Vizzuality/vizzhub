@@ -78,11 +78,11 @@ class GitHubMetrics(BaseModel):
     prs_without_review: int = Field(default=0, ge=0)
     total_merged_prs: int = Field(default=0, ge=0)
     pr_review_ratio: float | None = Field(default=None, ge=0, le=1)
-    high_severity_vulns: int = Field(
-        default=0, ge=0, description="High/critical vulns open >30 days"
+    high_severity_vulns: int | None = Field(
+        default=None, ge=0, description="High/critical vulns open >30 days (None = not assessed)"
     )
-    high_severity_vulns_total: int = Field(
-        default=0, ge=0, description="Total open high/critical vulns"
+    high_severity_vulns_total: int | None = Field(
+        default=None, ge=0, description="Total open high/critical vulns (None = not assessed)"
     )
     pr_size_median: float | None = Field(default=None, ge=0, description="Median PR size in lines")
     review_turnaround_hours: float | None = Field(

@@ -192,8 +192,8 @@ class MetricsDB(Base):
     GITHUB_FIELD_MAPPING = {
         "prs_without_review": ("prs_without_review", 0),
         "total_merged_prs": ("total_merged_prs", 0),
-        "high_severity_vulns": ("high_severity_vulns", 0),
-        "high_severity_vulns_total": ("high_severity_vulns_total", 0),
+        "high_severity_vulns": ("high_severity_vulns", None),
+        "high_severity_vulns_total": ("high_severity_vulns_total", None),
         "pr_size_median": ("pr_size_median", None),
         "review_turnaround_hours": ("review_turnaround_hours", None),
         "deployment_frequency": ("deployment_frequency", None),

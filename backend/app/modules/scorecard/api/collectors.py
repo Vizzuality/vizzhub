@@ -183,8 +183,8 @@ async def collect_github_metrics(
         # Update existing record with GitHub data
         existing_metrics.prs_without_review = raw_metrics.get("prs_without_review", 0)
         existing_metrics.total_merged_prs = raw_metrics.get("total_merged_prs", 0)
-        existing_metrics.high_severity_vulns = raw_metrics.get("high_severity_vulns", 0)
-        existing_metrics.high_severity_vulns_total = raw_metrics.get("high_severity_vulns_total", 0)
+        existing_metrics.high_severity_vulns = raw_metrics.get("high_severity_vulns")
+        existing_metrics.high_severity_vulns_total = raw_metrics.get("high_severity_vulns_total")
         existing_metrics.pr_size_median = raw_metrics.get("pr_size_median")
         existing_metrics.review_turnaround_hours = raw_metrics.get("review_turnaround_hours")
         existing_metrics.deployment_frequency = raw_metrics.get("deployment_frequency")

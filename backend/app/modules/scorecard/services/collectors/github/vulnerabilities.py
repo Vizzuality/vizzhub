@@ -44,7 +44,7 @@ DAYS_THRESHOLD = 30
 _CURSOR_PATTERN = re.compile(r"after=([^&>]+)")
 
 
-async def collect_vulnerabilities(client: "GitHubClient", repo_slug: str) -> dict:
+async def collect_vulnerabilities(client: "GitHubClient", repo_slug: str) -> dict[str, int | None]:
     """
     Collect high-severity vulnerability metrics from GitHub Dependabot.
 

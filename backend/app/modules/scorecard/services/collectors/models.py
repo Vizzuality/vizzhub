@@ -62,5 +62,5 @@ class GitHubCollectedMetrics(BaseModel):
     failed_releases: int
 
     # vulnerabilities
-    high_severity_vulns: int
-    high_severity_vulns_total: int
+    high_severity_vulns: int | None
+    high_severity_vulns_total: int | None
