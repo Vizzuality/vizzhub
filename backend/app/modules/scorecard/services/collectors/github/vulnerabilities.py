@@ -22,8 +22,8 @@ Normalization:
     Used in P_risk dimension
 
 Edge Cases:
-    - Dependabot not enabled: return 0 (assume no known vulns)
-    - API access denied (403): return 0 with warning
+    - Dependabot not enabled: return None (excluded from score, logged)
+    - API access denied (403/404): return None (excluded from score, logged)
     - No alerts: return 0
 
 == END SPEC ==
@@ -61,9 +61,9 @@ async def collect_vulnerabilities(client: "GitHubClient", repo_slug: str) -> dic
 
     if alerts is None:
         return {
-            "high_severity_vulns": 0,
-            "high_severity_vulns_total": 0,
-            "vulns_older_than_30d": 0,
+            "high_severity_vulns": None,
+            "high_severity_vulns_total": None,
+            "vulns_older_than_30d": None,
         }
 
     now = datetime.now(UTC)
@@ -92,11 +92,6 @@ def _extract_next_cursor(link_header: str) -> str | None:
     return match.group(1) if match else None
 
 
-def _is_access_denied(status_code: int) -> bool:
-    """Check if response indicates access denied or not available."""
-    return status_code in (403, 404)
-
-
 async def _get_dependabot_alerts(
     client: "GitHubClient", owner: str, repo: str
 ) -> list[dict] | None:
@@ -116,7 +111,13 @@ async def _get_dependabot_alerts(
                 params=params,
             )
 
-            if _is_access_denied(response.status_code) or response.status_code != 200:
+            if response.status_code != 200:
+                logger.warning(
+                    "dependabot_alerts_inaccessible",
+                    owner=owner,
+                    repo=repo,
+                    status_code=response.status_code,
+                )
                 return None
 
             alerts = response.json()

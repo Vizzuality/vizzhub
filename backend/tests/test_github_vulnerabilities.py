@@ -55,28 +55,30 @@ class TestCollectVulnerabilities:
         assert result["high_severity_vulns_total"] == 4  # All alerts
 
     @pytest.mark.asyncio
-    async def test_returns_zero_when_dependabot_not_enabled(self, mock_github_client) -> None:
-        """Should return 0 when Dependabot not enabled (403)."""
+    async def test_returns_none_when_dependabot_not_enabled(self, mock_github_client) -> None:
+        """Inaccessible Dependabot (403) -> None so the indicator is excluded, not scored 0."""
         mock_http = AsyncMock()
         mock_http.get.return_value = MagicMock(status_code=403)
         mock_github_client.get_client = AsyncMock(return_value=mock_http)
 
         result = await collect_vulnerabilities(mock_github_client, "owner/repo")
 
-        assert result["high_severity_vulns"] == 0
-        assert result["high_severity_vulns_total"] == 0
+        assert result["high_severity_vulns"] is None
+        assert result["high_severity_vulns_total"] is None
+        assert result["vulns_older_than_30d"] is None
 
     @pytest.mark.asyncio
-    async def test_returns_zero_when_repo_not_found(self, mock_github_client) -> None:
-        """Should return 0 when repository not found (404)."""
+    async def test_returns_none_when_repo_not_found(self, mock_github_client) -> None:
+        """Inaccessible repo (404) -> None (token lacks access / repo missing)."""
         mock_http = AsyncMock()
         mock_http.get.return_value = MagicMock(status_code=404)
         mock_github_client.get_client = AsyncMock(return_value=mock_http)
 
         result = await collect_vulnerabilities(mock_github_client, "owner/repo")
 
-        assert result["high_severity_vulns"] == 0
-        assert result["high_severity_vulns_total"] == 0
+        assert result["high_severity_vulns"] is None
+        assert result["high_severity_vulns_total"] is None
+        assert result["vulns_older_than_30d"] is None
 
     @pytest.mark.asyncio
     async def test_handles_boundary_29_days(self, mock_github_client) -> None:
