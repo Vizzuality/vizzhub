@@ -1,4 +1,5 @@
 import { Info, BellOff, AlertTriangle } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Separator } from '@/shared/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip';
@@ -53,38 +54,25 @@ function toPercent(value: number | null | undefined): number | null {
   return value !== null && value !== undefined ? value * 100 : null;
 }
 
-function AlertsOffBadge({ tooltip }: { tooltip: string }): JSX.Element {
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span
-            data-testid="alerts-off-badge"
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-xs font-medium text-muted-foreground cursor-help"
-          >
-            <BellOff className="h-3 w-3" />
-            Alerts off
-          </span>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p className="text-xs max-w-xs">{tooltip}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
+interface BadgePillProps {
+  readonly icon: LucideIcon;
+  readonly label: string;
+  readonly colorClass: string;
+  readonly tooltip: string;
+  readonly testId: string;
 }
 
-function NoAccessBadge({ tooltip }: { tooltip: string }): JSX.Element {
+function BadgePill({ icon: Icon, label, colorClass, tooltip, testId }: BadgePillProps): JSX.Element {
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
           <span
-            data-testid="vulns-no-access-badge"
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-xs font-medium text-amber-700 cursor-help dark:bg-amber-950 dark:text-amber-400"
+            data-testid={testId}
+            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-help ${colorClass}`}
           >
-            <AlertTriangle className="h-3 w-3" />
-            No access
+            <Icon className="h-3 w-3" />
+            {label}
           </span>
         </TooltipTrigger>
         <TooltipContent>
@@ -98,12 +86,24 @@ function NoAccessBadge({ tooltip }: { tooltip: string }): JSX.Element {
 function vulnerabilityBadge(highVulns: number | null, hasDependabotAlerts: boolean): JSX.Element | undefined {
   if (highVulns == null) {
     return (
-      <NoAccessBadge tooltip="Could not read Dependabot alerts — the GitHub token lacks access to this repo, or Dependabot is disabled. Excluded from the score." />
+      <BadgePill
+        icon={AlertTriangle}
+        label="No access"
+        colorClass="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400"
+        testId="vulns-no-access-badge"
+        tooltip="Could not read Dependabot alerts — the GitHub token lacks access to this repo, or Dependabot is disabled. Excluded from the score."
+      />
     );
   }
   if (!hasDependabotAlerts) {
     return (
-      <AlertsOffBadge tooltip="Dependabot Slack alerting is disabled in project settings. The score reflects collected vulnerability data; only the alert workflow is muted." />
+      <BadgePill
+        icon={BellOff}
+        label="Alerts off"
+        colorClass="bg-muted text-muted-foreground"
+        testId="alerts-off-badge"
+        tooltip="Dependabot Slack alerting is disabled in project settings. The score reflects collected vulnerability data; only the alert workflow is muted."
+      />
     );
   }
   return undefined;

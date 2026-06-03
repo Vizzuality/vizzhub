@@ -4,6 +4,8 @@ This module tests the DependabotCollector which fetches security alerts
 from GitHub's Dependabot API, filtering for high/critical severity only.
 """
 
+import logging
+
 import pytest
 import respx
 from httpx import Response
@@ -251,9 +253,6 @@ class TestExtractAlertInfo:
         assert info["package_name"] == "express"
         assert info["severity"] == "high"
         assert info["cve_id"] is None
-
-
-import logging
 
 
 class TestFetchAlertsInaccessible:
