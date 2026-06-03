@@ -73,6 +73,11 @@ export default function GoogleDriveCard(): JSX.Element {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        <p className="text-xs text-muted-foreground">
+          OAuth connection — authorized once via Google. Grants Drive access to
+          create and update the exported Google Docs in the Shared Drive folder
+          below.
+        </p>
         {config?.connected && (
           <div className="space-y-2">
             <Label htmlFor="drive-folder-id">Shared Drive folder ID</Label>

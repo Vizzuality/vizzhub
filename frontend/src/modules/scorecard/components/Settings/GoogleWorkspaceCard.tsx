@@ -61,6 +61,11 @@ export default function GoogleWorkspaceCard(): JSX.Element {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        <p className="text-xs text-muted-foreground">
+          OAuth connection — authorized by a Workspace admin. Grants read-only
+          Directory access (users &amp; groups) used for ISO 27001 access
+          snapshots.
+        </p>
         {config?.connected && config.domain && (
           <div className="text-sm">
             <span className="text-muted-foreground">Domain: </span>

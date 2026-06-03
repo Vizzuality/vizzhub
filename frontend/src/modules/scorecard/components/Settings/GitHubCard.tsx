@@ -186,6 +186,14 @@ export default function GitHubCard({ status }: GitHubCardProps): JSX.Element {
               )}
             </Button>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Use a <span className="font-medium">classic</span> token (
+            <span className="font-mono">ghp_…</span>) — fine-grained tokens only
+            reach a single organization. Required scopes:{' '}
+            <span className="font-mono">repo</span> (metrics + Dependabot alerts)
+            and <span className="font-mono">read:org</span> (ISO access reviews).
+            The owning account must belong to every org and repo you track.
+          </p>
         </div>
 
         {status?.connected && (

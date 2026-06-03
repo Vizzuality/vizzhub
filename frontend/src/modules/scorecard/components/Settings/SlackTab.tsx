@@ -133,6 +133,13 @@ export default function SlackTab({ status }: SlackTabProps): JSX.Element {
               )}
             </Button>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Bot User OAuth Token (<span className="font-mono">xoxb-…</span>), not a
+            user token. Required bot scopes:{' '}
+            <span className="font-mono">chat:write</span>,{' '}
+            <span className="font-mono">channels:read</span>,{' '}
+            <span className="font-mono">users:read.email</span>.
+          </p>
         </div>
 
         {/* Test Connection (only when connected) */}

@@ -67,6 +67,11 @@ export default function JiraCard({ status }: JiraCardProps): JSX.Element {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        <p className="text-xs text-muted-foreground">
+          OAuth connection — no token to paste; you are redirected to Atlassian to
+          authorize. Grants read-only access (projects, issues, users, boards,
+          sprints).
+        </p>
         {status?.connected && status.site_url && (
           <div className="text-sm">
             <span className="text-muted-foreground">Site: </span>
