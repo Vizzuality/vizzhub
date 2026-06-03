@@ -3,8 +3,9 @@
 from datetime import UTC, date, datetime
 from uuid import UUID
 
-from app.modules.scorecard.models.metrics import MetricsDB, SnapshotType
+from app.modules.scorecard.models.metrics import GitHubMetrics, MetricsDB, SnapshotType
 from app.modules.scorecard.models.metrics.schemas import Metrics
+from app.modules.scorecard.services.normalizers.indicators import IndicatorNormalizer
 
 _PROJECT_ID = UUID("00000000-0000-0000-0000-000000000001")
 _METRICS_ID = UUID("00000000-0000-0000-0000-000000000002")
@@ -43,3 +44,15 @@ def test_zero_vulns_stay_zero() -> None:
     assert metrics.github_metrics is not None
     assert metrics.github_metrics.high_severity_vulns == 0
     assert metrics.github_metrics.high_severity_vulns_total == 0
+
+
+def test_normalizer_high_vulns_none_when_inaccessible() -> None:
+    gh = GitHubMetrics(total_merged_prs=5, prs_without_review=1, high_severity_vulns=None)
+    normalizer = IndicatorNormalizer()
+    assert normalizer._get_high_vulns(gh) is None
+
+
+def test_normalizer_high_vulns_zero_is_real_zero() -> None:
+    gh = GitHubMetrics(total_merged_prs=5, prs_without_review=1, high_severity_vulns=0)
+    normalizer = IndicatorNormalizer()
+    assert normalizer._get_high_vulns(gh) == 0
