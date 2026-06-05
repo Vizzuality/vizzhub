@@ -126,3 +126,119 @@ async def test_bulk_set_cells_by_line_happy_path(db_session: AsyncSession) -> No
     assert len(cells) == 2
     assert {c.month for c in cells} == {2, 3}
     assert all(c.is_manual_override for c in cells)
+
+
+@pytest.mark.asyncio
+async def test_set_line_rate_recomputes_value_eur_and_redistributes(
+    db_session: AsyncSession,
+) -> None:
+    line = AccrualLineDB(
+        name="L",
+        source=LineSource.MANUAL.value,
+        value_orig=Decimal("1080"),
+        currency="USD",
+        value_eur=Decimal("0"),
+        window_start=date(2026, 1, 1),
+        window_end=date(2026, 3, 31),
+    )
+    db_session.add(line)
+    await db_session.flush()
+
+    result = await cell_service.set_line_rate(db_session, line_id=line.id, rate=Decimal("1.08"))
+    await db_session.refresh(line)
+
+    assert result is not None
+    assert line.rate == Decimal("1.08")
+    assert line.value_eur == Decimal("1000.00")  # 1080 / 1.08
+    cells = (
+        (await db_session.execute(select(AccrualCellDB).where(AccrualCellDB.line_id == line.id)))
+        .scalars()
+        .all()
+    )
+    assert len(cells) == 3
+    # redistribute splits uniformly; 1000/3 = 333.33 each → 999.99 total
+    assert sum(c.amount for c in cells) == Decimal("999.99")
+
+
+@pytest.mark.asyncio
+async def test_set_line_rate_clear_falls_back_to_period(db_session: AsyncSession) -> None:
+    await period_service.create_period(
+        db_session, start_date=date(2026, 1, 1), created_by=None, fx_rates={"USD": "1.20"}
+    )
+    line = AccrualLineDB(
+        name="L",
+        source=LineSource.MANUAL.value,
+        value_orig=Decimal("1200"),
+        currency="USD",
+        rate=Decimal("1.08"),
+        value_eur=Decimal("1111.11"),
+        window_start=date(2026, 1, 1),
+        window_end=date(2026, 1, 31),
+    )
+    db_session.add(line)
+    await db_session.flush()
+
+    await cell_service.set_line_rate(db_session, line_id=line.id, rate=None)
+    await db_session.refresh(line)
+
+    assert line.rate is None
+    assert line.value_eur == Decimal("1000.00")  # 1200 / 1.20 (period)
+
+
+@pytest.mark.asyncio
+async def test_set_line_rate_noop_for_eur_line(db_session: AsyncSession) -> None:
+    line = AccrualLineDB(
+        name="L",
+        source=LineSource.MANUAL.value,
+        value_orig=Decimal("500"),
+        currency="EUR",
+        value_eur=Decimal("500"),
+        window_start=date(2026, 1, 1),
+        window_end=date(2026, 1, 31),
+    )
+    db_session.add(line)
+    await db_session.flush()
+
+    result = await cell_service.set_line_rate(db_session, line_id=line.id, rate=Decimal("1.08"))
+    await db_session.refresh(line)
+    assert result is None
+    assert line.rate is None
+    assert line.value_eur == Decimal("500")
+
+
+@pytest.mark.asyncio
+async def test_set_line_rate_noop_without_value_orig(db_session: AsyncSession) -> None:
+    line = AccrualLineDB(
+        name="L",
+        source=LineSource.MANUAL.value,
+        value_orig=None,
+        currency="USD",
+        value_eur=Decimal("900"),
+        window_start=date(2026, 1, 1),
+        window_end=date(2026, 1, 31),
+    )
+    db_session.add(line)
+    await db_session.flush()
+    result = await cell_service.set_line_rate(db_session, line_id=line.id, rate=Decimal("1.08"))
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_set_line_rate_clear_noop_without_window_start(db_session: AsyncSession) -> None:
+    line = AccrualLineDB(
+        name="L",
+        source=LineSource.MANUAL.value,
+        value_orig=Decimal("1200"),
+        currency="USD",
+        rate=Decimal("1.08"),
+        value_eur=Decimal("1111.11"),
+        window_start=None,
+        window_end=None,
+    )
+    db_session.add(line)
+    await db_session.flush()
+    result = await cell_service.set_line_rate(db_session, line_id=line.id, rate=None)
+    await db_session.refresh(line)
+    assert result is None
+    assert line.rate == Decimal("1.08")  # unchanged
+    assert line.value_eur == Decimal("1111.11")  # untouched

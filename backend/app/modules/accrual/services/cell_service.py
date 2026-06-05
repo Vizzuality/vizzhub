@@ -12,6 +12,7 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.services.exchange_rate_service import currency_to_code
 from app.modules.accrual.models.accrual_cell import AccrualCellDB, CellSource
 from app.modules.accrual.models.accrual_line import AccrualLineDB
 from app.modules.accrual.services import period_service
@@ -197,6 +198,49 @@ async def redistribute_for_line(
         force=force,
     )
     return written
+
+
+async def set_line_rate(
+    db: AsyncSession,
+    *,
+    line_id: UUID,
+    rate: Decimal | None,
+) -> AccrualLineDB | None:
+    """Set (or clear, when ``rate`` is None) a line's FX override, then recompute
+    ``value_eur = value_orig / effective_rate`` and redistribute the open months.
+
+    No-op (returns None) for EUR/passthrough lines and lines without ``value_orig``
+    or without a resolvable effective rate — the EUR figure is left untouched.
+    """
+    line = await db.get(AccrualLineDB, line_id)
+    if line is None or line.value_orig is None or not line.currency:
+        return None
+    code = currency_to_code(line.currency)
+    if code == "EUR":
+        return None
+
+    if rate is not None:
+        effective = rate
+    else:
+        if line.window_start is None:
+            return None
+        effective = await period_service.resolve_rate(db, code=code, as_of=line.window_start)
+        if effective is None:
+            return None
+
+    prev_rate = line.rate
+    line.rate = rate
+    line.value_eur = _quantize(Decimal(line.value_orig) / effective)
+    await db.flush()
+    await redistribute_for_line(db, line_id=line_id, force=False)
+    logger.info(
+        "accrual_line_rate_overridden" if rate is not None else "accrual_line_rate_cleared",
+        line_id=str(line_id),
+        prev_rate=str(prev_rate) if prev_rate is not None else None,
+        new_rate=str(rate) if rate is not None else None,
+        value_eur=str(line.value_eur),
+    )
+    return line
 
 
 async def set_cell_amount_by_line(
