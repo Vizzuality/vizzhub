@@ -866,6 +866,25 @@ export const handlers = [
     });
   }),
 
+  // Accrual — Lines
+  http.patch(`${BASE}/accrual/lines/:id`, async ({ request, params }) => {
+    const body = await request.json() as Record<string, unknown>;
+    return HttpResponse.json({
+      id: params.id,
+      name: 'Test Line',
+      source: 'excel',
+      excel_code: 'TST.1',
+      value_eur: '500.00',
+      value_orig: '500.00',
+      currency: 'USD',
+      window_start: null,
+      window_end: null,
+      projects: [],
+      rate: (body.rate as string | null) ?? null,
+      period_rate: '1.0800',
+    });
+  }),
+
   // Accrual — Dashboard
   http.get(`${BASE}/accrual/dashboard/summary`, ({ request }) => {
     const year = Number(new URL(request.url).searchParams.get('year')) || 2026;

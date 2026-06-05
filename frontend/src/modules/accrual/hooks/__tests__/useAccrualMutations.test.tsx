@@ -220,6 +220,76 @@ describe('useAccrualMutations — redistributeLine', () => {
   });
 });
 
+describe('useAccrualMutations — setLineRate', () => {
+  it('setLineRate PATCHes the line rate and resolves', async () => {
+    let capturedBody: unknown = undefined;
+    server.use(
+      http.patch('/api/accrual/lines/:id', async ({ request }) => {
+        capturedBody = await request.json();
+        return HttpResponse.json({
+          id: LINE_ID,
+          name: 'Test Line',
+          source: 'excel',
+          excel_code: 'TST.1',
+          value_eur: '500.00',
+          value_orig: '500.00',
+          currency: 'USD',
+          window_start: null,
+          window_end: null,
+          projects: [],
+          rate: '1.2',
+          period_rate: '1.0800',
+        });
+      }),
+    );
+
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useAccrualMutations(), { wrapper });
+
+    await act(async () => {
+      await result.current.setLineRate(LINE_ID, '1.2');
+    });
+
+    await waitFor(() => expect(result.current.savingState).toBe('idle'));
+    expect(capturedBody).toEqual({ rate: '1.2' });
+    expect(result.current.errorMessage).toBeNull();
+  });
+
+  it('setLineRate sends null to clear', async () => {
+    let capturedBody: unknown = undefined;
+    server.use(
+      http.patch('/api/accrual/lines/:id', async ({ request }) => {
+        capturedBody = await request.json();
+        return HttpResponse.json({
+          id: LINE_ID,
+          name: 'Test Line',
+          source: 'excel',
+          excel_code: 'TST.1',
+          value_eur: '500.00',
+          value_orig: '500.00',
+          currency: 'USD',
+          window_start: null,
+          window_end: null,
+          projects: [],
+          rate: null,
+          period_rate: '1.0800',
+        });
+      }),
+    );
+
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useAccrualMutations(), { wrapper });
+
+    await act(async () => {
+      await result.current.setLineRate(LINE_ID, null);
+    });
+
+    await waitFor(() => expect(result.current.savingState).toBe('idle'));
+    expect(capturedBody).toEqual({ rate: null });
+    expect(result.current.errorMessage).toBeNull();
+  });
+});
+
 describe('useAccrualMutations — bulkUpdate', () => {
   it('calls POST /accrual/cells/bulk and returns to idle on success', async () => {
     server.use(

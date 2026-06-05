@@ -75,7 +75,7 @@ export function Accrual(): JSX.Element {
   );
 
   const { data, isLoading, error } = useAccrualGrid(apiFilters);
-  const { updateCell, failedCells, errorMessage } = useAccrualMutations();
+  const { updateCell, failedCells, errorMessage, setLineRate } = useAccrualMutations();
   const canEdit = usePermission(Action.ACCRUAL_MANAGE);
   // null = editor closed; 'new' = create mode; otherwise the line id being edited.
   const [editingLineId, setEditingLineId] = useState<string | null>(null);
@@ -157,6 +157,7 @@ export function Accrual(): JSX.Element {
         visibleStaticIds={visibleStaticIds}
         sort={sort}
         onSort={handleSort}
+        onRateChange={canEdit ? setLineRate : undefined}
       />
     );
   }

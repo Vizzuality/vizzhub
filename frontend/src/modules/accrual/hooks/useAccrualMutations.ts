@@ -12,6 +12,7 @@ export interface UseAccrualMutationsReturn {
   bulkUpdate: (updates: BulkCellUpdate[]) => Promise<void>;
   clearOverride: (cellId: string) => Promise<void>;
   redistributeLine: (lineId: string, force?: boolean) => Promise<void>;
+  setLineRate: (lineId: string, rate: string | null) => Promise<void>;
   savingState: SavingState;
   failedCells: ReadonlySet<string>;
   clearFailedCell: (key: string) => void;
@@ -121,6 +122,12 @@ export function useAccrualMutations(): UseAccrualMutationsReturn {
     ...simpleMutationCallbacks,
   });
 
+  const setRateMutation = useMutation({
+    mutationFn: ({ lineId, rate }: { lineId: string; rate: string | null }) =>
+      accrualApi.lines.setRate(lineId, rate),
+    ...simpleMutationCallbacks,
+  });
+
   const bulkMutation = useMutation({
     mutationFn: (updates: BulkCellUpdate[]) => accrualApi.cells.bulk(updates),
     ...simpleMutationCallbacks,
@@ -154,6 +161,12 @@ export function useAccrualMutations(): UseAccrualMutationsReturn {
     [redistributeMutation],
   );
 
+  const setLineRate = useCallback(
+    (lineId: string, rate: string | null): Promise<void> =>
+      setRateMutation.mutateAsync({ lineId, rate }).then(() => undefined).catch(() => undefined),
+    [setRateMutation],
+  );
+
   const bulkUpdate = useCallback(
     (updates: BulkCellUpdate[]): Promise<void> =>
       bulkMutation.mutateAsync(updates).then(() => undefined).catch(() => undefined),
@@ -175,6 +188,7 @@ export function useAccrualMutations(): UseAccrualMutationsReturn {
     bulkUpdate,
     clearOverride,
     redistributeLine,
+    setLineRate,
     savingState,
     failedCells,
     clearFailedCell,

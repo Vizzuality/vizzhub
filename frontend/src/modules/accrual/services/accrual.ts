@@ -106,6 +106,10 @@ export const accrualApi = {
       );
       return r.data;
     },
+    setRate: async (lineId: string, rate: string | null): Promise<AccrualLineDetail> => {
+      const r = await api.patch<AccrualLineDetail>(`/accrual/lines/${lineId}`, { rate });
+      return r.data;
+    },
   },
   dashboard: {
     summary: async (year: number): Promise<AccrualDashboardSummary> => {
