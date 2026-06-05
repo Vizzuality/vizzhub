@@ -93,8 +93,10 @@ export interface AccrualGridLine {
   health: AccrualHealth;
   data_quality_note: string | null;
   dates_diverged: boolean;
-  /** The CEO's per-line Excel rate (foreign per €) — audit + override of the period rate. Display-only. */
+  /** CEO's per-line FX override (foreign per €). When null the line follows the period. */
   rate: string | null;
+  /** Resolved period rate (foreign per €) for the muted default display when no override. */
+  period_rate: string | null;
 }
 
 /** A line with its linked projects — the line-editor detail shape. */
@@ -109,6 +111,8 @@ export interface AccrualLineDetail {
   window_start: string | null;
   window_end: string | null;
   projects: AccrualLineProject[];
+  rate: string | null;
+  period_rate: string | null;
 }
 
 export interface AccrualLineCreate {
