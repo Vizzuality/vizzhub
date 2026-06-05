@@ -9,10 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.project import ProjectDB
 from app.modules.accrual.models.accrual_cell import AccrualCellDB
-from app.modules.accrual.models.accrual_line import LineSource
+from app.modules.accrual.models.accrual_line import AccrualLineDB, LineSource
 from app.modules.accrual.models.accrual_line_project import AccrualLineProjectDB
 from app.modules.accrual.models.accrual_period import AccrualPeriodDB
-from app.modules.accrual.services import budget_derivation
+from app.modules.accrual.services import budget_derivation, cell_service, period_service
 
 
 @pytest.mark.asyncio
@@ -86,7 +86,7 @@ async def test_upsert_creates_team_budget_line_with_spread(db_session: AsyncSess
     assert line.source == LineSource.TEAM_BUDGET.value
     assert line.value_eur == Decimal("1000.00")
     assert line.currency == "USD"
-    assert line.rate == Decimal("1.00")
+    assert line.rate is None  # auto rate is not persisted; only CEO overrides are stored
     assert line.window_start == date(2026, 1, 1)
     assert line.window_end == date(2026, 4, 1)
     cells = (
@@ -233,3 +233,57 @@ async def test_upsert_refreshes_existing_team_budget_line(db_session: AsyncSessi
     second = await budget_derivation.upsert_derived_line(db_session, project_id=project.id)
     assert second.id == first.id
     assert second.value_eur == Decimal("2000.00")
+
+
+async def _find_team_budget_line(db: AsyncSession, project_id) -> AccrualLineDB | None:
+    result = await db.execute(
+        select(AccrualLineDB)
+        .join(AccrualLineProjectDB, AccrualLineProjectDB.line_id == AccrualLineDB.id)
+        .where(
+            AccrualLineProjectDB.project_id == project_id,
+            AccrualLineDB.source == LineSource.TEAM_BUDGET.value,
+        )
+    )
+    return result.scalars().first()
+
+
+@pytest.mark.asyncio
+async def test_override_survives_rederivation(db_session: AsyncSession) -> None:
+    db_session.add(
+        AccrualPeriodDB(start_date=date(2026, 1, 1), status="open", fx_rates={"USD": "1.00"})
+    )
+    project = await _make_project(
+        db_session,
+        original_budget=Decimal("1080"),
+        currency="dollar",
+        start_date=date(2026, 1, 1),
+        end_date=date(2026, 3, 31),
+    )
+    await budget_derivation.upsert_derived_line(db_session, project_id=project.id)
+    line = await _find_team_budget_line(db_session, project.id)
+    assert line is not None
+    await cell_service.set_line_rate(db_session, line_id=line.id, rate=Decimal("1.08"))
+    assert line.value_eur == Decimal("1000.00")
+    await budget_derivation.upsert_derived_line(db_session, project_id=project.id)
+    await db_session.refresh(line)
+    assert line.rate == Decimal("1.08")  # override kept
+    assert line.value_eur == Decimal("1000.00")  # recomputed at override
+
+
+@pytest.mark.asyncio
+async def test_create_does_not_persist_auto_rate(db_session: AsyncSession) -> None:
+    await period_service.create_period(
+        db_session, start_date=date(2026, 1, 1), created_by=None, fx_rates={"USD": "1.20"}
+    )
+    project = await _make_project(
+        db_session,
+        original_budget=Decimal("1200"),
+        currency="dollar",
+        start_date=date(2026, 1, 1),
+        end_date=date(2026, 1, 31),
+    )
+    await budget_derivation.upsert_derived_line(db_session, project_id=project.id)
+    line = await _find_team_budget_line(db_session, project.id)
+    assert line is not None
+    assert line.rate is None  # auto rate NOT persisted
+    assert line.value_eur == Decimal("1000.00")  # uses period rate 1.20

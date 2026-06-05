@@ -36,22 +36,25 @@ async def provision_project_accrual(db: AsyncSession, *, project: ProjectDB) -> 
     ):
         return ProvisionResult(budget_changed=False, line_id=None)
 
-    derived = await accrual_public.convert_original_budget(
-        db,
-        original_budget=Decimal(project.original_budget),
-        currency=project.currency,
-        start_date=project.start_date,
-    )
-    if derived is None:  # no rate available -> treat as non-derivable
-        return ProvisionResult(budget_changed=False, line_id=None)
-
-    budget_changed = project.budget != derived
-    project.budget = derived
     line = await accrual_public.upsert_derived_line(db, project_id=project.id)
+    if line is not None:
+        new_budget = Decimal(line.value_eur)
+    else:
+        new_budget = await accrual_public.convert_original_budget(
+            db,
+            original_budget=Decimal(project.original_budget),
+            currency=project.currency,
+            start_date=project.start_date,
+        )
+        if new_budget is None:
+            return ProvisionResult(budget_changed=False, line_id=None)
+
+    budget_changed = project.budget != new_budget
+    project.budget = new_budget
     logger.info(
         "project_accrual_provisioned",
         project_id=str(project.id),
-        budget=str(derived),
+        budget=str(new_budget),
         budget_changed=budget_changed,
         line_id=str(line.id) if line else None,
     )

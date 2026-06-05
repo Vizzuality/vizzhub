@@ -105,12 +105,10 @@ async def _refresh_derived_line(
     line: AccrualLineDB,
     *,
     value_eur: Decimal,
-    rate: Decimal | None,
 ) -> AccrualLineDB:
-    """Recompute value/rate and redistribute open months only (R4); window is
-    sovereign (R5) — never re-derived from project dates here."""
+    """Recompute value and redistribute open months only (R4); window is sovereign
+    (R5); the FX override on ``line.rate`` is never touched here."""
     line.value_eur = value_eur
-    line.rate = rate
     await db.flush()
 
     frozen_total = sum(
@@ -144,29 +142,33 @@ async def _refresh_derived_line(
 
 
 async def upsert_derived_line(db: AsyncSession, *, project_id: UUID) -> AccrualLineDB | None:
-    """Build or refresh the project's derived team_budget line.
-
-    Non-derivable (missing any of original_budget/currency/start_date/end_date,
-    or no FX rate) -> no-op, returns None. Create seeds window=project dates +
-    uniform spread. (Update path is added in the next task.)
-    """
+    """Build or refresh the project's derived team_budget line. A CEO override on the
+    line's ``rate`` wins for value_eur and is never overwritten; otherwise the period
+    rate is used and ``rate`` stays null (auto, follows the period)."""
     project = await db.get(ProjectDB, project_id)
     if project is None or not _is_derivable(project):
         return None
-    value_eur = await convert_original_budget(
-        db,
-        original_budget=Decimal(project.original_budget),
-        currency=project.currency,
-        start_date=project.start_date,
-    )
-    if value_eur is None:
-        return None
-    code = currency_to_code(project.currency)
-    rate = None if code == "EUR" else await _resolve_rate(db, code, project.start_date)
 
     existing = await _find_derived_line(db, project_id)
+    code = currency_to_code(project.currency)
+    override = existing.rate if existing is not None else None
+
+    if code == "EUR":
+        value_eur: Decimal | None = _quantize(Decimal(project.original_budget))
+    elif override is not None:
+        value_eur = _quantize(Decimal(project.original_budget) / override)
+    else:
+        value_eur = await convert_original_budget(
+            db,
+            original_budget=Decimal(project.original_budget),
+            currency=project.currency,
+            start_date=project.start_date,
+        )
+    if value_eur is None:
+        return None
+
     if existing is not None:
-        return await _refresh_derived_line(db, existing, value_eur=value_eur, rate=rate)
+        return await _refresh_derived_line(db, existing, value_eur=value_eur)
 
     # A project already linked to a contract line (Excel/manual) must not get a
     # second, derived line — that would double-count its revenue.
@@ -181,7 +183,7 @@ async def upsert_derived_line(db: AsyncSession, *, project_id: UUID) -> AccrualL
         excel_code=project.code,
         value_orig=Decimal(project.original_budget),
         currency=code,
-        rate=rate,
+        rate=None,  # override-only: auto rate is not persisted
         value_eur=value_eur,
         window_start=project.start_date,
         window_end=project.end_date,
