@@ -34,6 +34,7 @@ const line: AccrualGridLine = {
   data_quality_note: null,
   dates_diverged: false,
   rate: null,
+  period_rate: null,
 };
 
 const months: AccrualGridMonth[] = [
@@ -94,8 +95,8 @@ describe('AccrualGrid', () => {
   it('renders one column header per month plus the sticky-left columns', () => {
     renderGrid();
     const headers = screen.getAllByRole('columnheader');
-    // 5 sticky cols + 2 months = 7
-    expect(headers.length).toBeGreaterThanOrEqual(7);
+    // 6 sticky cols + 2 months = 8
+    expect(headers.length).toBeGreaterThanOrEqual(8);
   });
 
   it('shows each linked project as a link to its detail page', () => {
@@ -238,9 +239,10 @@ describe('AccrualGrid', () => {
     expect(screen.queryByTestId('data-quality-warning')).toBeNull();
   });
 
-  it('shows the per-line CEO rate next to the original amount when present', () => {
-    renderGrid({ lines: [{ ...line, value_orig: '1200.00', currency: 'USD', rate: '1.08' }] });
-    expect(screen.getByText(/@1\.0800/)).toBeInTheDocument();
+  it('shows the per-line CEO rate in the Rate column (override, coloured) when present', () => {
+    renderGrid({ lines: [{ ...line, value_orig: '1200.00', currency: 'USD', rate: '1.08', period_rate: null }] });
+    // Rate column renders override formatted to 4dp; the @fragment no longer lives in Original
+    expect(screen.getByText('1.0800')).toBeInTheDocument();
   });
 
   it('renders an em-dash for the Original column when the line has no foreign value', () => {

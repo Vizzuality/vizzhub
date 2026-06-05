@@ -26,6 +26,7 @@ export interface AccrualGridProps {
   readonly visibleStaticIds?: readonly string[];
   readonly sort?: AccrualSort | null;
   readonly onSort?: (key: string) => void;
+  readonly onRateChange?: (lineId: string, rate: string | null) => void;
 }
 
 export function AccrualGrid({
@@ -39,6 +40,7 @@ export function AccrualGrid({
   visibleStaticIds = DEFAULT_STATIC_IDS,
   sort = null,
   onSort,
+  onRateChange,
 }: AccrualGridProps): JSX.Element {
   const columns = useMemo(
     () =>
@@ -46,8 +48,9 @@ export function AccrualGrid({
         visibleStaticIds,
         sort,
         onSort,
+        onRateChange,
       }),
-    [months, cells, onCellChange, canEdit, failedCells, onEditLine, visibleStaticIds, sort, onSort],
+    [months, cells, onCellChange, canEdit, failedCells, onEditLine, visibleStaticIds, sort, onSort, onRateChange],
   );
 
   const table = useReactTable({

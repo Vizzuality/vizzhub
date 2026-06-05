@@ -1,5 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import { Link } from 'react-router-dom';
+import { RateCell } from '@/modules/accrual/components/RateCell';
 import {
   AlertTriangle,
   AlertCircle,
@@ -46,6 +47,7 @@ export const STATIC_COLUMNS: readonly StaticColumn[] = [
   { id: 'name', label: 'Line', width: 220, sortable: true, align: 'left' },
   { id: 'projects', label: 'Projects', width: 170, sortable: false, align: 'left' },
   { id: 'original', label: 'Original', width: 168, sortable: false, align: 'right' },
+  { id: 'rate', label: 'Rate', width: 110, sortable: false, align: 'right' },
   { id: 'value_eur', label: 'Value €', width: 124, sortable: true, align: 'right' },
 ];
 
@@ -285,14 +287,6 @@ function LineOriginalCellRenderer({ line }: { readonly line: AccrualGridLine }):
     <span className="flex items-baseline justify-end gap-1 whitespace-nowrap text-xs tabular-nums">
       <span>{formatAmount(line.value_orig)}</span>
       {line.currency ? <span className="text-muted-foreground">{line.currency}</span> : null}
-      {line.rate ? (
-        <span
-          className="text-muted-foreground/70"
-          title="Rate for this line (foreign per €)"
-        >
-          · @{Number(line.rate).toFixed(4)}
-        </span>
-      ) : null}
     </span>
   );
 }
@@ -324,6 +318,8 @@ function renderStaticCell(
   id: string,
   line: AccrualGridLine,
   onEditLine?: (lineId: string) => void,
+  canEdit?: boolean,
+  onRateChange?: (lineId: string, rate: string | null) => void,
 ): JSX.Element | null {
   switch (id) {
     case 'code':
@@ -334,6 +330,14 @@ function renderStaticCell(
       return <LineProjectsCellRenderer line={line} />;
     case 'original':
       return <LineOriginalCellRenderer line={line} />;
+    case 'rate':
+      return (
+        <RateCell
+          line={line}
+          canEdit={canEdit ?? false}
+          onChange={(id, r) => onRateChange?.(id, r)}
+        />
+      );
     case 'value_eur':
       return <LineValueCellRenderer line={line} />;
     default:
@@ -354,6 +358,7 @@ export interface BuildColumnsOptions {
   readonly visibleStaticIds?: readonly string[];
   readonly sort?: AccrualSort | null;
   readonly onSort?: (key: string) => void;
+  readonly onRateChange?: (lineId: string, rate: string | null) => void;
 }
 
 export function buildColumns(
@@ -365,7 +370,7 @@ export function buildColumns(
   onEditLine?: (lineId: string) => void,
   options: BuildColumnsOptions = {},
 ): ColumnDef<AccrualGridLine>[] {
-  const { visibleStaticIds = DEFAULT_STATIC_IDS, sort = null, onSort } = options;
+  const { visibleStaticIds = DEFAULT_STATIC_IDS, sort = null, onSort, onRateChange } = options;
   const cellIndex = indexCells(cells);
   const visibleSet = new Set(visibleStaticIds);
 
@@ -375,7 +380,7 @@ export function buildColumns(
     id: c.id,
     size: c.width,
     header: () => <StaticHeader column={c} sort={sort} onSort={onSort} />,
-    cell: ({ row }) => renderStaticCell(c.id, row.original, onEditLine),
+    cell: ({ row }) => renderStaticCell(c.id, row.original, onEditLine, canEdit, onRateChange),
   }));
 
   const monthCols: ColumnDef<AccrualGridLine>[] = months.map((m) => ({
