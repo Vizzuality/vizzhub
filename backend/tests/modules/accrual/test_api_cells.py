@@ -759,3 +759,48 @@ def test_line_health_critical_when_value_but_no_cells():
     h = _line_health(value_eur=Decimal("100"), sum_cells=Decimal("0"))
     assert h["status"] == "critical"
     assert h["diff_pct"] == 100.0
+
+
+@pytest.mark.asyncio
+async def test_grid_line_includes_period_rate(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    """A USD line whose window falls in a period with fx_rates["USD"] = "1.10"
+    surfaces that rate as period_rate; EUR lines and lines without a rate get None."""
+    from app.modules.accrual.models.accrual_period import AccrualPeriodDB
+
+    period = AccrualPeriodDB(
+        start_date=date(2026, 1, 1),
+        status="open",
+        created_by=_DEV_USER_ID,
+        fx_rates={"USD": "1.10"},
+    )
+    db_session.add(period)
+    await db_session.flush()
+
+    usd_line = await _make_line(
+        db_session,
+        excel_code="PR.USD",
+        currency="USD",
+        value_orig="110",
+        window_start=date(2026, 1, 1),
+        window_end=date(2026, 12, 31),
+        cells=[(2026, 1, "100")],
+    )
+    eur_line = await _make_line(
+        db_session,
+        excel_code="PR.EUR",
+        currency="EUR",
+        window_start=date(2026, 1, 1),
+        window_end=date(2026, 12, 31),
+        cells=[(2026, 1, "100")],
+    )
+
+    resp = await client.get("/api/accrual/grid", params={"year_from": 2026, "year_to": 2026})
+    assert resp.status_code == 200
+    rows = {r["excel_code"]: r for r in resp.json()["lines"]}
+
+    assert rows["PR.USD"]["period_rate"] == "1.10"
+    assert "rate" in rows["PR.USD"]
+    assert rows["PR.EUR"]["period_rate"] is None

@@ -27,7 +27,7 @@ from app.modules.accrual.schemas.accrual_cell import (
     LineCellUpsert,
     RedistributeRequest,
 )
-from app.modules.accrual.services import cell_service
+from app.modules.accrual.services import cell_service, period_service
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -145,11 +145,35 @@ def _dates_diverged(line: AccrualLineDB, projects: list[tuple[ProjectDB, str | N
     return line.window_start != project.start_date or line.window_end != project.end_date
 
 
+async def _period_rates_for_lines(
+    db: DBSession, lines: list[AccrualLineDB]
+) -> dict[UUID, str | None]:
+    """line_id -> resolved period rate string (or None). Resolves once per distinct
+    (currency-code, window-start month) so the grid does not issue N lookups."""
+    cache: dict[tuple[str, int, int], Decimal | None] = {}
+    out: dict[UUID, str | None] = {}
+    for line in lines:
+        if not line.currency or line.window_start is None:
+            out[line.id] = None
+            continue
+        code = currency_to_code(line.currency)
+        if code == "EUR":
+            out[line.id] = None
+            continue
+        key = (code, line.window_start.year, line.window_start.month)
+        if key not in cache:
+            cache[key] = await period_service.resolve_rate(db, code=code, as_of=line.window_start)
+        resolved = cache[key]
+        out[line.id] = str(resolved) if resolved is not None else None
+    return out
+
+
 def _serialize_grid_line(
     line: AccrualLineDB,
     projects: list[tuple[ProjectDB, str | None]],
     *,
     sum_cells: Decimal,
+    period_rate: str | None,
 ) -> dict:
     return {
         "id": str(line.id),
@@ -160,6 +184,7 @@ def _serialize_grid_line(
         "value_orig": str(line.value_orig) if line.value_orig is not None else None,
         "currency": line.currency,
         "rate": str(line.rate) if line.rate is not None else None,
+        "period_rate": period_rate,
         "window_start": line.window_start.isoformat() if line.window_start else None,
         "window_end": line.window_end.isoformat() if line.window_end else None,
         "projects": [_serialize_line_project(p, pm_name) for p, pm_name in projects],
@@ -303,11 +328,13 @@ async def get_grid(
         for lid, total in agg.all():
             sum_by_line[lid] = Decimal(str(total))
 
+    period_rate_by_line = await _period_rates_for_lines(db, filtered)
     lines_serialised = [
         _serialize_grid_line(
             line,
             projects_by_line.get(line.id, []),
             sum_cells=sum_by_line.get(line.id, Decimal("0")),
+            period_rate=period_rate_by_line.get(line.id),
         )
         for line in filtered
     ]
