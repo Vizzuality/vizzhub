@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.project import ProjectDB
-from app.core.services.exchange_rate_service import currency_to_code, get_latest_rate
+from app.core.services.exchange_rate_service import currency_to_code
 from app.modules.accrual.models.accrual_cell import AccrualCellDB, CellSource
 from app.modules.accrual.models.accrual_line import AccrualLineDB, LineSource
 from app.modules.accrual.models.accrual_line_project import AccrualLineProjectDB
@@ -29,22 +29,8 @@ def _quantize(amount: Decimal) -> Decimal:
 
 
 async def _resolve_rate(db: AsyncSession, code: str, start_date: date) -> Decimal | None:
-    """Foreign-per-€ rate for ``code`` at ``start_date``: period rate first, ECB fallback.
-
-    EUR is handled by the caller (passthrough). Returns None when neither the
-    start-date period nor ECB has a usable (non-zero) rate.
-    """
-    period = await period_service.get_period_for_month(
-        db, year=start_date.year, month=start_date.month
-    )
-    if period and code in period.fx_rates:
-        rate = Decimal(str(period.fx_rates[code]))
-        if rate != 0:
-            return rate
-    ecb = await get_latest_rate(db, code, as_of=start_date)
-    if ecb is not None and ecb[0] != 0:
-        return ecb[0]
-    return None
+    """Foreign-per-€ rate for ``code`` at ``start_date`` (period → ECB)."""
+    return await period_service.resolve_rate(db, code=code, as_of=start_date)
 
 
 async def convert_original_budget(

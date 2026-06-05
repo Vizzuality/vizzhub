@@ -7,6 +7,7 @@ the rate is metadata + the conversion input for new data.
 """
 
 from datetime import UTC, date, datetime
+from decimal import Decimal
 from uuid import UUID
 
 import structlog
@@ -14,6 +15,7 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.services.exchange_rate_service import get_latest_rate
 from app.modules.accrual.models.accrual_period import AccrualPeriodDB
 
 logger = structlog.get_logger()
@@ -215,3 +217,18 @@ async def get_period_for_month(
         .limit(1)
     )
     return result.scalar_one_or_none()
+
+
+async def resolve_rate(db: AsyncSession, *, code: str, as_of: date) -> Decimal | None:
+    """Foreign-per-€ rate for ``code`` at ``as_of``: the covering period's CEO rate
+    first, ECB fallback. Returns None when neither has a usable (non-zero) rate.
+    EUR passthrough is the caller's responsibility."""
+    period = await get_period_for_month(db, year=as_of.year, month=as_of.month)
+    if period and code in period.fx_rates:
+        rate = Decimal(str(period.fx_rates[code]))
+        if rate != 0:
+            return rate
+    ecb = await get_latest_rate(db, code, as_of=as_of)
+    if ecb is not None and ecb[0] != 0:
+        return ecb[0]
+    return None

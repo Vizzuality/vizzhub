@@ -212,3 +212,18 @@ async def test_close_period_leaves_future_cells_alone(db_session: AsyncSession) 
     cells_2026 = [c for c in cells if c.year == 2026]
     assert all(c.is_frozen for c in cells_2025), "2025 cells must freeze"
     assert not any(c.is_frozen for c in cells_2026), "2026 cells must stay live"
+
+
+@pytest.mark.asyncio
+async def test_resolve_rate_prefers_period_fx_over_ecb(db_session: AsyncSession) -> None:
+    await period_service.create_period(
+        db_session, start_date=date(2026, 1, 1), created_by=None, fx_rates={"USD": "1.10"}
+    )
+    rate = await period_service.resolve_rate(db_session, code="USD", as_of=date(2026, 6, 1))
+    assert rate == Decimal("1.10")
+
+
+@pytest.mark.asyncio
+async def test_resolve_rate_returns_none_when_unresolvable(db_session: AsyncSession) -> None:
+    rate = await period_service.resolve_rate(db_session, code="USD", as_of=date(2026, 6, 1))
+    assert rate is None
