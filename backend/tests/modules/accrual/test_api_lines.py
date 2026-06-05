@@ -187,3 +187,73 @@ async def test_unlink_project_not_linked_404(client: AsyncClient) -> None:
     pid = await _make_project(client, "TEST.LN.UNL1")
     resp = await client.delete(f"/api/accrual/lines/{line_id}/projects/{pid}")
     assert resp.status_code == 404, resp.text
+
+
+@pytest.mark.asyncio
+async def test_patch_line_sets_rate_override(client: AsyncClient) -> None:
+    """Setting rate recomputes value_eur = value_orig / rate and persists the override."""
+    create = await client.post(
+        "/api/accrual/lines",
+        json={
+            "name": "USD grant",
+            "value_eur": 0,
+            "value_orig": "1080",
+            "currency": "USD",
+            "window_start": "2026-01-01",
+            "window_end": "2026-03-31",
+        },
+    )
+    assert create.status_code == 201, create.text
+    line_id = create.json()["id"]
+
+    resp = await client.patch(f"/api/accrual/lines/{line_id}", json={"rate": "1.08"})
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["rate"] is not None
+    assert Decimal(body["rate"]) == Decimal("1.08")
+    assert Decimal(body["value_eur"]) == Decimal("1000.00")
+
+
+@pytest.mark.asyncio
+async def test_patch_line_clears_rate(client: AsyncClient) -> None:
+    """Sending rate=null clears the override; the stored rate field becomes null."""
+    # Seed a period with a USD rate so resolve_rate succeeds on clear.
+    await client.post(
+        "/api/accrual/periods",
+        json={"start_date": "2026-01-01", "fx_rates": {"USD": "1.20"}},
+    )
+
+    create = await client.post(
+        "/api/accrual/lines",
+        json={
+            "name": "USD grant clear",
+            "value_eur": 0,
+            "value_orig": "1200",
+            "currency": "USD",
+            "window_start": "2026-01-01",
+            "window_end": "2026-03-31",
+        },
+    )
+    assert create.status_code == 201, create.text
+    line_id = create.json()["id"]
+
+    # First set an override rate.
+    set_resp = await client.patch(f"/api/accrual/lines/{line_id}", json={"rate": "1.08"})
+    assert set_resp.status_code == 200
+    assert set_resp.json()["rate"] is not None
+
+    # Now clear it: rate=null reverts to period rate (1.20) for value_eur recomputation.
+    clear_resp = await client.patch(f"/api/accrual/lines/{line_id}", json={"rate": None})
+    assert clear_resp.status_code == 200, clear_resp.text
+    assert clear_resp.json()["rate"] is None
+
+
+@pytest.mark.asyncio
+async def test_patch_line_rejects_non_positive_rate(client: AsyncClient) -> None:
+    """A rate of 0 (or negative) must be rejected with 400 (Pydantic → global handler)."""
+    create = await client.post("/api/accrual/lines", json={"name": "L", "value_eur": 100})
+    assert create.status_code == 201, create.text
+    line_id = create.json()["id"]
+
+    resp = await client.patch(f"/api/accrual/lines/{line_id}", json={"rate": "0"})
+    assert resp.status_code == 400, resp.text

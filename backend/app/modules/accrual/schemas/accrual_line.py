@@ -38,6 +38,7 @@ class LineUpdate(BaseModel):
     value_eur: Decimal | None = Field(None, ge=0)
     value_orig: Decimal | None = Field(None, ge=0)
     currency: str | None = None
+    rate: Decimal | None = Field(None, gt=0)
     window_start: date | None = None
     window_end: date | None = None
 

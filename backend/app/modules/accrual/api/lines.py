@@ -13,11 +13,12 @@ from app.core.models.project import ProjectDB
 from app.core.models.user import UserDB
 from app.core.permissions.actions import Action
 from app.core.permissions.dependencies import require_permission
+from app.core.services.exchange_rate_service import currency_to_code
 from app.core.sql_helpers import user_display_name_expr
 from app.modules.accrual.models.accrual_line import AccrualLineDB
 from app.modules.accrual.models.accrual_line_project import AccrualLineProjectDB
 from app.modules.accrual.schemas.accrual_line import LineCreate, LineProjectLink, LineUpdate
-from app.modules.accrual.services import line_service
+from app.modules.accrual.services import cell_service, line_service, period_service
 
 router = APIRouter()
 
@@ -57,6 +58,12 @@ async def _linked_projects(db: DBSession, line_id: UUID) -> list[dict]:
 
 
 async def _serialize_line(db: DBSession, line: AccrualLineDB) -> dict:
+    period_rate = None
+    if line.currency and line.window_start is not None:
+        code = currency_to_code(line.currency)
+        if code != "EUR":
+            resolved = await period_service.resolve_rate(db, code=code, as_of=line.window_start)
+            period_rate = str(resolved) if resolved is not None else None
     return {
         "id": str(line.id),
         "name": line.name,
@@ -65,6 +72,8 @@ async def _serialize_line(db: DBSession, line: AccrualLineDB) -> dict:
         "value_eur": str(line.value_eur),
         "value_orig": str(line.value_orig) if line.value_orig is not None else None,
         "currency": line.currency,
+        "rate": str(line.rate) if line.rate is not None else None,
+        "period_rate": period_rate,
         "window_start": line.window_start.isoformat() if line.window_start else None,
         "window_end": line.window_end.isoformat() if line.window_end else None,
         "projects": await _linked_projects(db, line.id),
@@ -104,11 +113,23 @@ async def get_line(line_id: UUID, db: DBSession, _: AccrualViewer) -> dict:
 
 @router.patch("/lines/{line_id}", responses={404: {"description": "Line not found"}})
 async def update_line(line_id: UUID, payload: LineUpdate, db: DBSession, _: AccrualManager) -> dict:
-    """Patch a line's editable fields (name, value, currency, window). Partial."""
+    """Patch a line's editable fields. ``rate`` is the FX override: setting it (or
+    clearing with null) recomputes value_eur and redistributes the open months."""
     fields = payload.model_dump(exclude_unset=True)
-    line = await line_service.update_line(db, line_id=line_id, fields=fields)
-    if line is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_LINE_NOT_FOUND)
+    rate_present = "rate" in fields
+    rate_value = fields.pop("rate", None)
+
+    if fields:
+        line = await line_service.update_line(db, line_id=line_id, fields=fields)
+        if line is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_LINE_NOT_FOUND)
+    else:
+        line = await _get_line_or_404(db, line_id)
+
+    if rate_present:
+        await cell_service.set_line_rate(db, line_id=line_id, rate=rate_value)
+        line = await _get_line_or_404(db, line_id)
+
     return await _serialize_line(db, line)
 
 
