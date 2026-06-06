@@ -26,6 +26,7 @@ class DashboardKpis(BaseModel):
     is no prior-year recognition to compare against)."""
 
     recognized_ytd_eur: float
+    full_year_eur: float
     recognized_quarter_eur: float
     contracted_total_eur: float
     backlog_eur: float

@@ -53,8 +53,9 @@ function yoyCardProps(kpis: Kpis): Pick<KpiCardProps, 'value' | 'sub' | 'tone'> 
 
 export function DashboardKpis({ kpis }: DashboardKpisProps): JSX.Element {
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
       <KpiCard label="Recognized YTD" value={formatCurrency(kpis.recognized_ytd_eur)} />
+      <KpiCard label="Full year (est.)" value={formatCurrency(kpis.full_year_eur)} />
       <KpiCard label="This quarter" value={formatCurrency(kpis.recognized_quarter_eur)} />
       <KpiCard label="Backlog" value={formatCurrency(kpis.backlog_eur)} />
       <KpiCard label="Year plan recognized" value={`${kpis.plan_recognized_pct.toFixed(0)}%`} />

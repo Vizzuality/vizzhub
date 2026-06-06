@@ -82,6 +82,8 @@ async def test_future_month_in_open_period_is_forecast(db_session: AsyncSession)
     assert nov.amount_eur == 300.0
     # A forecast month does not count toward recognized YTD.
     assert summary.kpis.recognized_ytd_eur == 0.0
+    # ...but the full-year estimate includes the forecast.
+    assert summary.kpis.full_year_eur == 300.0
 
 
 @pytest.mark.asyncio

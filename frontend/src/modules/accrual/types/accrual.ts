@@ -170,6 +170,7 @@ export interface DashboardMonth {
 
 export interface DashboardKpis {
   recognized_ytd_eur: number;
+  full_year_eur: number;
   recognized_quarter_eur: number;
   contracted_total_eur: number;
   backlog_eur: number;

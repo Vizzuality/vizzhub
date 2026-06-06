@@ -41,6 +41,7 @@ def test_dashboard_summary_serializes_floats() -> None:
         months=[DashboardMonth(month=1, amount_eur=100.5, status="recognized")],
         kpis=DashboardKpis(
             recognized_ytd_eur=100.5,
+            full_year_eur=200.0,
             recognized_quarter_eur=100.5,
             contracted_total_eur=1000.0,
             backlog_eur=899.5,

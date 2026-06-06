@@ -5,6 +5,7 @@ import type { DashboardKpis as Kpis } from '@/modules/accrual/types/accrual';
 
 const KPIS: Kpis = {
   recognized_ytd_eur: 12345,
+  full_year_eur: 20000,
   recognized_quarter_eur: 3000,
   contracted_total_eur: 100000,
   backlog_eur: 87655,
@@ -17,6 +18,7 @@ describe('DashboardKpis', () => {
   it('renders all KPI labels and the year-plan-recognized share', () => {
     render(<DashboardKpis kpis={KPIS} />);
     expect(screen.getByText(/Recognized YTD/i)).toBeInTheDocument();
+    expect(screen.getByText(/Full year \(est\.\)/i)).toBeInTheDocument();
     expect(screen.getByText(/This quarter/i)).toBeInTheDocument();
     expect(screen.getByText(/Backlog/i)).toBeInTheDocument();
     expect(screen.getByText(/Year plan recognized/i)).toBeInTheDocument();

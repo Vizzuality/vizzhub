@@ -130,6 +130,7 @@ def _build_kpis(
 
     return DashboardKpis(
         recognized_ytd_eur=_to_float(recognized_ytd),
+        full_year_eur=_to_float(year_plan),
         recognized_quarter_eur=_to_float(recognized_quarter),
         contracted_total_eur=_to_float(contracted),
         backlog_eur=_to_float(backlog),
