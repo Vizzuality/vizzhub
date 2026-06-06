@@ -209,24 +209,36 @@ async def set_line_rate(
     """Set (or clear, when ``rate`` is None) a line's FX override, then recompute
     ``value_eur = value_orig / effective_rate`` and redistribute the open months.
 
-    No-op (returns None) for EUR/passthrough lines and lines without ``value_orig``
-    or without a resolvable effective rate — the EUR figure is left untouched.
+    Lines imported directly in EUR carry no ``value_orig``; the implied foreign
+    amount is reconstructed from the period rate (``value_orig = value_eur ×
+    period_rate``) and persisted so the override has something to recompute from —
+    clearing it later restores the original EUR figure.
+
+    No-op (returns None) for EUR/passthrough lines and lines without a resolvable
+    effective rate — the EUR figure is left untouched.
     """
     line = await db.get(AccrualLineDB, line_id)
-    if line is None or line.value_orig is None or not line.currency:
+    if line is None or not line.currency or line.window_start is None:
         return None
     code = currency_to_code(line.currency)
     if code == "EUR":
         return None
 
+    # Period rate at the line's window start: the baseline that recovers a missing
+    # foreign amount and the effective rate to fall back on when the override clears.
+    period_rate = await period_service.resolve_rate(db, code=code, as_of=line.window_start)
+
+    if line.value_orig is None:
+        if line.value_eur is None or period_rate is None:
+            return None
+        line.value_orig = _quantize(Decimal(line.value_eur) * period_rate)
+
     if rate is not None:
         effective = rate
+    elif period_rate is not None:
+        effective = period_rate
     else:
-        if line.window_start is None:
-            return None
-        effective = await period_service.resolve_rate(db, code=code, as_of=line.window_start)
-        if effective is None:
-            return None
+        return None
 
     prev_rate = line.rate
     line.rate = rate

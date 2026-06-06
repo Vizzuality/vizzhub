@@ -207,7 +207,44 @@ async def test_set_line_rate_noop_for_eur_line(db_session: AsyncSession) -> None
 
 
 @pytest.mark.asyncio
-async def test_set_line_rate_noop_without_value_orig(db_session: AsyncSession) -> None:
+async def test_set_line_rate_reconstructs_value_orig_when_missing(
+    db_session: AsyncSession,
+) -> None:
+    """A line imported in EUR (no value_orig) gets its foreign amount reconstructed
+    from the period rate, then the override recomputes value_eur. Clearing restores
+    the original EUR figure."""
+    await period_service.create_period(
+        db_session, start_date=date(2026, 1, 1), created_by=None, fx_rates={"USD": "1.20"}
+    )
+    line = AccrualLineDB(
+        name="L",
+        source=LineSource.MANUAL.value,
+        value_orig=None,
+        currency="USD",
+        value_eur=Decimal("900"),
+        window_start=date(2026, 1, 1),
+        window_end=date(2026, 1, 31),
+    )
+    db_session.add(line)
+    await db_session.flush()
+
+    result = await cell_service.set_line_rate(db_session, line_id=line.id, rate=Decimal("1.08"))
+    await db_session.refresh(line)
+    assert result is not None
+    assert line.value_orig == Decimal("1080.00")  # 900 × 1.20 (period), persisted
+    assert line.rate == Decimal("1.08")
+    assert line.value_eur == Decimal("1000.00")  # 1080 / 1.08
+
+    # Clearing the override falls back to the period rate and restores the EUR.
+    await cell_service.set_line_rate(db_session, line_id=line.id, rate=None)
+    await db_session.refresh(line)
+    assert line.rate is None
+    assert line.value_eur == Decimal("900.00")  # 1080 / 1.20
+
+
+@pytest.mark.asyncio
+async def test_set_line_rate_noop_without_value_orig_or_period(db_session: AsyncSession) -> None:
+    """No value_orig and no resolvable period/ECB rate → nothing to reconstruct from."""
     line = AccrualLineDB(
         name="L",
         source=LineSource.MANUAL.value,
@@ -220,7 +257,10 @@ async def test_set_line_rate_noop_without_value_orig(db_session: AsyncSession) -
     db_session.add(line)
     await db_session.flush()
     result = await cell_service.set_line_rate(db_session, line_id=line.id, rate=Decimal("1.08"))
+    await db_session.refresh(line)
     assert result is None
+    assert line.value_orig is None
+    assert line.value_eur == Decimal("900")
 
 
 @pytest.mark.asyncio
