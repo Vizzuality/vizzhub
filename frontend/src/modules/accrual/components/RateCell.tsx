@@ -19,10 +19,17 @@ export function RateCell({ line, canEdit, onChange }: RateCellProps): JSX.Elemen
   const cancelRef = useRef(false);
   const hasOverride = line.rate !== null;
   const display = hasOverride ? Number(line.rate).toFixed(4) : null;
-  const periodDisplay = line.period_rate !== null ? Number(line.period_rate).toFixed(4) : '—';
+  const periodDisplay = line.period_rate === null ? '—' : Number(line.period_rate).toFixed(4);
 
   if (isEur(line)) {
     return <span className="text-muted-foreground">1.0000</span>;
+  }
+
+  let colorClass = 'text-muted-foreground';
+  if (hasOverride) {
+    colorClass = 'font-medium text-[var(--score-green)]';
+  } else if (canEdit) {
+    colorClass = 'text-[var(--chart-2)]';
   }
 
   if (editing && canEdit) {
@@ -61,13 +68,7 @@ export function RateCell({ line, canEdit, onChange }: RateCellProps): JSX.Elemen
       type="button"
       disabled={!canEdit}
       onClick={() => setEditing(true)}
-      className={`tabular-nums ${canEdit ? 'cursor-text hover:underline' : 'cursor-default'} ${
-        hasOverride
-          ? 'font-medium text-[var(--score-green)]'
-          : canEdit
-            ? 'text-[var(--chart-2)]'
-            : 'text-muted-foreground'
-      }`}
+      className={`tabular-nums ${canEdit ? 'cursor-text hover:underline' : 'cursor-default'} ${colorClass}`}
       title={hasOverride ? 'CEO override — click to edit' : 'Following period rate — click to override'}
     >
       {hasOverride ? display : periodDisplay}
