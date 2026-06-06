@@ -157,7 +157,10 @@ function SortableHeader({
   readonly onSort?: (key: string) => void;
 }): JSX.Element {
   const active = sort?.key === column.id;
-  const Indicator = !active ? ChevronsUpDown : sort?.dir === 'asc' ? ArrowUp : ArrowDown;
+  let Indicator = ChevronsUpDown;
+  if (active) {
+    Indicator = sort?.dir === 'asc' ? ArrowUp : ArrowDown;
+  }
   return (
     <button
       type="button"
