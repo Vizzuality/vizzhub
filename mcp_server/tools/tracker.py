@@ -8,10 +8,11 @@ from uuid import UUID
 
 from mcp.server.fastmcp import FastMCP
 
-from mcp_server.data.base import get_read_session
-from mcp_server.data import tracker as tracker_data
-from mcp_server.auth.permissions import mcp_requires
 from app.core.permissions import Action
+from mcp_server.auth.permissions import mcp_requires
+from mcp_server.data import tracker as tracker_data
+from mcp_server.data.base import get_read_session
+from mcp_server.tools._annotations import READ_ONLY, READ_ONLY_OPEN_WORLD
 
 
 def _to_json(data: Any) -> str:
@@ -184,10 +185,11 @@ async def tracker_get_user_jira_issues(
 
 def register_tracker_tools(server: FastMCP) -> None:
     """Register all Tracker tools on the given MCP server instance."""
-    server.tool()(tracker_get_projects)
-    server.tool()(tracker_get_project_detail)
-    server.tool()(tracker_get_project_time)
-    server.tool()(tracker_get_project_invoices)
-    server.tool()(tracker_get_project_progress)
-    server.tool()(tracker_get_periods)
-    server.tool()(tracker_get_user_jira_issues)
+    server.tool(annotations=READ_ONLY)(tracker_get_projects)
+    server.tool(annotations=READ_ONLY)(tracker_get_project_detail)
+    server.tool(annotations=READ_ONLY)(tracker_get_project_time)
+    server.tool(annotations=READ_ONLY)(tracker_get_project_invoices)
+    server.tool(annotations=READ_ONLY)(tracker_get_project_progress)
+    server.tool(annotations=READ_ONLY)(tracker_get_periods)
+    # Reads live Jira, not our DB → open world.
+    server.tool(annotations=READ_ONLY_OPEN_WORLD)(tracker_get_user_jira_issues)

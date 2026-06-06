@@ -7,8 +7,9 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from mcp_server.data.base import get_read_session
 from mcp_server.data import users as users_data
+from mcp_server.data.base import get_read_session
+from mcp_server.tools._annotations import READ_ONLY
 
 
 def _to_json(data: Any) -> str:
@@ -79,7 +80,7 @@ async def users_get_rates() -> str:
 
 def register_users_tools(server: FastMCP) -> None:
     """Register all Users tools on the given MCP server instance."""
-    server.tool()(users_get_team)
-    server.tool()(users_get_detail)
-    server.tool()(users_get_functional_areas)
-    server.tool()(users_get_rates)
+    server.tool(annotations=READ_ONLY)(users_get_team)
+    server.tool(annotations=READ_ONLY)(users_get_detail)
+    server.tool(annotations=READ_ONLY)(users_get_functional_areas)
+    server.tool(annotations=READ_ONLY)(users_get_rates)

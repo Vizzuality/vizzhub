@@ -8,10 +8,11 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from mcp_server.data.base import get_read_session
-from mcp_server.data import capacity as capacity_data
-from mcp_server.auth.permissions import mcp_requires
 from app.core.permissions import Action
+from mcp_server.auth.permissions import mcp_requires
+from mcp_server.data import capacity as capacity_data
+from mcp_server.data.base import get_read_session
+from mcp_server.tools._annotations import READ_ONLY
 
 
 def _to_json(data: Any) -> str:
@@ -135,7 +136,7 @@ async def capacity_get_allocation(
 
 def register_capacity_tools(server: FastMCP) -> None:
     """Register all Capacity tools on the given MCP server instance."""
-    server.tool()(capacity_get_insights)
-    server.tool()(capacity_get_fa_detail)
-    server.tool()(capacity_get_user_detail)
-    server.tool()(capacity_get_allocation)
+    server.tool(annotations=READ_ONLY)(capacity_get_insights)
+    server.tool(annotations=READ_ONLY)(capacity_get_fa_detail)
+    server.tool(annotations=READ_ONLY)(capacity_get_user_detail)
+    server.tool(annotations=READ_ONLY)(capacity_get_allocation)

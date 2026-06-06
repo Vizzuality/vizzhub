@@ -12,6 +12,7 @@ from mcp_server.data.base import get_mcp_user, get_write_session
 from mcp_server.handlers import iso_docs as iso_handler
 from mcp_server.handlers import playbook as playbook_handler
 from mcp_server.services.command_service import CommandService
+from mcp_server.tools._annotations import COMMAND_GATE, READ_ONLY
 from mcp_server.tools._shared import to_json
 
 logger = structlog.get_logger()
@@ -285,7 +286,9 @@ async def reject_command(command_id: str) -> str:
 
 def register_command_tools(server: FastMCP) -> None:
     """Register all command management tools on the given MCP server instance."""
-    server.tool()(get_pending_commands)
-    server.tool()(approve_command)
-    server.tool()(approve_all)
-    server.tool()(reject_command)
+    server.tool(annotations=READ_ONLY)(get_pending_commands)
+    # Human-in-the-loop gate: executes/discards queued commands. Mutates state
+    # but is not destructive on its own (the queued command carries its own risk).
+    server.tool(annotations=COMMAND_GATE)(approve_command)
+    server.tool(annotations=COMMAND_GATE)(approve_all)
+    server.tool(annotations=COMMAND_GATE)(reject_command)

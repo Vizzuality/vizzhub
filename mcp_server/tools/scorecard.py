@@ -8,10 +8,11 @@ from uuid import UUID
 
 from mcp.server.fastmcp import FastMCP
 
-from mcp_server.data.base import get_read_session
-from mcp_server.data import scorecard as scorecard_data
-from mcp_server.auth.permissions import mcp_requires
 from app.core.permissions import Action
+from mcp_server.auth.permissions import mcp_requires
+from mcp_server.data import scorecard as scorecard_data
+from mcp_server.data.base import get_read_session
+from mcp_server.tools._annotations import READ_ONLY
 
 
 def _to_json(data: Any) -> str:
@@ -124,7 +125,7 @@ async def scorecard_get_global_metrics(limit: int = 12) -> str:
 
 def register_scorecard_tools(server: FastMCP) -> None:
     """Register all Scorecard tools on the given MCP server instance."""
-    server.tool()(scorecard_get_project_scores)
-    server.tool()(scorecard_get_project_scorecard)
-    server.tool()(scorecard_get_project_history)
-    server.tool()(scorecard_get_global_metrics)
+    server.tool(annotations=READ_ONLY)(scorecard_get_project_scores)
+    server.tool(annotations=READ_ONLY)(scorecard_get_project_scorecard)
+    server.tool(annotations=READ_ONLY)(scorecard_get_project_history)
+    server.tool(annotations=READ_ONLY)(scorecard_get_global_metrics)

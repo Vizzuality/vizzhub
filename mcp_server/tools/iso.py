@@ -8,10 +8,10 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from mcp_server.data.base import get_read_session
-from mcp_server.data import iso as iso_data
-
 from app.modules.iso_docs.services.registry_service import compute_row_fields
+from mcp_server.data import iso as iso_data
+from mcp_server.data.base import get_read_session
+from mcp_server.tools._annotations import READ_ONLY
 
 
 def _to_json(data: Any) -> str:
@@ -179,10 +179,10 @@ async def iso_search_documents(query: str) -> str:
 
 def register_iso_tools(server: FastMCP) -> None:
     """Register all ISO tools on the given MCP server instance."""
-    server.tool()(iso_get_registries)
-    server.tool()(iso_get_registry_rows)
-    server.tool()(iso_get_documents)
-    server.tool()(iso_get_document)
-    server.tool()(iso_search_documents)
-    server.tool()(iso_list_notes)
-    server.tool()(iso_list_pending_notes)
+    server.tool(annotations=READ_ONLY)(iso_get_registries)
+    server.tool(annotations=READ_ONLY)(iso_get_registry_rows)
+    server.tool(annotations=READ_ONLY)(iso_get_documents)
+    server.tool(annotations=READ_ONLY)(iso_get_document)
+    server.tool(annotations=READ_ONLY)(iso_search_documents)
+    server.tool(annotations=READ_ONLY)(iso_list_notes)
+    server.tool(annotations=READ_ONLY)(iso_list_pending_notes)

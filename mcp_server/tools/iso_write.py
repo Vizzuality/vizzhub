@@ -5,15 +5,14 @@ from __future__ import annotations
 from datetime import date
 from typing import Literal
 
+from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field
 
-from mcp.server.fastmcp import FastMCP
-
+from app.core.permissions import Action
 from app.modules.iso_docs.schemas.metadata import ChangelogEntry
 from mcp_server.auth.permissions import mcp_requires
-from app.core.permissions import Action
+from mcp_server.tools._annotations import DESTRUCTIVE, WRITE
 from mcp_server.tools._shared import enqueue_command
-
 
 ClassificationLiteral = Literal["internal_use", "confidential"]
 StatusLiteral = Literal["draft", "approved", "under_review"]
@@ -320,12 +319,12 @@ async def iso_delete_registry_row(slug: str, row_id: str) -> str:
 
 def register_iso_write_tools(server: FastMCP) -> None:
     """Register all ISO write tools on the given MCP server instance."""
-    server.tool()(iso_create_page)
-    server.tool()(iso_update_page_content)
-    server.tool()(iso_patch_page_content)
-    server.tool()(iso_update_page_metadata)
-    server.tool()(iso_update_node)
-    server.tool()(iso_delete_node)
-    server.tool()(iso_create_registry_row)
-    server.tool()(iso_update_registry_row)
-    server.tool()(iso_delete_registry_row)
+    server.tool(annotations=WRITE)(iso_create_page)
+    server.tool(annotations=WRITE)(iso_update_page_content)
+    server.tool(annotations=WRITE)(iso_patch_page_content)
+    server.tool(annotations=WRITE)(iso_update_page_metadata)
+    server.tool(annotations=WRITE)(iso_update_node)
+    server.tool(annotations=DESTRUCTIVE)(iso_delete_node)
+    server.tool(annotations=WRITE)(iso_create_registry_row)
+    server.tool(annotations=WRITE)(iso_update_registry_row)
+    server.tool(annotations=DESTRUCTIVE)(iso_delete_registry_row)

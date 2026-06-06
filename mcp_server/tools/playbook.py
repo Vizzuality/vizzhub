@@ -7,8 +7,9 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from mcp_server.data.base import get_read_session
 from mcp_server.data import playbook as playbook_data
+from mcp_server.data.base import get_read_session
+from mcp_server.tools._annotations import READ_ONLY
 
 
 def _to_json(data: Any) -> str:
@@ -62,6 +63,6 @@ async def playbook_search_articles(query: str) -> str:
 
 def register_playbook_tools(server: FastMCP) -> None:
     """Register all Playbook tools on the given MCP server instance."""
-    server.tool()(playbook_get_tree)
-    server.tool()(playbook_get_article)
-    server.tool()(playbook_search_articles)
+    server.tool(annotations=READ_ONLY)(playbook_get_tree)
+    server.tool(annotations=READ_ONLY)(playbook_get_article)
+    server.tool(annotations=READ_ONLY)(playbook_search_articles)

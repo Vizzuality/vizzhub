@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from mcp.server.fastmcp import FastMCP
 
-from mcp_server.auth.permissions import mcp_requires
 from app.core.permissions import Action
+from mcp_server.auth.permissions import mcp_requires
+from mcp_server.tools._annotations import DESTRUCTIVE, WRITE
 from mcp_server.tools._shared import enqueue_command
 
 
@@ -108,7 +109,7 @@ async def playbook_delete_node(slug: str) -> str:
 
 def register_playbook_write_tools(server: FastMCP) -> None:
     """Register all Playbook write tools on the given MCP server instance."""
-    server.tool()(playbook_create_article)
-    server.tool()(playbook_update_article_content)
-    server.tool()(playbook_update_node)
-    server.tool()(playbook_delete_node)
+    server.tool(annotations=WRITE)(playbook_create_article)
+    server.tool(annotations=WRITE)(playbook_update_article_content)
+    server.tool(annotations=WRITE)(playbook_update_node)
+    server.tool(annotations=DESTRUCTIVE)(playbook_delete_node)

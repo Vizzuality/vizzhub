@@ -7,10 +7,11 @@ from typing import Literal
 
 from mcp.server.fastmcp import FastMCP
 
-from mcp_server.auth.permissions import mcp_requires
 from app.core.permissions import Action
-from mcp_server.data.base import get_read_session
+from mcp_server.auth.permissions import mcp_requires
 from mcp_server.data import devstack as devstack_data
+from mcp_server.data.base import get_read_session
+from mcp_server.tools._annotations import READ_ONLY
 
 
 @mcp_requires(Action.DEVSTACK_VIEW)
@@ -105,7 +106,7 @@ async def devstack_get_installable(name: str) -> str:
 
 def register_devstack_tools(server: FastMCP) -> None:
     """Register all DevStack tools on the given MCP server instance."""
-    server.tool()(devstack_get_catalog)
-    server.tool()(devstack_discover)
-    server.tool()(devstack_get_tech_radar)
-    server.tool()(devstack_get_installable)
+    server.tool(annotations=READ_ONLY)(devstack_get_catalog)
+    server.tool(annotations=READ_ONLY)(devstack_discover)
+    server.tool(annotations=READ_ONLY)(devstack_get_tech_radar)
+    server.tool(annotations=READ_ONLY)(devstack_get_installable)
