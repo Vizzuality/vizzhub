@@ -335,7 +335,7 @@ function renderStaticCell(
         <RateCell
           line={line}
           canEdit={canEdit ?? false}
-          onChange={(id, r) => onRateChange?.(id, r)}
+          onChange={(lineId, rate) => onRateChange?.(lineId, rate)}
         />
       );
     case 'value_eur':

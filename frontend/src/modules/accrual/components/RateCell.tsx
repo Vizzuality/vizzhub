@@ -60,7 +60,7 @@ export function RateCell({ line, canEdit, onChange }: RateCellProps): JSX.Elemen
     <button
       type="button"
       disabled={!canEdit}
-      onClick={() => canEdit && setEditing(true)}
+      onClick={() => setEditing(true)}
       className={`tabular-nums ${canEdit ? 'cursor-text hover:underline' : 'cursor-default'} ${
         hasOverride
           ? 'font-medium text-[var(--score-green)]'

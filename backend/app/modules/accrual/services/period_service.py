@@ -15,7 +15,8 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.services.exchange_rate_service import get_latest_rate
+from app.core.services.exchange_rate_service import currency_to_code, get_latest_rate
+from app.modules.accrual.models.accrual_line import AccrualLineDB
 from app.modules.accrual.models.accrual_period import AccrualPeriodDB
 
 logger = structlog.get_logger()
@@ -232,3 +233,19 @@ async def resolve_rate(db: AsyncSession, *, code: str, as_of: date) -> Decimal |
     if ecb is not None and ecb[0] != 0:
         return ecb[0]
     return None
+
+
+async def resolve_line_period_rate(db: AsyncSession, line: AccrualLineDB) -> str | None:
+    """Resolved period rate for a line as a string, ready for serialization.
+
+    Returns None for EUR lines, lines without currency/window_start, or when
+    no usable rate exists. EUR passthrough and guard logic live here so
+    serializers don't repeat the pattern.
+    """
+    if not line.currency or line.window_start is None:
+        return None
+    code = currency_to_code(line.currency)
+    if code == "EUR":
+        return None
+    resolved = await resolve_rate(db, code=code, as_of=line.window_start)
+    return str(resolved) if resolved is not None else None

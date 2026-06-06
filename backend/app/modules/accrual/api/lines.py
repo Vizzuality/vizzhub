@@ -13,7 +13,6 @@ from app.core.models.project import ProjectDB
 from app.core.models.user import UserDB
 from app.core.permissions.actions import Action
 from app.core.permissions.dependencies import require_permission
-from app.core.services.exchange_rate_service import currency_to_code
 from app.core.sql_helpers import user_display_name_expr
 from app.modules.accrual.models.accrual_line import AccrualLineDB
 from app.modules.accrual.models.accrual_line_project import AccrualLineProjectDB
@@ -58,12 +57,7 @@ async def _linked_projects(db: DBSession, line_id: UUID) -> list[dict]:
 
 
 async def _serialize_line(db: DBSession, line: AccrualLineDB) -> dict:
-    period_rate = None
-    if line.currency and line.window_start is not None:
-        code = currency_to_code(line.currency)
-        if code != "EUR":
-            resolved = await period_service.resolve_rate(db, code=code, as_of=line.window_start)
-            period_rate = str(resolved) if resolved is not None else None
+    period_rate = await period_service.resolve_line_period_rate(db, line)
     return {
         "id": str(line.id),
         "name": line.name,
