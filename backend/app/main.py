@@ -122,7 +122,15 @@ async def lifespan(app: FastAPI) -> Any:
 
     app.state.score_cache = score_cache
 
-    yield
+    # Drive the MCP Streamable HTTP session manager's task group. FastAPI does
+    # not propagate a mounted sub-app's lifespan, so the manager (created lazily
+    # by streamable_http_app() during the mount block below) must be run here.
+    mcp_mgr = getattr(app.state, "mcp_session_manager", None)
+    if mcp_mgr is not None:
+        async with mcp_mgr.run():
+            yield
+    else:
+        yield
 
     if redis_client:
         await redis_client.aclose()
@@ -356,6 +364,16 @@ if settings.mcp_enabled and settings.mcp_base_url:
                 asyncio.run(_seed_mcp_oauth_client())
 
         app.mount("/mcp", mcp_starlette)
+
+        # Streamable HTTP transport (spec-current). Dual-mounted alongside SSE
+        # during cutover: legacy clients keep using /mcp/sse, new clients use
+        # /mcp-http/ with type:"http". Starlette Mount("/mcp") does not match
+        # /mcp-http (needs "/" or end after the prefix), so no route collision;
+        # the ALB "mcp*" rule still matches /mcp-http*.
+        mcp_http = mcp_server.streamable_http_app()
+        app.state.mcp_session_manager = mcp_server.session_manager
+        mcp_http.routes.append(Route("/oauth/callback", endpoint=google_callback, methods=["GET"]))
+        app.mount("/mcp-http", mcp_http)
 
         # RFC 9728 + RFC 8414: the SDK expects OAuth metadata at the domain root
         # (not under /mcp mount). Serve directly — SDK doesn't follow redirects.

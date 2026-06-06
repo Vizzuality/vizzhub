@@ -85,9 +85,14 @@ def create_mcp_server(
 
     kwargs: dict = {}
     if http_mode:
-        # SSE transport: GET /sse (stream), POST /messages/ (client messages)
-        # Defaults: sse_path="/sse", message_path="/messages/"
+        # Dual transport from one instance:
+        #   SSE (legacy):    GET /sse (stream) + POST /messages/ (client messages)
+        #   Streamable HTTP: single endpoint at streamable_http_path
+        # streamable_http_path="/" so that mounting the sub-app at /mcp-http
+        # yields the canonical endpoint /mcp-http/ (default "/mcp" would double
+        # to /mcp-http/mcp). Does not affect sse_app(), which uses sse_path.
         # Behind ALB the Host header is the public domain, not localhost.
+        kwargs["streamable_http_path"] = "/"
         kwargs["transport_security"] = TransportSecuritySettings(
             enable_dns_rebinding_protection=bool(allowed_hosts),
             allowed_hosts=allowed_hosts or [],
