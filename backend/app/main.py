@@ -78,6 +78,27 @@ if settings.sentry_dsn and settings.app_env != "development":
 logger = structlog.get_logger()
 
 
+class _McpBarePathApp:
+    """Serve the Streamable HTTP transport at the bare ``/mcp`` (no trailing slash).
+
+    The MCP sub-app is mounted at ``/mcp``, but Starlette's ``Mount`` only
+    forwards ``/mcp/`` and sub-paths — a bare ``/mcp`` 404s because
+    ``redirect_slashes`` is off globally. Some clients (e.g. the Claude Desktop
+    connector UI) strip the trailing slash, so this wrapper rewrites the bare
+    path to ``/`` and feeds the request through the same sub-app, preserving its
+    auth middleware and transport handler.
+    """
+
+    def __init__(self, app: Any) -> None:
+        self._app = app
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        scope = dict(scope)
+        scope["path"] = "/"
+        scope["raw_path"] = b"/"
+        await self._app(scope, receive, send)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> Any:
     if settings.debug:
@@ -369,6 +390,10 @@ if settings.mcp_enabled and settings.mcp_base_url:
             except RuntimeError:
                 asyncio.run(_seed_mcp_oauth_client())
 
+        # Bare /mcp (no trailing slash): clients that strip the slash (e.g. the
+        # Claude Desktop connector UI) still reach the transport. Registered
+        # before the mount so it matches the exact path first.
+        app.router.routes.append(Route("/mcp", endpoint=_McpBarePathApp(mcp_starlette)))
         app.mount("/mcp", mcp_starlette)
 
         # RFC 9728 + RFC 8414: the SDK expects OAuth metadata at the domain root

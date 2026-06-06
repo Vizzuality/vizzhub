@@ -491,7 +491,7 @@ The script sets `PYTHONPATH=backend` and loads `DATABASE_URL` from `backend/.env
 
 ### Remote setup (HTTP)
 
-For production access, clients connect over **Streamable HTTP** with OAuth authentication. The endpoint is the single URL `https://hub.vizzuality.com/mcp/` (note the **trailing slash** — `/mcp` without it 404s, an MCP SDK behaviour).
+For production access, clients connect over **Streamable HTTP** with OAuth authentication. The endpoint is the single URL `https://hub.vizzuality.com/mcp`. Both `/mcp` and `/mcp/` work — some clients (e.g. the Claude Desktop connector UI) strip the trailing slash, so the backend serves the transport at the bare path too (see `_McpBarePathApp` in `main.py`).
 
 **Claude Code** — `.mcp.json` in the repo root:
 ```json
@@ -642,7 +642,7 @@ Common causes:
 
 ### `/mcp` returns 404 without trailing slash
 
-The Streamable HTTP endpoint is at `/mcp/` (with trailing slash). `/mcp` (without) returns 404. This is an MCP SDK behaviour — always use the trailing slash in client config.
+By default the Streamable HTTP endpoint resolves to `/mcp/` (the sub-app is mounted at `/mcp` with `streamable_http_path="/"`, and `redirect_slashes` is off). Some clients — notably the Claude Desktop connector UI — strip the trailing slash and POST to bare `/mcp`, which Starlette's `Mount` won't forward. `_McpBarePathApp` (`main.py`) fixes this: it registers a top-level route for the bare `/mcp` that rewrites the path to `/` and feeds the request through the same sub-app, so both `/mcp` and `/mcp/` work. If bare `/mcp` 404s in a deploy, check that route is registered before the `app.mount("/mcp", …)` call.
 
 ### "SDK auth failed: Failed to parse JSON"
 

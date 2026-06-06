@@ -79,6 +79,10 @@ def _build_app() -> tuple[FastAPI, object]:
             yield
 
     app = FastAPI(lifespan=lifespan, redirect_slashes=False)
+    # Mirror app/main.py: a bare-path route (no trailing slash) before the mount.
+    from app.main import _McpBarePathApp
+
+    app.router.routes.append(Route("/mcp", endpoint=_McpBarePathApp(streamable)))
     app.mount("/mcp", streamable)
     return app, session_manager
 
@@ -118,13 +122,19 @@ async def test_streamable_requires_auth() -> None:
 
 
 @pytest.mark.asyncio
-async def test_streamable_endpoint_needs_trailing_slash() -> None:
-    """/mcp without the trailing slash is not the endpoint (SDK behaviour)."""
+async def test_streamable_works_without_trailing_slash() -> None:
+    """Bare /mcp (no trailing slash) reaches the transport — clients that strip
+    the slash (e.g. the Claude Desktop connector UI) still authenticate."""
     app, _ = _build_app()
     async with app.router.lifespan_context(app):
         async with _client(app) as client:
-            resp = await client.post("/mcp", json={})
-    assert resp.status_code == 404
+            resp = await client.post(
+                "/mcp",
+                json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+                headers={"Accept": "application/json, text/event-stream"},
+            )
+    assert resp.status_code == 401
+    assert resp.headers.get("www-authenticate", "").startswith("Bearer")
 
 
 @pytest.mark.asyncio
