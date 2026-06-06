@@ -307,7 +307,13 @@ if settings.mcp_enabled and settings.mcp_base_url:
             allowed_hosts=[_mcp_host] if _mcp_host else None,
         )
 
-        mcp_starlette = mcp_server.sse_app()
+        # Streamable HTTP transport (spec-current; replaced the deprecated SSE
+        # transport in the 2026-06-06 cutover). Single endpoint at /mcp/
+        # (streamable_http_path="/" + mount at /mcp). The session manager's
+        # task group is driven from the FastAPI lifespan — FastAPI does not
+        # propagate a mounted sub-app's lifespan.
+        mcp_starlette = mcp_server.streamable_http_app()
+        app.state.mcp_session_manager = mcp_server.session_manager
 
         google_callback = build_google_oauth_callback(
             session_maker=async_session_maker,
@@ -364,16 +370,6 @@ if settings.mcp_enabled and settings.mcp_base_url:
                 asyncio.run(_seed_mcp_oauth_client())
 
         app.mount("/mcp", mcp_starlette)
-
-        # Streamable HTTP transport (spec-current). Dual-mounted alongside SSE
-        # during cutover: legacy clients keep using /mcp/sse, new clients use
-        # /mcp-http/ with type:"http". Starlette Mount("/mcp") does not match
-        # /mcp-http (needs "/" or end after the prefix), so no route collision;
-        # the ALB "mcp*" rule still matches /mcp-http*.
-        mcp_http = mcp_server.streamable_http_app()
-        app.state.mcp_session_manager = mcp_server.session_manager
-        mcp_http.routes.append(Route("/oauth/callback", endpoint=google_callback, methods=["GET"]))
-        app.mount("/mcp-http", mcp_http)
 
         # RFC 9728 + RFC 8414: the SDK expects OAuth metadata at the domain root
         # (not under /mcp mount). Serve directly — SDK doesn't follow redirects.

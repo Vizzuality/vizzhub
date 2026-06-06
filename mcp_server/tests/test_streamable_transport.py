@@ -1,12 +1,13 @@
-"""Dual-transport wiring tests — SSE (legacy) + Streamable HTTP.
+"""Streamable HTTP transport wiring tests.
 
 Mirrors the mount wiring from `app/main.py` in isolation (no DB) to lock in the
-Phase-0 spike findings of the SSE→Streamable HTTP migration:
-  - the streamable endpoint mounts at /mcp-http/ and enforces OAuth
+SSE→Streamable HTTP cutover (2026-06-06):
+  - the streamable endpoint mounts at the canonical /mcp/ and enforces OAuth
     (401 + WWW-Authenticate), so an unauthenticated client cannot reach tools;
+  - /mcp without the trailing slash 404s (MCP SDK behaviour);
   - the session manager's task group starts and stops cleanly from a FastAPI
     lifespan (FastAPI does not propagate a mounted sub-app's lifespan);
-  - the legacy SSE mount at /mcp keeps working — no route collision.
+  - the retired SSE endpoints (/mcp/sse, /mcp/messages/) are gone.
 
 These are pure-ASGI tests: the provider is constructed but its DB-backed flows
 are never exercised, so no test database is required.
@@ -34,8 +35,8 @@ BASE_URL = "https://hub.vizzuality.com/mcp"
 HOST = "hub.vizzuality.com"
 
 
-def _build_dual_app() -> tuple[FastAPI, object]:
-    """Build a FastAPI app with both SSE and Streamable HTTP mounted.
+def _build_app() -> tuple[FastAPI, object]:
+    """Build a FastAPI app with Streamable HTTP mounted at /mcp.
 
     Replicates the mount/lifespan logic of `app/main.py` (the production wiring)
     without its DB-dependent startup steps.
@@ -66,9 +67,6 @@ def _build_dual_app() -> tuple[FastAPI, object]:
     async def _callback(request):  # noqa: ANN001
         return PlainTextResponse("ok")
 
-    sse = mcp_server.sse_app()
-    sse.routes.append(Route("/oauth/callback", endpoint=_callback, methods=["GET"]))
-
     streamable = mcp_server.streamable_http_app()
     session_manager = mcp_server.session_manager
     streamable.routes.append(
@@ -81,8 +79,7 @@ def _build_dual_app() -> tuple[FastAPI, object]:
             yield
 
     app = FastAPI(lifespan=lifespan, redirect_slashes=False)
-    app.mount("/mcp", sse)
-    app.mount("/mcp-http", streamable)
+    app.mount("/mcp", streamable)
     return app, session_manager
 
 
@@ -92,30 +89,27 @@ def _client(app: FastAPI) -> httpx.AsyncClient:
     )
 
 
-def test_both_transports_mount_without_collision() -> None:
-    """SSE and Streamable HTTP coexist; Mount('/mcp') does not capture /mcp-http."""
-    app, _ = _build_dual_app()
+def test_streamable_mounts_at_canonical_mcp() -> None:
+    """The single endpoint is served at the /mcp mount root (streamable_http_path='/')."""
+    app, _ = _build_app()
     mounts = {r.path: r for r in app.routes if isinstance(r, Mount)}
     assert "/mcp" in mounts
-    assert "/mcp-http" in mounts
 
-    sse_paths = {getattr(x, "path", None) for x in mounts["/mcp"].app.routes}
-    http_paths = {getattr(x, "path", None) for x in mounts["/mcp-http"].app.routes}
-    # SSE keeps its stream + message endpoints
-    assert "/sse" in sse_paths
-    assert "/messages" in sse_paths
-    # Streamable serves a single endpoint at the mount root (streamable_http_path="/")
-    assert "/" in http_paths
+    paths = {getattr(x, "path", None) for x in mounts["/mcp"].app.routes}
+    assert "/" in paths
+    # The deprecated SSE endpoints are gone.
+    assert "/sse" not in paths
+    assert "/messages" not in paths
 
 
 @pytest.mark.asyncio
 async def test_streamable_requires_auth() -> None:
-    """An unauthenticated POST to /mcp-http/ is rejected with 401 + WWW-Authenticate."""
-    app, _ = _build_dual_app()
+    """An unauthenticated POST to /mcp/ is rejected with 401 + WWW-Authenticate."""
+    app, _ = _build_app()
     async with app.router.lifespan_context(app):
         async with _client(app) as client:
             resp = await client.post(
-                "/mcp-http/",
+                "/mcp/",
                 json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
                 headers={"Accept": "application/json, text/event-stream"},
             )
@@ -125,35 +119,33 @@ async def test_streamable_requires_auth() -> None:
 
 @pytest.mark.asyncio
 async def test_streamable_endpoint_needs_trailing_slash() -> None:
-    """/mcp-http without the trailing slash is not the endpoint (SDK behaviour)."""
-    app, _ = _build_dual_app()
+    """/mcp without the trailing slash is not the endpoint (SDK behaviour)."""
+    app, _ = _build_app()
     async with app.router.lifespan_context(app):
         async with _client(app) as client:
-            resp = await client.post("/mcp-http", json={})
+            resp = await client.post("/mcp", json={})
     assert resp.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_legacy_sse_still_guarded() -> None:
-    """The legacy SSE message endpoint stays mounted and auth-guarded."""
-    app, _ = _build_dual_app()
+async def test_legacy_sse_endpoint_removed() -> None:
+    """The retired SSE message endpoint no longer exists."""
+    app, _ = _build_app()
     async with app.router.lifespan_context(app):
         async with _client(app) as client:
             resp = await client.post("/mcp/messages/", json={})
-    assert resp.status_code == 401
+    assert resp.status_code == 404
 
 
 @pytest.mark.asyncio
 async def test_session_manager_runs_from_lifespan() -> None:
     """The session manager task group starts and stops cleanly via the lifespan."""
-    app, manager = _build_dual_app()
+    app, manager = _build_app()
     async with app.router.lifespan_context(app):
         # Inside the context the manager's task group is live; a request reaches
         # the transport layer (rejected for auth, but routed — not a 500/404).
         async with _client(app) as client:
-            resp = await client.get(
-                "/mcp-http/", headers={"Accept": "text/event-stream"}
-            )
+            resp = await client.get("/mcp/", headers={"Accept": "text/event-stream"})
         assert resp.status_code == 401
     # Exiting the context tears the task group down without raising.
     assert type(manager).__name__ == "StreamableHTTPSessionManager"

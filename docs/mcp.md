@@ -11,18 +11,16 @@ Production (HTTPS):
 
   Claude Code / Desktop
         |
-        | HTTPS (Streamable HTTP — preferred; SSE still served for legacy clients)
+        | HTTPS (Streamable HTTP)
         v
   ALB (hub.vizzuality.com)
         |
-        | /mcp*                           → backend:8000   (matches /mcp* AND /mcp-http*)
+        | /mcp*                           → backend:8000
         | /.well-known/oauth-protected-*  → backend:8000
         |
   FastAPI backend
         |
-        +-- /mcp-http/           Streamable HTTP endpoint (POST+GET, single endpoint) ← preferred
-        +-- /mcp/sse             SSE stream endpoint (GET)   ← legacy, deprecated
-        +-- /mcp/messages/       Client messages endpoint (POST)   ← legacy
+        +-- /mcp/                Streamable HTTP endpoint (single endpoint, POST+GET)
         +-- /mcp/authorize       OAuth → redirects to Google SSO
         +-- /mcp/token           Issues JWT access + refresh tokens
         +-- /mcp/register        Dynamic Client Registration (RFC 7591)
@@ -45,8 +43,8 @@ Local development (stdio):
 
 - **Two-tier API.** ISO gets a generic schema-driven API (`iso_get_registries`, `iso_get_registry_rows`) because its spreadsheet-like model admits new registries at runtime without MCP changes. Relational modules (Tracker, Scorecard, Capacity, Playbook, Users) get semantic domain-specific tools because their schemas are stable and explicit tool descriptions give the LLM better grounding than a generic row API would.
 - **Sub-app, not separate process.** The MCP Starlette app is mounted on the existing FastAPI backend at `/mcp` via `app.mount()`. Same container, same DB pool, same deploy pipeline.
-- **Transport-agnostic server.** `create_mcp_server()` factory produces a single `FastMCP` instance with all tools registered once. `__main__.py` uses it over stdio; `main.py` builds both `sse_app()` and `streamable_http_app()` from the same instance and mounts them side by side. The server object doesn't know which transport is active.
-- **Dual transport: Streamable HTTP (preferred) + SSE (legacy).** The MCP spec deprecated HTTP+SSE (2025-03-26) in favour of **Streamable HTTP**, and as of 2026-06-05 every major client supports it (Claude Code/Desktop, ChatGPT/OpenAI, Gemini, VS Code Copilot, Cursor, Windsurf). New clients connect to the single Streamable HTTP endpoint at `/mcp-http/` with `type: "http"`. The legacy SSE mount (`/mcp/sse` GET stream + `/mcp/messages/` POST) is kept during cutover so existing clients don't break, and will be retired once SSE traffic drops to zero. `streamable_http_path="/"` on the instance makes the streamable endpoint resolve to the mount root (`/mcp-http/`); the default `/mcp` would double to `/mcp-http/mcp`. Unlike SSE (each connection spins up its own server), Streamable HTTP needs a `StreamableHTTPSessionManager` whose `run()` task group is driven from FastAPI's `lifespan` — FastAPI does not propagate a mounted sub-app's lifespan.
+- **Transport-agnostic server.** `create_mcp_server()` factory produces a single `FastMCP` instance with all tools registered once. `__main__.py` uses it over stdio; `main.py` builds `streamable_http_app()` from the same instance and mounts it at `/mcp`. The server object doesn't know which transport is active.
+- **Streamable HTTP transport.** The MCP spec deprecated HTTP+SSE (2025-03-26) in favour of **Streamable HTTP**, and as of 2026-06-05 every major client supports it (Claude Code/Desktop, ChatGPT/OpenAI, Gemini, VS Code Copilot, Cursor, Windsurf). VizzHub cut over from SSE to Streamable HTTP on 2026-06-06 (the brief dual-transport phase was collapsed since no clients were connected). Clients connect to the single endpoint at `/mcp/` with `type: "http"`. `streamable_http_path="/"` on the instance makes the endpoint resolve to the mount root (`/mcp/`); the default `/mcp` would double to `/mcp/mcp`. Unlike SSE (each connection spun up its own server), Streamable HTTP needs a `StreamableHTTPSessionManager` whose `run()` task group is driven from FastAPI's `lifespan` — FastAPI does not propagate a mounted sub-app's lifespan.
 - **Read-only guarantee.** MCP tool sessions use `postgresql_readonly=True` at the engine level. Even sharing the backend's connection pool, tools cannot write.
 - **DNS rebinding protection.** The SDK defaults to `host="127.0.0.1"` which auto-enables DNS rebinding protection with `allowed_hosts=["127.0.0.1:*", "localhost:*"]`. Behind an ALB, the `Host` header is the public domain — pass `TransportSecuritySettings(allowed_hosts=["hub.vizzuality.com"])` to allow it.
 
@@ -493,7 +491,7 @@ The script sets `PYTHONPATH=backend` and loads `DATABASE_URL` from `backend/.env
 
 ### Remote setup (HTTP)
 
-For production access, clients connect over **Streamable HTTP** with OAuth authentication. The endpoint is the single URL `https://hub.vizzuality.com/mcp-http/` (note the **trailing slash** — `/mcp-http` without it 404s, an MCP SDK behaviour).
+For production access, clients connect over **Streamable HTTP** with OAuth authentication. The endpoint is the single URL `https://hub.vizzuality.com/mcp/` (note the **trailing slash** — `/mcp` without it 404s, an MCP SDK behaviour).
 
 **Claude Code** — `.mcp.json` in the repo root:
 ```json
@@ -501,20 +499,20 @@ For production access, clients connect over **Streamable HTTP** with OAuth authe
   "mcpServers": {
     "vizzhub-remote": {
       "type": "http",
-      "url": "https://hub.vizzuality.com/mcp-http/"
+      "url": "https://hub.vizzuality.com/mcp/"
     }
   }
 }
 ```
 
-Or via CLI: `claude mcp add --transport http vizzhub-remote https://hub.vizzuality.com/mcp-http/`
+Or via CLI: `claude mcp add --transport http vizzhub-remote https://hub.vizzuality.com/mcp/`
 
 **Claude Desktop** — `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS):
 ```json
 {
   "mcpServers": {
     "vizzhub": {
-      "url": "https://hub.vizzuality.com/mcp-http/"
+      "url": "https://hub.vizzuality.com/mcp/"
     }
   }
 }
@@ -522,20 +520,7 @@ Or via CLI: `claude mcp add --transport http vizzhub-remote https://hub.vizzuali
 
 On Windows the config file is at `%APPDATA%\Claude\claude_desktop_config.json`.
 
-#### Legacy SSE endpoint (deprecated — pending retirement)
-
-The SSE transport is still served at `/mcp/sse` during the cutover so older configs keep working. **New clients should use the Streamable HTTP endpoint above.** SSE will be removed once traffic drops to zero.
-
-```json
-{
-  "mcpServers": {
-    "vizzhub-remote": {
-      "type": "sse",
-      "url": "https://hub.vizzuality.com/mcp/sse"
-    }
-  }
-}
-```
+> **Migrating from the old SSE config?** The deprecated SSE transport (`type: "sse"`, url `…/mcp/sse`) was removed on 2026-06-06. Replace it with the `type: "http"` config above pointing at `…/mcp/`.
 
 On first connection, the client discovers OAuth endpoints via `/.well-known/oauth-authorization-server` and opens a browser for Google SSO authentication. After login, the token is cached and reused until it expires.
 
@@ -553,7 +538,7 @@ The ALB routes `/mcp*` to the backend target group at priority 50:
 | 100 | `/api/*` | backend:8000 |
 | default | `/*` | frontend:5173 |
 
-**Note:** The `/mcp*` pattern matches both the legacy SSE mount (`/mcp/*`) and the Streamable HTTP mount (`/mcp-http/*`) — no ALB change was needed to add Streamable HTTP. Both `/.well-known/oauth-*` patterns are required because the MCP SDK expects OAuth metadata at the domain root (per RFC 9728 and RFC 8414), not under the `/mcp` mount. FastAPI serves the metadata JSON directly at these paths (not via redirect — the MCP SDK client doesn't follow 307 redirects).
+**Note:** Both `/.well-known/oauth-*` patterns are required because the MCP SDK expects OAuth metadata at the domain root (per RFC 9728 and RFC 8414), not under the `/mcp` mount. FastAPI serves the metadata JSON directly at these paths (not via redirect — the MCP SDK client doesn't follow 307 redirects).
 
 ### Secrets Manager
 
@@ -655,9 +640,9 @@ Common causes:
 - `mcp` package missing from `backend/uv.lock` (it's a runtime dep in `pyproject.toml` — sync with `cd backend && uv sync`)
 - Mount failed with exception (look for `mcp_server_mount_failed` in logs)
 
-### `/mcp-http` returns 404 without trailing slash
+### `/mcp` returns 404 without trailing slash
 
-The Streamable HTTP endpoint is at `/mcp-http/` (with trailing slash). `/mcp-http` (without) returns 404. This is an MCP SDK behaviour — always use the trailing slash in client config.
+The Streamable HTTP endpoint is at `/mcp/` (with trailing slash). `/mcp` (without) returns 404. This is an MCP SDK behaviour — always use the trailing slash in client config.
 
 ### "SDK auth failed: Failed to parse JSON"
 
@@ -673,7 +658,7 @@ Two possible causes:
 
 ### `.mcp.json` schema validation error
 
-Use `type: "http"` for the Streamable HTTP endpoint (`/mcp-http/`), or `type: "sse"` for the legacy SSE endpoint (`/mcp/sse`). Note: the value is `"http"`, not `"streamable-http"`.
+Use `type: "http"` for the Streamable HTTP endpoint (`/mcp/`). Note: the value is `"http"`, not `"streamable-http"`. (The legacy `type: "sse"` endpoint was removed on 2026-06-06.)
 
 ### "Incompatible auth server: does not support dynamic client registration"
 

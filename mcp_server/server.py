@@ -77,21 +77,18 @@ def create_mcp_server(
     """Create the MCP server instance with all tools registered.
 
     Without auth params: returns a server for stdio transport (Phase 1 behavior).
-    With auth params + http_mode: returns a server configured for HTTP transport
-    with OAuth. http_mode sets streamable_http_path="/" to avoid /mcp/mcp path
-    doubling when mounted as sub-app at /mcp on FastAPI.
+    With auth params + http_mode: returns a server configured for Streamable HTTP
+    transport with OAuth, mounted as a sub-app at /mcp on FastAPI.
     """
     from mcp.server.transport_security import TransportSecuritySettings
 
     kwargs: dict = {}
     if http_mode:
-        # Dual transport from one instance:
-        #   SSE (legacy):    GET /sse (stream) + POST /messages/ (client messages)
-        #   Streamable HTTP: single endpoint at streamable_http_path
-        # streamable_http_path="/" so that mounting the sub-app at /mcp-http
-        # yields the canonical endpoint /mcp-http/ (default "/mcp" would double
-        # to /mcp-http/mcp). Does not affect sse_app(), which uses sse_path.
-        # Behind ALB the Host header is the public domain, not localhost.
+        # Streamable HTTP: a single endpoint at streamable_http_path.
+        # streamable_http_path="/" so that mounting the sub-app at /mcp yields
+        # the canonical endpoint /mcp/ (the default "/mcp" would double to
+        # /mcp/mcp). Behind the ALB the Host header is the public domain, not
+        # localhost — hence the transport_security allowed_hosts below.
         kwargs["streamable_http_path"] = "/"
         kwargs["transport_security"] = TransportSecuritySettings(
             enable_dns_rebinding_protection=bool(allowed_hosts),
