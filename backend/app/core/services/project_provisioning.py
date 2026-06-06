@@ -51,6 +51,7 @@ async def provision_project_accrual(db: AsyncSession, *, project: ProjectDB) -> 
 
     budget_changed = project.budget != new_budget
     project.budget = new_budget
+    await db.flush()  # persist the budget mutation before the caller refreshes the row
     logger.info(
         "project_accrual_provisioned",
         project_id=str(project.id),
