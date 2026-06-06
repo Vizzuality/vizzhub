@@ -49,6 +49,7 @@ interface LineForm {
   valueEur: string;
   valueOrig: string;
   currency: string;
+  rate: string;
   windowStart: string;
   windowEnd: string;
 }
@@ -58,6 +59,7 @@ const EMPTY_FORM: LineForm = {
   valueEur: '0',
   valueOrig: '',
   currency: '',
+  rate: '',
   windowStart: '',
   windowEnd: '',
 };
@@ -179,6 +181,7 @@ export function AccrualLineEditor({ lineId, onClose }: AccrualLineEditorProps): 
         valueEur: detail.value_eur ?? '0',
         valueOrig: detail.value_orig ?? '',
         currency: detail.currency ?? '',
+        rate: detail.rate ?? '',
         windowStart: detail.window_start ?? '',
         windowEnd: detail.window_end ?? '',
       });
@@ -203,14 +206,23 @@ export function AccrualLineEditor({ lineId, onClose }: AccrualLineEditorProps): 
     Boolean(form.windowEnd) &&
     form.windowStart > form.windowEnd;
 
-  const buildPayload = (): AccrualLineUpdate => ({
-    name: form.name.trim() || null,
-    value_eur: form.valueEur || '0',
-    value_orig: form.valueOrig.trim() || null,
-    currency: form.currency.trim().toUpperCase() || null,
-    window_start: form.windowStart || null,
-    window_end: form.windowEnd || null,
-  });
+  const buildPayload = (): AccrualLineUpdate => {
+    const payload: AccrualLineUpdate = {
+      name: form.name.trim() || null,
+      value_eur: form.valueEur || '0',
+      value_orig: form.valueOrig.trim() || null,
+      currency: form.currency.trim().toUpperCase() || null,
+      window_start: form.windowStart || null,
+      window_end: form.windowEnd || null,
+    };
+    // Only touch the FX override when it actually changed — sending it recomputes
+    // value_eur and redistributes, which we don't want on an unrelated field edit.
+    const currentRate = form.rate.trim();
+    if (currentRate !== (detail?.rate ?? '')) {
+      payload.rate = currentRate || null;
+    }
+    return payload;
+  };
 
   const handlePickProject = (projectId: string): void => {
     if (isCreate) {
@@ -326,6 +338,29 @@ export function AccrualLineEditor({ lineId, onClose }: AccrualLineEditorProps): 
               className="uppercase"
             />
           </div>
+
+          {!isCreate && (
+            <div className="space-y-1">
+              <Label htmlFor="line-rate">Rate (FX override)</Label>
+              <Input
+                id="line-rate"
+                type="number"
+                min="0"
+                step="0.0001"
+                value={form.rate}
+                onChange={(e) => setField('rate', e.target.value)}
+                placeholder={
+                  detail?.period_rate
+                    ? `${Number(detail.period_rate).toFixed(4)} (period)`
+                    : 'follows period rate'
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                Foreign units per €. Empty = follow the period rate. Setting it recomputes
+                Value € and redistributes the open months.
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">

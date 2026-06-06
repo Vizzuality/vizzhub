@@ -86,4 +86,62 @@ describe('AccrualLineEditor — edit mode', () => {
     await waitFor(() => expect(accrualApi.lines.update).toHaveBeenCalledWith('l1', expect.anything()));
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('sends the FX override only when the rate field changes', async () => {
+    vi.mocked(accrualApi.lines.get).mockResolvedValue({
+      id: 'l2',
+      name: 'USD line',
+      source: 'manual',
+      excel_code: null,
+      value_eur: '1000.00',
+      value_orig: '1080.00',
+      currency: 'USD',
+      rate: null,
+      period_rate: '1.0800',
+      window_start: '2026-01-01',
+      window_end: '2026-03-31',
+      projects: [],
+    });
+    vi.mocked(accrualApi.lines.update).mockResolvedValue({ id: 'l2' } as never);
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+
+    renderWith(<AccrualLineEditor lineId="l2" onClose={onClose} />);
+
+    const rateInput = await screen.findByLabelText('Rate (FX override)');
+    await user.type(rateInput, '1.2');
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    await waitFor(() => expect(accrualApi.lines.update).toHaveBeenCalled());
+    const [, payload] = vi.mocked(accrualApi.lines.update).mock.calls[0];
+    expect(payload.rate).toBe('1.2');
+  });
+
+  it('omits the rate from the payload when the field is untouched', async () => {
+    vi.mocked(accrualApi.lines.get).mockResolvedValue({
+      id: 'l3',
+      name: 'USD line',
+      source: 'manual',
+      excel_code: null,
+      value_eur: '1000.00',
+      value_orig: '1080.00',
+      currency: 'USD',
+      rate: '1.0800',
+      period_rate: '1.0800',
+      window_start: '2026-01-01',
+      window_end: '2026-03-31',
+      projects: [],
+    });
+    vi.mocked(accrualApi.lines.update).mockResolvedValue({ id: 'l3' } as never);
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+
+    renderWith(<AccrualLineEditor lineId="l3" onClose={onClose} />);
+    await screen.findByDisplayValue('USD line');
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    await waitFor(() => expect(accrualApi.lines.update).toHaveBeenCalled());
+    const [, payload] = vi.mocked(accrualApi.lines.update).mock.calls[0];
+    expect(payload).not.toHaveProperty('rate');
+  });
 });

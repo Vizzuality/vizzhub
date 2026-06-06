@@ -132,6 +132,8 @@ export interface AccrualLineUpdate {
   currency?: string | null;
   window_start?: string | null;
   window_end?: string | null;
+  /** FX override (foreign per €). Send a value to override, null to clear (follow period). */
+  rate?: string | null;
 }
 
 export interface AccrualGridMonth {

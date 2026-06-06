@@ -19,6 +19,13 @@ describe('RateCell', () => {
     expect(screen.getByText('1.0800')).toBeInTheDocument();
   });
 
+  it('shows an editable line following the period rate in an interactive accent colour (not muted)', () => {
+    render(<RateCell line={base} canEdit onChange={vi.fn()} />);
+    const el = screen.getByText('1.0800');
+    expect(el.className).toMatch(/chart-2/);
+    expect(el.className).not.toMatch(/muted-foreground/);
+  });
+
   it('shows the override value with the override colour class', () => {
     render(<RateCell line={{ ...base, rate: '1.2000' }} canEdit={false} onChange={vi.fn()} />);
     const el = screen.getByText('1.2000');

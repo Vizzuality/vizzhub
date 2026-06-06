@@ -11,8 +11,9 @@ function isEur(line: AccrualGridLine): boolean {
   return !line.currency || line.currency.toUpperCase() === 'EUR' || line.currency === 'euro';
 }
 
-/** Editable per-line FX rate. Override (line.rate) shows coloured; empty shows the
- * muted resolved period rate; EUR/passthrough shows a non-editable 1.0000. */
+/** Editable per-line FX rate. Override (line.rate) shows green; an editable line still
+ * following the period rate shows an interactive accent colour (so it reads as
+ * editable, not read-only); a non-editable / EUR line shows muted. */
 export function RateCell({ line, canEdit, onChange }: RateCellProps): JSX.Element {
   const [editing, setEditing] = useState(false);
   const cancelRef = useRef(false);
@@ -61,7 +62,11 @@ export function RateCell({ line, canEdit, onChange }: RateCellProps): JSX.Elemen
       disabled={!canEdit}
       onClick={() => canEdit && setEditing(true)}
       className={`tabular-nums ${canEdit ? 'cursor-text hover:underline' : 'cursor-default'} ${
-        hasOverride ? 'font-medium text-[var(--score-green)]' : 'text-muted-foreground'
+        hasOverride
+          ? 'font-medium text-[var(--score-green)]'
+          : canEdit
+            ? 'text-[var(--chart-2)]'
+            : 'text-muted-foreground'
       }`}
       title={hasOverride ? 'CEO override — click to edit' : 'Following period rate — click to override'}
     >
