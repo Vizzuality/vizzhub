@@ -110,6 +110,24 @@ export function AccrualGrid({
           ))}
         </colgroup>
         <thead className="sticky top-0 z-20">
+          {/* Totals row — pinned above the column headers */}
+          <tr className="border-b-2 bg-card">
+            <th
+              colSpan={stickyCount}
+              className="sticky left-0 z-20 bg-card px-3 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+              style={{ left: 0 }}
+            >
+              Totals (EUR)
+            </th>
+            {months.map((m) => (
+              <th
+                key={`total_${m.year}_${m.month}`}
+                className="border-l px-2 py-1.5 text-right text-xs font-semibold tabular-nums"
+              >
+                {formatAmount(monthTotals.get(`${m.year}_${m.month}`) ?? 0)}
+              </th>
+            ))}
+          </tr>
           {/* Year group row */}
           <tr className="bg-muted">
             <th colSpan={stickyCount} className="sticky left-0 z-20 bg-muted" />
@@ -178,25 +196,6 @@ export function AccrualGrid({
             </tr>
           ))}
         </tbody>
-        <tfoot className="sticky bottom-0 z-20 border-t-2 bg-card">
-          <tr>
-            <td
-              colSpan={stickyCount}
-              className="sticky left-0 z-20 bg-card px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
-              style={{ left: 0 }}
-            >
-              Totals (EUR)
-            </td>
-            {months.map((m) => (
-              <td
-                key={`total_${m.year}_${m.month}`}
-                className="border-l px-2 py-1.5 text-right text-xs font-semibold tabular-nums"
-              >
-                {formatAmount(monthTotals.get(`${m.year}_${m.month}`) ?? 0)}
-              </td>
-            ))}
-          </tr>
-        </tfoot>
       </table>
     </div>
   );

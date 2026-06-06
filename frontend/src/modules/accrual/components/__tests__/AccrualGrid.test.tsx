@@ -151,10 +151,11 @@ describe('AccrualGrid', () => {
 
   it('totals row sums EUR amounts per column', () => {
     renderGrid();
-    // Jan column total = 90.91 (only cell), formatted as 90.91
-    const rows = screen.getAllByRole('row');
-    const totalsRow = rows[rows.length - 1];
-    expect(within(totalsRow).getByText('90.91')).toBeInTheDocument();
+    // Jan column total = 90.91 (only cell), formatted as 90.91. The totals row is
+    // pinned above the column headers; locate it by its label, not position.
+    const totalsRow = screen.getByText('Totals (EUR)').closest('tr');
+    expect(totalsRow).not.toBeNull();
+    expect(within(totalsRow as HTMLElement).getByText('90.91')).toBeInTheDocument();
   });
 
   it('triggers onCellChange (keyed by line id) when an editable cell is committed', async () => {
