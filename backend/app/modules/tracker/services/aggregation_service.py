@@ -38,6 +38,21 @@ def _valid_parts_filter(query):
     )
 
 
+def _join_author_fa(query, *, include_fa: bool = True):
+    """Join the report author (UserDB) and, optionally, their functional area.
+
+    Functional area is a user attribute (users.functional_area_id), not a
+    report_part one — report_part.functional_area_id is unused Vizztracker
+    legacy. FA is derived from the author via an OUTER join so parts whose
+    author has no FA fall into an "Unknown" bucket instead of vanishing
+    (an INNER join on the always-NULL part column drops every row).
+    """
+    query = query.join(UserDB, ReportDB.user_id == UserDB.id)
+    if include_fa:
+        query = query.outerjoin(FunctionalAreaDB, FunctionalAreaDB.id == UserDB.functional_area_id)
+    return query
+
+
 def _compute_burn_percentage(total_cost: float, budget: float | None) -> float | None:
     """Compute burn% using a single rounding policy across endpoints.
 
@@ -243,7 +258,7 @@ async def get_project_report_parts(
     Includes estimated reports (shown with badge in UI), unlike aggregation
     functions which exclude them via _valid_parts_filter.
     """
-    base_query = (
+    joined = _join_author_fa(
         select(
             ReportPartDB.id,
             ReportingPeriodDB.date.label("period_date"),
@@ -258,12 +273,9 @@ async def get_project_report_parts(
         .select_from(ReportPartDB)
         .join(ReportDB, ReportPartDB.report_id == ReportDB.id)
         .join(ReportingPeriodDB, ReportDB.reporting_period_id == ReportingPeriodDB.id)
-        .join(UserDB, ReportDB.user_id == UserDB.id)
-        .outerjoin(
-            FunctionalAreaDB,
-            ReportPartDB.functional_area_id == FunctionalAreaDB.id,
-        )
-        .where(ReportPartDB.project_id == project_id)
+    )
+    base_query = (
+        joined.where(ReportPartDB.project_id == project_id)
         .where(ReportPartDB.percentage.isnot(None))
         .where(ReportPartDB.percentage > 0)
         .order_by(ReportingPeriodDB.date.desc(), UserDB.name.asc())
@@ -298,23 +310,28 @@ async def _aggregate_fa_user(
     db: AsyncSession,
     project_id: UUID,
 ) -> AggregationResponse:
-    """Aggregate report_parts by functional_area with per-user children."""
+    """Aggregate report_parts by functional_area with per-user children.
+
+    FA is derived from the report author, not the part — see _join_author_fa.
+    """
     query = (
         _valid_parts_filter(
-            select(
-                FunctionalAreaDB.name.label("fa_name"),
-                UserDB.name.label("user_name"),
-                UserDB.email.label("user_email"),
-                ReportingPeriodDB.date.label("period_date"),
-                func.coalesce(func.sum(ReportPartDB.days), 0).label("days"),
-                func.coalesce(func.sum(ReportPartDB.cost), 0).label("cost"),
-            )
-            .select_from(ReportPartDB)
-            .join(ReportDB, ReportPartDB.report_id == ReportDB.id)
-            .join(ReportingPeriodDB, ReportDB.reporting_period_id == ReportingPeriodDB.id)
-            .join(FunctionalAreaDB, ReportPartDB.functional_area_id == FunctionalAreaDB.id)
-            .join(UserDB, ReportDB.user_id == UserDB.id)
-            .where(ReportPartDB.project_id == project_id)
+            _join_author_fa(
+                select(
+                    FunctionalAreaDB.name.label("fa_name"),
+                    UserDB.name.label("user_name"),
+                    UserDB.email.label("user_email"),
+                    ReportingPeriodDB.date.label("period_date"),
+                    func.coalesce(func.sum(ReportPartDB.days), 0).label("days"),
+                    func.coalesce(func.sum(ReportPartDB.cost), 0).label("cost"),
+                )
+                .select_from(ReportPartDB)
+                .join(ReportDB, ReportPartDB.report_id == ReportDB.id)
+                .join(
+                    ReportingPeriodDB,
+                    ReportDB.reporting_period_id == ReportingPeriodDB.id,
+                )
+            ).where(ReportPartDB.project_id == project_id)
         )
         .group_by(
             "fa_name",
@@ -400,34 +417,36 @@ async def get_project_aggregations(
     if group_by == "functional_area_user":
         return await _aggregate_fa_user(db, project_id)
 
-    if group_by == "functional_area":
-        name_col = FunctionalAreaDB.name.label("name")
-        email_col = func.cast(None, UserDB.email.type).label("email")
-        join_clause = ReportPartDB.functional_area_id == FunctionalAreaDB.id
-        join_target = FunctionalAreaDB
+    group_by_fa = group_by == "functional_area"
+    if group_by_fa:
+        name_expr = FunctionalAreaDB.name
+        email_expr = func.cast(None, UserDB.email.type)
     else:
-        name_col = UserDB.name.label("name")
-        email_col = UserDB.email.label("email")
-        join_clause = ReportDB.user_id == UserDB.id
-        join_target = UserDB
+        name_expr = UserDB.name
+        email_expr = UserDB.email
+
+    # FA (when grouping by it) is derived from the report author — see
+    # _join_author_fa. Group/order by the explicit column expressions (not the
+    # "name" label): joining both users and functional_areas makes a bare
+    # "name" ambiguous.
+    base = _join_author_fa(
+        select(
+            name_expr.label("name"),
+            email_expr.label("email"),
+            ReportingPeriodDB.date.label("period_date"),
+            func.coalesce(func.sum(ReportPartDB.days), 0).label("days"),
+            func.coalesce(func.sum(ReportPartDB.cost), 0).label("cost"),
+        )
+        .select_from(ReportPartDB)
+        .join(ReportDB, ReportPartDB.report_id == ReportDB.id)
+        .join(ReportingPeriodDB, ReportDB.reporting_period_id == ReportingPeriodDB.id),
+        include_fa=group_by_fa,
+    )
 
     query = (
-        _valid_parts_filter(
-            select(
-                name_col,
-                email_col,
-                ReportingPeriodDB.date.label("period_date"),
-                func.coalesce(func.sum(ReportPartDB.days), 0).label("days"),
-                func.coalesce(func.sum(ReportPartDB.cost), 0).label("cost"),
-            )
-            .select_from(ReportPartDB)
-            .join(ReportDB, ReportPartDB.report_id == ReportDB.id)
-            .join(ReportingPeriodDB, ReportDB.reporting_period_id == ReportingPeriodDB.id)
-            .join(join_target, join_clause)
-            .where(ReportPartDB.project_id == project_id)
-        )
-        .group_by("name", "email", ReportingPeriodDB.date)
-        .order_by("name", ReportingPeriodDB.date)
+        _valid_parts_filter(base.where(ReportPartDB.project_id == project_id))
+        .group_by(name_expr, email_expr, ReportingPeriodDB.date)
+        .order_by(name_expr, ReportingPeriodDB.date)
     )
 
     result = await db.execute(query)

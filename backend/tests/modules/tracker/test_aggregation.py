@@ -39,6 +39,7 @@ async def cost_data(db_session: AsyncSession) -> dict:
         name="Cost User",
         rate_id=rate.id,
         dedication=Decimal("0.74"),
+        functional_area_id=func_area.id,
     )
     db_session.add(user)
     await db_session.flush()
@@ -80,10 +81,12 @@ async def cost_data(db_session: AsyncSession) -> dict:
     db_session.add_all([report1, report2])
     await db_session.flush()
 
+    # functional_area_id left NULL on purpose: FA is derived from the report
+    # author (users.functional_area_id), not the part. The part column is
+    # unused Vizztracker legacy.
     part1 = ReportPartDB(
         report_id=report1.id,
         project_id=project.id,
-        functional_area_id=func_area.id,
         percentage=Decimal("0.10"),
         cost=Decimal("1137.01"),
         days=Decimal("1.48"),
@@ -91,7 +94,6 @@ async def cost_data(db_session: AsyncSession) -> dict:
     part2 = ReportPartDB(
         report_id=report2.id,
         project_id=project.id,
-        functional_area_id=func_area.id,
         percentage=Decimal("0.20"),
         cost=Decimal("2274.02"),
         days=Decimal("2.96"),
@@ -515,6 +517,139 @@ class TestProjectAggregations:
         assert row["periods"][1]["date"] == "2026-03-01"
 
     @pytest.mark.asyncio
+    async def test_fa_derived_from_user_not_part(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+    ):
+        """Functional area comes from the user, not report_part.functional_area_id.
+
+        report_part.functional_area_id is unused Vizztracker-migration legacy
+        (always NULL in VizzHub). The per-FA aggregation must attribute days to
+        the author's FA (users.functional_area_id); otherwise the "Time per
+        Functional Area" table shows 0 spent for every area while the project
+        total is non-zero.
+        """
+        rate = RateDB(code="UF", value=Decimal("15365"))
+        db_session.add(rate)
+        await db_session.flush()
+
+        fa = FunctionalAreaDB(name="Designer")
+        db_session.add(fa)
+        await db_session.flush()
+
+        user = UserDB(
+            email="designer@example.com",
+            name="Dee Signer",
+            rate_id=rate.id,
+            dedication=Decimal("1.0"),
+            functional_area_id=fa.id,
+        )
+        db_session.add(user)
+        await db_session.flush()
+
+        period = ReportingPeriodDB(
+            date=dt.date(2026, 5, 1),
+            base_rate=Decimal("175"),
+            status="active",
+        )
+        db_session.add(period)
+        await db_session.flush()
+
+        project = ProjectDB(name="User-FA Project", status="live", budget=Decimal("10000"))
+        db_session.add(project)
+        await db_session.flush()
+
+        report = ReportDB(
+            user_id=user.id,
+            reporting_period_id=period.id,
+            estimated=False,
+        )
+        db_session.add(report)
+        await db_session.flush()
+
+        part = ReportPartDB(
+            report_id=report.id,
+            project_id=project.id,
+            functional_area_id=None,  # legacy column unused in VizzHub
+            percentage=Decimal("0.50"),
+            cost=Decimal("1000.00"),
+            days=Decimal("5.0"),
+        )
+        db_session.add(part)
+        await db_session.commit()
+
+        for group_by in ("functional_area", "functional_area_user"):
+            resp = await client.get(
+                f"/api/tracker/projects/{project.id}/aggregations",
+                params={"group_by": group_by},
+            )
+            assert resp.status_code == 200
+            rows = resp.json()["rows"]
+            assert len(rows) == 1, f"{group_by}: expected one FA row"
+            assert rows[0]["name"] == "Designer"
+            assert rows[0]["total_days"] == pytest.approx(5.0)
+            assert rows[0]["total_cost"] == pytest.approx(1000.0)
+
+    @pytest.mark.asyncio
+    async def test_fa_user_without_area_buckets_as_unknown(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+    ):
+        """A reporter with no FA must still be counted, under an 'Unknown' bucket."""
+        rate = RateDB(code="UK", value=Decimal("15365"))
+        db_session.add(rate)
+        await db_session.flush()
+
+        user = UserDB(
+            email="noarea@example.com",
+            name="No Area",
+            rate_id=rate.id,
+            dedication=Decimal("1.0"),
+            functional_area_id=None,
+        )
+        db_session.add(user)
+        await db_session.flush()
+
+        period = ReportingPeriodDB(
+            date=dt.date(2026, 5, 1),
+            base_rate=Decimal("175"),
+            status="active",
+        )
+        db_session.add(period)
+        await db_session.flush()
+
+        project = ProjectDB(name="No-FA Project", status="live", budget=Decimal("10000"))
+        db_session.add(project)
+        await db_session.flush()
+
+        report = ReportDB(user_id=user.id, reporting_period_id=period.id, estimated=False)
+        db_session.add(report)
+        await db_session.flush()
+
+        part = ReportPartDB(
+            report_id=report.id,
+            project_id=project.id,
+            functional_area_id=None,
+            percentage=Decimal("0.50"),
+            cost=Decimal("1000.00"),
+            days=Decimal("5.0"),
+        )
+        db_session.add(part)
+        await db_session.commit()
+
+        resp = await client.get(
+            f"/api/tracker/projects/{project.id}/aggregations",
+            params={"group_by": "functional_area"},
+        )
+        assert resp.status_code == 200
+        rows = resp.json()["rows"]
+        assert len(rows) == 1
+        assert rows[0]["name"] == "Unknown"
+        assert rows[0]["total_days"] == pytest.approx(5.0)
+
+    @pytest.mark.asyncio
     async def test_aggregate_by_user(
         self,
         client: AsyncClient,
@@ -587,6 +722,7 @@ class TestProjectAggregations:
             name="Dev Two",
             rate_id=cost_data["rate"].id,
             dedication=Decimal("1.0"),
+            functional_area_id=cost_data["func_area"].id,
         )
         db_session.add(user2)
         await db_session.flush()
@@ -602,7 +738,6 @@ class TestProjectAggregations:
         part = ReportPartDB(
             report_id=report.id,
             project_id=cost_data["project"].id,
-            functional_area_id=cost_data["func_area"].id,
             percentage=Decimal("0.30"),
             cost=Decimal("3000.00"),
             days=Decimal("6.0"),
@@ -638,14 +773,33 @@ class TestProjectAggregations:
         cost_data: dict,
         db_session: AsyncSession,
     ):
+        # A second area requires a second user with that FA — FA is per-user,
+        # so a single user's parts can't span two areas.
         fa2 = FunctionalAreaDB(name="Frontend Developer")
         db_session.add(fa2)
         await db_session.flush()
 
-        part = ReportPartDB(
-            report_id=cost_data["report1"].id,
-            project_id=cost_data["project"].id,
+        fe_user = UserDB(
+            email="fe-dev@example.com",
+            name="Front Dev",
+            rate_id=cost_data["rate"].id,
+            dedication=Decimal("1.0"),
             functional_area_id=fa2.id,
+        )
+        db_session.add(fe_user)
+        await db_session.flush()
+
+        fe_report = ReportDB(
+            user_id=fe_user.id,
+            reporting_period_id=cost_data["period1"].id,
+            estimated=False,
+        )
+        db_session.add(fe_report)
+        await db_session.flush()
+
+        part = ReportPartDB(
+            report_id=fe_report.id,
+            project_id=cost_data["project"].id,
             percentage=Decimal("0.15"),
             cost=Decimal("1500.00"),
             days=Decimal("3.0"),
@@ -669,7 +823,7 @@ class TestProjectAggregations:
         fe_row = next(r for r in data["rows"] if r["name"] == "Frontend Developer")
         assert fe_row["total_days"] == pytest.approx(3.0)
         assert len(fe_row["children"]) == 1
-        assert fe_row["children"][0]["name"] == "Cost User"
+        assert fe_row["children"][0]["name"] == "Front Dev"
 
     @pytest.mark.asyncio
     async def test_aggregate_empty_project(
