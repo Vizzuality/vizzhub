@@ -41,13 +41,14 @@ export const ATTENDING_DOT_COLORS: Record<Attending, string> = {
   no: 'bg-gray-400',
 };
 
-export function buildYearOptions(): string[] {
-  const currentYear = new Date().getFullYear();
-  const years: string[] = [];
-  for (let y = currentYear; y >= 2024; y--) {
-    years.push(String(y));
-  }
-  return years;
+// Build the year filter options from the years that actually have events
+// (provided by the backend), newest first. The current selection is always
+// included so a URL-supplied year with no events still shows in the trigger
+// instead of leaving it blank.
+export function buildYearOptions(yearsWithData: number[] = [], selected?: string): string[] {
+  const years = new Set(yearsWithData.map(String));
+  if (selected) years.add(selected);
+  return Array.from(years).sort((a, b) => Number(b) - Number(a));
 }
 
 export function formatEventDateRange(start: string, end: string | null): string {

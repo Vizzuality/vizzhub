@@ -149,7 +149,10 @@ export default function Events(): JSX.Element {
     return () => clearTimeout(timer);
   }, [localSearch, state.search, setState]);
 
-  const yearOptions = useMemo(() => buildYearOptions(), []);
+  const yearOptions = useMemo(
+    () => buildYearOptions(options?.years_with_data ?? [], state.year || undefined),
+    [options?.years_with_data, state.year],
+  );
 
   // On first mount, if the URL has no year param at all, default to the most
   // recent year that has events (so the landing view shows data instead of

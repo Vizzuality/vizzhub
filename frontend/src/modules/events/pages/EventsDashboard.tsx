@@ -10,6 +10,7 @@ import {
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 import { StatsCharts } from '../components/StatsCharts';
 import { useEventStats } from '../hooks/useEventStats';
+import { useEventOptions } from '../hooks/useEventOptions';
 import { ALL_SENTINEL, buildYearOptions } from '../utils/constants';
 import type { EventStats } from '../types/events';
 
@@ -28,7 +29,11 @@ function renderStatsContent(
 
 export default function EventsDashboard(): JSX.Element {
   const { state, setState } = useUrlState(urlSchema);
-  const yearOptions = useMemo(() => buildYearOptions(), []);
+  const { data: options } = useEventOptions();
+  const yearOptions = useMemo(
+    () => buildYearOptions(options?.years_with_data ?? [], state.year || undefined),
+    [options?.years_with_data, state.year],
+  );
 
   const { data: stats, isLoading } = useEventStats(
     state.year ? Number(state.year) : undefined,
