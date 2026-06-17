@@ -13,6 +13,8 @@ export function useLineMutations() {
     (lineId?: string): void => {
       queryClient.invalidateQueries({ queryKey: queryKeys.accrual.cells.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.accrual.lines.all });
+      // A window/value edit moves cells, so the dashboard totals shift too.
+      queryClient.invalidateQueries({ queryKey: queryKeys.accrual.dashboard.all });
       if (lineId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.accrual.lines.detail(lineId) });
       }

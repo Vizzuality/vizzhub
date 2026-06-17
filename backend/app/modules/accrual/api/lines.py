@@ -105,20 +105,39 @@ async def get_line(line_id: UUID, db: DBSession, _: AccrualViewer) -> dict:
     return await _serialize_line(db, line)
 
 
-@router.patch("/lines/{line_id}", responses={404: {"description": "Line not found"}})
+@router.patch(
+    "/lines/{line_id}",
+    responses={
+        404: {"description": "Line not found"},
+        409: {"description": "Frozen cell would fall outside the new window"},
+    },
+)
 async def update_line(line_id: UUID, payload: LineUpdate, db: DBSession, _: AccrualManager) -> dict:
-    """Patch a line's editable fields. ``rate`` is the FX override: setting it (or
-    clearing with null) recomputes value_eur and redistributes the open months."""
+    """Patch a line's editable fields. Changing the window moves the line's cells with
+    it (orphaned months deleted, value redistributed across the new window) — rejected
+    with 409 if that would orphan a frozen cell. ``rate`` is the FX override: setting it
+    (or clearing with null) recomputes value_eur and redistributes the open months."""
     fields = payload.model_dump(exclude_unset=True)
     rate_present = "rate" in fields
     rate_value = fields.pop("rate", None)
+
+    existing = await _get_line_or_404(db, line_id)
+    window_changed = (
+        "window_start" in fields and fields["window_start"] != existing.window_start
+    ) or ("window_end" in fields and fields["window_end"] != existing.window_end)
 
     if fields:
         line = await line_service.update_line(db, line_id=line_id, fields=fields)
         if line is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_LINE_NOT_FOUND)
     else:
-        line = await _get_line_or_404(db, line_id)
+        line = existing
+
+    if window_changed:
+        try:
+            await cell_service.reconcile_line_window(db, line_id=line_id)
+        except cell_service.CellFrozenError as exc:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
     if rate_present:
         await cell_service.set_line_rate(db, line_id=line_id, rate=rate_value)

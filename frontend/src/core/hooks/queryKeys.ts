@@ -174,6 +174,7 @@ export const queryKeys = {
       detail: (id: string) => ['accrual', 'lines', id] as const,
     },
     dashboard: {
+      all: ['accrual', 'dashboard'] as const,
       monthly: (filters: Record<string, unknown>) =>
         ['accrual', 'dashboard', 'monthly', filters] as const,
       byProject: (filters: Record<string, unknown>) =>

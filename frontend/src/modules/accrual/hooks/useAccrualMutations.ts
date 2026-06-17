@@ -51,6 +51,8 @@ export function useAccrualMutations(): UseAccrualMutationsReturn {
 
   const invalidateGrid = useCallback((): void => {
     queryClient.invalidateQueries({ queryKey: queryKeys.accrual.cells.all });
+    // Cell edits change month/year totals, so the dashboard must refetch too.
+    queryClient.invalidateQueries({ queryKey: queryKeys.accrual.dashboard.all });
   }, [queryClient]);
 
   // Cells are keyed by (line_id, year, month) — a brand-new cell on an empty

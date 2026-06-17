@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.services.exchange_rate_service import currency_to_code
 from app.modules.accrual.models.accrual_cell import AccrualCellDB, CellSource
-from app.modules.accrual.models.accrual_line import AccrualLineDB
+from app.modules.accrual.models.accrual_line import AccrualLineDB, LineSource
 from app.modules.accrual.services import period_service
 
 logger = structlog.get_logger()
@@ -198,6 +198,55 @@ async def redistribute_for_line(
         force=force,
     )
     return written
+
+
+async def reconcile_line_window(db: AsyncSession, *, line_id: UUID) -> int:
+    """Reconcile a line's cells to its (already updated) window after a window change.
+
+    Cells live at fixed (year, month) slots and are decoupled from the window, so
+    moving the window leaves the old cells orphaned — invisible in the grid (which
+    filters by window) yet still summed by every aggregate (dashboard, health). This
+    deletes the non-frozen cells that now fall outside the window and redistributes
+    ``value_eur`` across the new window (``full_range`` so a past/closed target year
+    is filled too), so "moving the period moves the money".
+
+    Frozen cells are recognised revenue and cannot be relocated: if any would fall
+    outside the new window the whole move is rejected (``CellFrozenError``). Returns
+    the count of orphaned cells deleted.
+    """
+    line = await db.get(AccrualLineDB, line_id)
+    if line is None or line.window_start is None or line.window_end is None:
+        return 0
+
+    window_months = set(_months_between(line.window_start, line.window_end))
+    cells = (
+        (await db.execute(select(AccrualCellDB).where(AccrualCellDB.line_id == line_id)))
+        .scalars()
+        .all()
+    )
+    out_of_window = [c for c in cells if (c.year, c.month) not in window_months]
+
+    frozen_orphans = sum(1 for c in out_of_window if c.is_frozen)
+    if frozen_orphans:
+        raise CellFrozenError(
+            f"Cannot move window: {frozen_orphans} frozen cell(s) would fall outside "
+            "the new window — recognised revenue cannot be relocated"
+        )
+
+    for cell in out_of_window:
+        await db.delete(cell)
+    await db.flush()
+
+    source = (
+        CellSource.TEAM_BUDGET if line.source == LineSource.TEAM_BUDGET.value else CellSource.MANUAL
+    )
+    await redistribute_for_line(db, line_id=line_id, force=False, full_range=True, source=source)
+    logger.info(
+        "accrual_line_window_reconciled",
+        line_id=str(line_id),
+        orphans_deleted=len(out_of_window),
+    )
+    return len(out_of_window)
 
 
 async def set_line_rate(

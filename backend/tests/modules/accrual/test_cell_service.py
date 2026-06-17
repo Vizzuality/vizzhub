@@ -1,6 +1,6 @@
 """Unit tests for cell_service line-keyed operations."""
 
-from datetime import date
+from datetime import UTC, date
 from decimal import Decimal
 
 import pytest
@@ -126,6 +126,100 @@ async def test_bulk_set_cells_by_line_happy_path(db_session: AsyncSession) -> No
     assert len(cells) == 2
     assert {c.month for c in cells} == {2, 3}
     assert all(c.is_manual_override for c in cells)
+
+
+@pytest.mark.asyncio
+async def test_reconcile_line_window_moves_cells_to_new_window(
+    db_session: AsyncSession,
+) -> None:
+    """Moving a line's window deletes the now-orphaned cells and redistributes
+    value_eur across the new window (full range, so a past/closed target year is
+    filled too)."""
+    await period_service.create_period(db_session, start_date=date(2026, 1, 1), created_by=None)
+    line = await _make_line(db_session, value_eur="1200")
+    await cell_service.redistribute_for_line(db_session, line_id=line.id)
+
+    line.window_start = date(2024, 1, 1)
+    line.window_end = date(2024, 12, 1)
+    await db_session.flush()
+
+    orphans = await cell_service.reconcile_line_window(db_session, line_id=line.id)
+    assert orphans == 12  # the whole 2026 block was orphaned
+
+    cells = (
+        (await db_session.execute(select(AccrualCellDB).where(AccrualCellDB.line_id == line.id)))
+        .scalars()
+        .all()
+    )
+    assert {c.year for c in cells} == {2024}
+    assert len(cells) == 12
+    assert all(c.amount == Decimal("100.00") for c in cells)
+
+
+@pytest.mark.asyncio
+async def test_reconcile_line_window_preserves_in_window_cells(
+    db_session: AsyncSession,
+) -> None:
+    """Shrinking a window keeps the in-window cells (overrides survive) and drops
+    only the months that fell outside."""
+    await period_service.create_period(db_session, start_date=date(2026, 1, 1), created_by=None)
+    line = await _make_line(db_session, value_eur="1200")
+    await cell_service.redistribute_for_line(db_session, line_id=line.id)
+    await cell_service.set_cell_amount_by_line(
+        db_session, line_id=line.id, year=2026, month=1, amount=Decimal("300")
+    )
+
+    line.window_end = date(2026, 6, 1)
+    await db_session.flush()
+
+    orphans = await cell_service.reconcile_line_window(db_session, line_id=line.id)
+    assert orphans == 6  # months 7..12 dropped
+
+    cells = {
+        c.month: c
+        for c in (
+            (
+                await db_session.execute(
+                    select(AccrualCellDB).where(AccrualCellDB.line_id == line.id)
+                )
+            )
+            .scalars()
+            .all()
+        )
+    }
+    assert set(cells) == {1, 2, 3, 4, 5, 6}
+    assert cells[1].amount == Decimal("300.00")  # override preserved
+    assert cells[1].is_manual_override is True
+    assert cells[2].amount == Decimal("180.00")  # (1200 - 300) / 5
+
+
+@pytest.mark.asyncio
+async def test_reconcile_line_window_rejects_frozen_orphan(
+    db_session: AsyncSession,
+) -> None:
+    """A frozen (recognised) cell that would fall outside the new window blocks the
+    move — recognised revenue cannot be relocated."""
+    from datetime import datetime
+
+    await period_service.create_period(db_session, start_date=date(2026, 1, 1), created_by=None)
+    line = await _make_line(db_session, value_eur="1200")
+    await cell_service.redistribute_for_line(db_session, line_id=line.id)
+    frozen = (
+        await db_session.execute(
+            select(AccrualCellDB).where(AccrualCellDB.line_id == line.id, AccrualCellDB.month == 3)
+        )
+    ).scalar_one()
+    frozen.is_frozen = True
+    frozen.frozen_at = datetime(2026, 4, 1, tzinfo=UTC)
+    frozen.frozen_eur_amount = frozen.amount
+    await db_session.flush()
+
+    line.window_start = date(2024, 1, 1)
+    line.window_end = date(2024, 12, 1)
+    await db_session.flush()
+
+    with pytest.raises(cell_service.CellFrozenError):
+        await cell_service.reconcile_line_window(db_session, line_id=line.id)
 
 
 @pytest.mark.asyncio
