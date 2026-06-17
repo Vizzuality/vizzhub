@@ -19,7 +19,7 @@ export function RecognitionByMonthChart({ months }: RecognitionByMonthChartProps
       <BarChart data={data} margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
         <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
         <YAxis tickFormatter={formatAxisEur} width={56} fontSize={12} />
-        <Tooltip formatter={(v: number) => formatCurrency(v)} />
+        <Tooltip cursor={false} formatter={(v: number) => formatCurrency(v)} />
         <Bar dataKey="amount" radius={[3, 3, 0, 0]}>
           {data.map((d) => (
             <Cell key={d.label} fill={d.recognized ? RECOGNIZED_COLOR : FORECAST_COLOR} />

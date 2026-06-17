@@ -52,7 +52,7 @@ export function YtdBurnupChart({ months }: YtdBurnupChartProps): JSX.Element {
       <ComposedChart data={data} margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
         <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
         <YAxis tickFormatter={formatAxisEur} width={56} fontSize={12} />
-        <Tooltip formatter={(v: number) => formatCurrency(v)} />
+        <Tooltip cursor={false} formatter={(v: number) => formatCurrency(v)} />
         <Area
           type="monotone"
           dataKey="recognized"
