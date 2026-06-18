@@ -395,6 +395,14 @@ async def test_grid_year_range_validation(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_grid_rejects_oversized_year_span(client: AsyncClient) -> None:
+    """A huge user-supplied span is rejected (caps the range() — no giant list / DoS)."""
+    resp = await client.get("/api/accrual/grid?year_from=0&year_to=999999")
+    assert resp.status_code == 400, resp.text
+    assert "span" in resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
 async def test_grid_currency_filters_on_line_currency(
     client: AsyncClient,
     db_session: AsyncSession,

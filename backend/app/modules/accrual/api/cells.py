@@ -44,6 +44,10 @@ def _parse_user_id(token: TokenData) -> UUID | None:
 _HEALTH_WARNING_THRESHOLD = Decimal("5")
 _HEALTH_CRITICAL_THRESHOLD = Decimal("20")
 
+# Upper bound on the grid's year span — caps the user-controlled range() so a
+# request like year_from=0&year_to=999999 can't build a giant months list (DoS).
+_MAX_GRID_YEAR_SPAN = 50
+
 
 def _diff_eur_pct(
     budget: Decimal | None, sum_cells: Decimal
@@ -237,7 +241,7 @@ def _window_overlaps_years(line: AccrualLineDB, year_from: int, year_to: int) ->
 
 @router.get(
     "/grid",
-    responses={400: {"description": "year_to must be >= year_from"}},
+    responses={400: {"description": "invalid year range (year_to < year_from or span too large)"}},
 )
 async def get_grid(
     db: DBSession,
@@ -268,6 +272,11 @@ async def get_grid(
     """
     if year_to < year_from:
         raise HTTPException(status_code=400, detail="year_to must be >= year_from")
+    if year_to - year_from > _MAX_GRID_YEAR_SPAN:
+        raise HTTPException(
+            status_code=400,
+            detail=f"year span must not exceed {_MAX_GRID_YEAR_SPAN} years",
+        )
 
     pm = aliased(UserDB)
     lines = list((await db.execute(select(AccrualLineDB))).scalars().all())
