@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
@@ -217,6 +217,26 @@ describe('useAccrualMutations — redistributeLine', () => {
 
     await waitFor(() => expect(result.current.savingState).toBe('idle'));
     expect(result.current.errorMessage).toBeNull();
+  });
+
+  it('invalidates the dashboard so totals reflect the moved cells', async () => {
+    server.use(
+      http.post('/api/accrual/lines/:id/redistribute', () =>
+        HttpResponse.json({ cells_updated: 5 }),
+      ),
+    );
+
+    const { client, wrapper } = createWrapper();
+    const spy = vi.spyOn(client, 'invalidateQueries');
+    const { result } = renderHook(() => useAccrualMutations(), { wrapper });
+
+    await act(async () => {
+      await result.current.redistributeLine(LINE_ID);
+    });
+
+    await waitFor(() =>
+      expect(spy).toHaveBeenCalledWith({ queryKey: queryKeys.accrual.dashboard.all }),
+    );
   });
 });
 
