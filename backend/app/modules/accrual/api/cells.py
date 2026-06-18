@@ -365,9 +365,13 @@ async def get_grid(
         )
         cells_serialised = [_serialize(c) for c in cells_result.scalars().all()]
 
+    # Loop count is clamped to a constant (not the raw user span) so the bound is
+    # provably bounded regardless of input — the span guard above already rejects
+    # oversized ranges, this keeps the iteration count out of user control (S6680).
+    year_count = min(year_to - year_from + 1, _MAX_GRID_YEAR_SPAN + 1)
     months = [
-        {"year": year, "month": month}
-        for year in range(year_from, year_to + 1)
+        {"year": year_from + offset, "month": month}
+        for offset in range(year_count)
         for month in range(1, 13)
     ]
     return {
