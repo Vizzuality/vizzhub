@@ -251,9 +251,14 @@ export default function ProjectTrackerDetail(): JSX.Element {
               <ArrowLeft className="h-4 w-4" />
               Back
             </Button>
-            <h1 className="text-2xl font-semibold">
-              {project?.name ?? 'Project'}
-            </h1>
+            <div>
+              <h1 className="text-2xl font-semibold">
+                {project?.name ?? 'Project'}
+              </h1>
+              {project?.code && (
+                <p className="text-sm text-muted-foreground">{project.code}</p>
+              )}
+            </div>
           </div>
           {(project?.start_date || project?.end_date) && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">

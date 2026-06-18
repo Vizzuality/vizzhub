@@ -31,7 +31,14 @@ export default function ProjectHeader({
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
             <div className="space-y-3 flex-1">
               <div className="flex items-center gap-3">
-                <CardTitle className="text-3xl font-semibold">{project.name}</CardTitle>
+                <CardTitle className="text-3xl font-semibold">
+                  {project.name}
+                  {project.code && (
+                    <span className="block text-sm font-normal text-muted-foreground">
+                      {project.code}
+                    </span>
+                  )}
+                </CardTitle>
                 <Badge
                   variant={project.status === 'finished' ? 'default' : 'secondary'}
                   className={
