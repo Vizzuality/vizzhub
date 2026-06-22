@@ -41,6 +41,7 @@ class LineUpdate(BaseModel):
     rate: Decimal | None = Field(None, gt=0)
     window_start: date | None = None
     window_end: date | None = None
+    include_frozen: bool = False
 
     @model_validator(mode="after")
     def _window_ordered(self) -> Self:

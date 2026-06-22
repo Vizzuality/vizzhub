@@ -12,7 +12,7 @@ from app.core.auth import TokenData
 from app.core.models.project import ProjectDB
 from app.core.models.user import UserDB
 from app.core.permissions.actions import Action
-from app.core.permissions.dependencies import require_permission
+from app.core.permissions.dependencies import assert_permission, require_permission
 from app.core.sql_helpers import user_display_name_expr
 from app.modules.accrual.models.accrual_line import AccrualLineDB
 from app.modules.accrual.models.accrual_line_project import AccrualLineProjectDB
@@ -108,16 +108,22 @@ async def get_line(line_id: UUID, db: DBSession, _: AccrualViewer) -> dict:
 @router.patch(
     "/lines/{line_id}",
     responses={
+        403: {"description": "ACCRUAL_PERIOD_MANAGE permission required for include_frozen"},
         404: {"description": "Line not found"},
         409: {"description": "Frozen cell would fall outside the new window"},
     },
 )
-async def update_line(line_id: UUID, payload: LineUpdate, db: DBSession, _: AccrualManager) -> dict:
+async def update_line(
+    line_id: UUID, payload: LineUpdate, db: DBSession, user: AccrualManager
+) -> dict:
     """Patch a line's editable fields. Changing the window moves the line's cells with
     it (orphaned months deleted, value redistributed across the new window) — rejected
-    with 409 if that would orphan a frozen cell. ``rate`` is the FX override: setting it
-    (or clearing with null) recomputes value_eur and redistributes the open months."""
+    with 409 if that would orphan a frozen cell. Pass ``include_frozen: true`` (requires
+    ``ACCRUAL_PERIOD_MANAGE``) to allow the move even when frozen cells would be
+    orphaned. ``rate`` is the FX override: setting it (or clearing with null) recomputes
+    value_eur and redistributes the open months."""
     fields = payload.model_dump(exclude_unset=True)
+    include_frozen = fields.pop("include_frozen", False)
     rate_present = "rate" in fields
     rate_value = fields.pop("rate", None)
 
@@ -134,8 +140,12 @@ async def update_line(line_id: UUID, payload: LineUpdate, db: DBSession, _: Accr
         line = existing
 
     if window_changed:
+        if include_frozen:
+            assert_permission(user, Action.ACCRUAL_PERIOD_MANAGE)
         try:
-            await cell_service.reconcile_line_window(db, line_id=line_id)
+            await cell_service.reconcile_line_window(
+                db, line_id=line_id, include_frozen=include_frozen
+            )
         except cell_service.CellFrozenError as exc:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
