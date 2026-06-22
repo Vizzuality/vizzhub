@@ -100,7 +100,7 @@ async def create_line(payload: LineCreate, db: DBSession, user: AccrualManager) 
     return await _serialize_line(db, line)
 
 
-@router.get("/lines/{line_id}", responses={404: {"description": "Line not found"}})
+@router.get("/lines/{line_id}", responses={404: {"description": _LINE_NOT_FOUND}})
 async def get_line(line_id: UUID, db: DBSession, _: AccrualViewer) -> dict:
     """Return one line with its linked projects (the line-editor detail view)."""
     line = await _get_line_or_404(db, line_id)
@@ -111,7 +111,7 @@ async def get_line(line_id: UUID, db: DBSession, _: AccrualViewer) -> dict:
     "/lines/{line_id}",
     responses={
         403: {"description": "ACCRUAL_PERIOD_MANAGE permission required for include_frozen"},
-        404: {"description": "Line not found"},
+        404: {"description": _LINE_NOT_FOUND},
         409: {"description": "Frozen cell would fall outside the new window"},
     },
 )
@@ -167,7 +167,7 @@ async def update_line(
 @router.delete(
     "/lines/{line_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses={404: {"description": "Line not found"}},
+    responses={404: {"description": _LINE_NOT_FOUND}},
 )
 async def delete_line(line_id: UUID, db: DBSession, _: AccrualManager) -> None:
     """Delete a line; its cells and project links cascade."""
@@ -178,7 +178,7 @@ async def delete_line(line_id: UUID, db: DBSession, _: AccrualManager) -> None:
 @router.post(
     "/lines/{line_id}/projects",
     status_code=status.HTTP_201_CREATED,
-    responses={404: {"description": "Line not found"}},
+    responses={404: {"description": _LINE_NOT_FOUND}},
 )
 async def link_project(
     line_id: UUID, payload: LineProjectLink, db: DBSession, _: AccrualManager

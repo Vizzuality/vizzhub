@@ -506,9 +506,7 @@ export function AccrualLineEditor({ lineId, onClose }: AccrualLineEditorProps): 
         )}
 
         {feedback && (
-          <p className="text-xs text-emerald-600" role="status">
-            {feedback}
-          </p>
+          <output className="block text-xs text-emerald-600">{feedback}</output>
         )}
 
         <SheetFooter className="mt-auto flex-row items-center justify-between gap-2">

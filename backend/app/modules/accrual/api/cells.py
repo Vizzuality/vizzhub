@@ -40,6 +40,8 @@ def _parse_user_id(token: TokenData) -> UUID | None:
     return UUID(token.user_id) if token.user_id else None
 
 
+_LINE_NOT_FOUND = "Line not found"
+
 # Health thresholds (diff_pct).
 _HEALTH_WARNING_THRESHOLD = Decimal("5")
 _HEALTH_CRITICAL_THRESHOLD = Decimal("20")
@@ -422,7 +424,7 @@ async def patch_cell(
 @router.put(
     "/lines/{line_id}/cells",
     responses={
-        404: {"description": "Line not found"},
+        404: {"description": _LINE_NOT_FOUND},
         409: {"description": "Cell is frozen"},
     },
 )
@@ -439,7 +441,7 @@ async def upsert_line_cell(
     """
     line = await db.get(AccrualLineDB, line_id)
     if line is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Line not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_LINE_NOT_FOUND)
     try:
         cell = await cell_service.set_cell_amount_by_line(
             db,
@@ -458,7 +460,7 @@ async def upsert_line_cell(
     "/lines/{line_id}/redistribute",
     responses={
         403: {"description": "include_frozen requires accrual:period_manage"},
-        404: {"description": "Line not found"},
+        404: {"description": _LINE_NOT_FOUND},
     },
 )
 async def redistribute_line(
@@ -476,7 +478,7 @@ async def redistribute_line(
     """
     line = await db.get(AccrualLineDB, line_id)
     if line is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Line not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_LINE_NOT_FOUND)
     if payload.include_frozen:
         assert_permission(user, Action.ACCRUAL_PERIOD_MANAGE)
         cells_updated = await cell_service.redistribute_for_line(
