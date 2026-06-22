@@ -83,13 +83,13 @@ describe('accrualApi.cells', () => {
 describe('accrualApi.lines', () => {
   it('redistribute POSTs with body', async () => {
     vi.mocked(api.post).mockResolvedValue({ data: { cells_updated: 12 } });
-    await accrualApi.lines.redistribute('l1', false);
-    expect(api.post).toHaveBeenCalledWith('/accrual/lines/l1/redistribute', { force: false });
+    await accrualApi.lines.redistribute('l1', { force: false });
+    expect(api.post).toHaveBeenCalledWith('/accrual/lines/l1/redistribute', { force: false, include_frozen: false });
   });
 
   it('redistribute defaults force to false', async () => {
     vi.mocked(api.post).mockResolvedValue({ data: { cells_updated: 12 } });
     await accrualApi.lines.redistribute('l1');
-    expect(api.post).toHaveBeenCalledWith('/accrual/lines/l1/redistribute', { force: false });
+    expect(api.post).toHaveBeenCalledWith('/accrual/lines/l1/redistribute', { force: false, include_frozen: false });
   });
 });
