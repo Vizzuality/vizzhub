@@ -268,6 +268,33 @@ async def test_redistribute_line_spreads_value(
 
 
 @pytest.mark.asyncio
+async def test_redistribute_line_covers_full_window_not_just_open_period(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    """Default redistribute spreads across the WHOLE window, not only the open period.
+
+    The open period starts in 2026, but the line lives entirely in 2024. With the
+    old open-period clip this wrote 0 cells; now it fills all 12 historical months.
+    """
+    await client.post("/api/accrual/periods", json={"start_date": "2026-01-01"})
+    line = await _make_line(
+        db_session,
+        value_eur="3600",
+        window_start=date(2024, 1, 1),
+        window_end=date(2024, 12, 1),
+    )
+    resp = await client.post(f"/api/accrual/lines/{line.id}/redistribute", json={})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["cells_updated"] == 12
+
+    cells = (await client.get("/api/accrual/grid?year_from=2024&year_to=2024")).json()["cells"]
+    line_cells = [c for c in cells if c["line_id"] == str(line.id)]
+    assert len(line_cells) == 12
+    assert all(Decimal(c["amount"]) == Decimal("300.00") for c in line_cells)  # 3600 / 12
+
+
+@pytest.mark.asyncio
 async def test_redistribute_line_not_found(client: AsyncClient) -> None:
     resp = await client.post(
         "/api/accrual/lines/00000000-0000-0000-0000-0000000000ff/redistribute",

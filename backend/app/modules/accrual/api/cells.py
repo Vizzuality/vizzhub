@@ -467,7 +467,13 @@ async def redistribute_line(
     db: DBSession,
     user: AccrualManager,
 ) -> dict:
-    """Spread the line's value_eur uniformly across its window's mutable months."""
+    """Spread the line's value_eur uniformly across its window's months.
+
+    Covers the whole window (``full_range``) in both modes: the default skips
+    frozen cells (reserving their amount), so historical non-frozen months are
+    filled too — not just the open period. ``include_frozen`` additionally
+    rewrites recognised (frozen) cells and is gated on period_manage.
+    """
     line = await db.get(AccrualLineDB, line_id)
     if line is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Line not found")
@@ -478,7 +484,7 @@ async def redistribute_line(
         )
     else:
         cells_updated = await cell_service.redistribute_for_line(
-            db, line_id=line_id, force=payload.force
+            db, line_id=line_id, force=payload.force, full_range=True
         )
     logger.info(
         "accrual_redistribute_line_endpoint",
