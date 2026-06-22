@@ -1,16 +1,20 @@
 """HTTP tests for /api/accrual/cells, /api/accrual/lines/{id}/cells and the grid."""
 
+from collections.abc import AsyncGenerator
 from datetime import UTC, date, datetime
 from decimal import Decimal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import TokenData, get_current_user
 from app.core.models.user import UserDB
+from app.database import get_db
+from app.main import app
 from app.modules.accrual.models.accrual_cell import AccrualCellDB, CellSource
 from app.modules.accrual.models.accrual_line import AccrualLineDB, LineSource
 from app.modules.accrual.models.accrual_line_project import AccrualLineProjectDB
@@ -812,3 +816,76 @@ async def test_grid_line_includes_period_rate(
     assert rows["PR.USD"]["period_rate"] == "1.10"
     assert "rate" in rows["PR.USD"]
     assert rows["PR.EUR"]["period_rate"] is None
+
+
+@pytest_asyncio.fixture
+async def manager_client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
+    """accrual:manage but NOT accrual:period_manage — cannot edit frozen cells."""
+
+    async def override_get_db() -> AsyncGenerator[AsyncSession]:
+        yield db_session
+
+    async def override_user() -> TokenData:
+        return TokenData(
+            user_id=str(uuid4()),
+            email="mgr@example.com",
+            roles=["mgr"],
+            permissions=["accrual:view", "accrual:manage"],
+        )
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = override_user
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        yield ac
+    app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_redistribute_include_frozen_requires_period_manage(
+    manager_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    line = await _make_line(
+        db_session,
+        value_eur="1200",
+        window_start=date(2026, 1, 1),
+        window_end=date(2026, 12, 1),
+    )
+    resp = await manager_client.post(
+        f"/api/accrual/lines/{line.id}/redistribute", json={"include_frozen": True}
+    )
+    assert resp.status_code == 403, resp.text
+
+
+@pytest.mark.asyncio
+async def test_redistribute_include_frozen_admin_rewrites_frozen(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    line = await _make_line(
+        db_session,
+        value_eur="2400",
+        window_start=date(2026, 1, 1),
+        window_end=date(2026, 12, 1),
+        cells=[(2026, m, "100") for m in range(1, 13)],
+    )
+    res = await db_session.execute(
+        select(AccrualCellDB).where(AccrualCellDB.line_id == line.id, AccrualCellDB.month == 1)
+    )
+    frozen = res.scalar_one()
+    frozen.is_frozen = True
+    frozen.frozen_at = datetime.now(UTC)
+    frozen.frozen_eur_amount = frozen.amount
+    await db_session.commit()
+
+    resp = await client.post(
+        f"/api/accrual/lines/{line.id}/redistribute", json={"include_frozen": True}
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["cells_updated"] == 12
+
+    cells = (await client.get("/api/accrual/grid?year_from=2026&year_to=2026")).json()["cells"]
+    jan = next(c for c in cells if c["line_id"] == str(line.id) and c["month"] == 1)
+    assert jan["is_frozen"] is True
+    assert Decimal(jan["amount"]) == Decimal("200.00")  # 2400 / 12
+    assert Decimal(jan["frozen_eur_amount"]) == Decimal("200.00")  # synced

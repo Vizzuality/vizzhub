@@ -16,6 +16,26 @@ def is_admin(permissions: list[str] | set[str]) -> bool:
     return Action.ALL in permissions
 
 
+def assert_permission(token: TokenData, permission: str) -> None:
+    """Raise 403 unless the token is admin or explicitly holds ``permission``.
+
+    For conditional in-handler checks — when an elevated flag on an otherwise
+    lower-tier endpoint demands a stronger permission than the route dependency.
+    """
+    perms = set(token.permissions)
+    if not is_admin(perms) and permission not in perms:
+        logger.info(
+            "auth_permission_denied",
+            user_id=token.user_id,
+            email=token.email,
+            requested=permission,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Permission '{permission}' required",
+        )
+
+
 def require_permission(*permissions: str):
     """Require the current user to have ALL listed permissions.
 
