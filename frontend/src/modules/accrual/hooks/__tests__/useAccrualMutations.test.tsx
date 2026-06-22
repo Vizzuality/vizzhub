@@ -240,6 +240,28 @@ describe('useAccrualMutations — redistributeLine', () => {
   });
 });
 
+describe('useAccrualMutations — redistributeLine include_frozen', () => {
+  it('redistributeLine forwards include_frozen to the API', async () => {
+    let capturedBody: unknown = undefined;
+    server.use(
+      http.post('/api/accrual/lines/:id/redistribute', async ({ request }) => {
+        capturedBody = await request.json();
+        return HttpResponse.json({ cells_updated: 12 });
+      }),
+    );
+
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(() => useAccrualMutations(), { wrapper });
+
+    await act(async () => {
+      await result.current.redistributeLine('line-1', { includeFrozen: true });
+    });
+
+    await waitFor(() => expect(result.current.savingState).toBe('idle'));
+    expect(capturedBody).toEqual({ force: false, include_frozen: true });
+  });
+});
+
 describe('useAccrualMutations — setLineRate', () => {
   it('setLineRate PATCHes the line rate and resolves', async () => {
     let capturedBody: unknown = undefined;
