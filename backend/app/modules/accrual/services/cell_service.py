@@ -72,8 +72,13 @@ def _reserved_amount(
     force: bool,
     include_frozen: bool,
 ) -> Decimal:
-    """Sum of cell amounts excluded from redistribution. Frozen cells are reserved
-    unless include_frozen (then they are targets, reserved 0); overrides unless force."""
+    """Sum of cell amounts excluded from redistribution.
+
+    Frozen cells: when ``include_frozen=False``, all frozen amounts are summed
+    across the *entire* line (out-of-window frozen amounts still reduce the value
+    pool); when ``include_frozen=True``, frozen cells become redistribution targets
+    so their contribution to the reserve is 0. Overrides: reserved only within the
+    visible ``months_set`` range, unless ``force`` clears them as targets too."""
     frozen = (
         Decimal("0")
         if include_frozen
@@ -234,9 +239,12 @@ async def reconcile_line_window(
     ``value_eur`` across the new window (``full_range`` so a past/closed target year
     is filled too), so "moving the period moves the money".
 
-    Frozen cells are recognised revenue and cannot be relocated: if any would fall
-    outside the new window the whole move is rejected (``CellFrozenError``). Returns
-    the count of orphaned cells deleted.
+    When ``include_frozen=False`` (default), frozen cells are recognised revenue
+    that cannot be relocated: if any would fall outside the new window the whole
+    move is rejected (``CellFrozenError``). When ``include_frozen=True`` (admin
+    data-repair path, requires ``ACCRUAL_PERIOD_MANAGE``), the frozen-orphan guard
+    is bypassed: frozen orphans are deleted and their amounts redistributed across
+    the new window. Returns the count of orphaned cells deleted.
     """
     line = await db.get(AccrualLineDB, line_id)
     if line is None or line.window_start is None or line.window_end is None:

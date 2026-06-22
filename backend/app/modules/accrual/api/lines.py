@@ -3,6 +3,7 @@
 from typing import Annotated
 from uuid import UUID
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import aliased
@@ -19,6 +20,7 @@ from app.modules.accrual.models.accrual_line_project import AccrualLineProjectDB
 from app.modules.accrual.schemas.accrual_line import LineCreate, LineProjectLink, LineUpdate
 from app.modules.accrual.services import cell_service, line_service, period_service
 
+logger = structlog.get_logger()
 router = APIRouter()
 
 _LINE_NOT_FOUND = "Line not found"
@@ -148,6 +150,12 @@ async def update_line(
             )
         except cell_service.CellFrozenError as exc:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        if include_frozen:
+            logger.info(
+                "accrual_frozen_window_move",
+                line_id=str(line_id),
+                user_id=user.user_id,
+            )
 
     if rate_present:
         await cell_service.set_line_rate(db, line_id=line_id, rate=rate_value)
