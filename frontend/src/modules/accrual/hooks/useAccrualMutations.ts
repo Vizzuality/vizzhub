@@ -11,7 +11,10 @@ export interface UseAccrualMutationsReturn {
   updateCell: (lineId: string, year: number, month: number, amount: string) => Promise<void>;
   bulkUpdate: (updates: BulkCellUpdate[]) => Promise<void>;
   clearOverride: (cellId: string) => Promise<void>;
-  redistributeLine: (lineId: string, force?: boolean) => Promise<void>;
+  redistributeLine: (
+    lineId: string,
+    opts?: { force?: boolean; includeFrozen?: boolean },
+  ) => Promise<void>;
   setLineRate: (lineId: string, rate: string | null) => Promise<void>;
   savingState: SavingState;
   failedCells: ReadonlySet<string>;
@@ -119,8 +122,13 @@ export function useAccrualMutations(): UseAccrualMutationsReturn {
   });
 
   const redistributeMutation = useMutation({
-    mutationFn: ({ lineId, force }: { lineId: string; force?: boolean }) =>
-      accrualApi.lines.redistribute(lineId, force),
+    mutationFn: ({
+      lineId,
+      opts,
+    }: {
+      lineId: string;
+      opts?: { force?: boolean; includeFrozen?: boolean };
+    }) => accrualApi.lines.redistribute(lineId, opts ?? {}),
     ...simpleMutationCallbacks,
   });
 
@@ -155,9 +163,9 @@ export function useAccrualMutations(): UseAccrualMutationsReturn {
   );
 
   const redistributeLine = useCallback(
-    (lineId: string, force?: boolean): Promise<void> =>
+    (lineId: string, opts?: { force?: boolean; includeFrozen?: boolean }): Promise<void> =>
       redistributeMutation
-        .mutateAsync({ lineId, force })
+        .mutateAsync({ lineId, opts })
         .then(() => undefined)
         .catch(() => undefined),
     [redistributeMutation],

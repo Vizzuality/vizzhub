@@ -52,3 +52,4 @@ class BulkCellsRequest(BaseModel):
 
 class RedistributeRequest(BaseModel):
     force: bool = False
+    include_frozen: bool = False

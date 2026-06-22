@@ -1,18 +1,22 @@
 """HTTP tests for /api/accrual/lines CRUD and project links."""
 
-from datetime import UTC
+from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
 from decimal import Decimal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import TokenData, get_current_user
 from app.core.models.user import UserDB
+from app.database import get_db
+from app.main import app
 from app.modules.accrual.models.accrual_cell import AccrualCellDB, CellSource
-from app.modules.accrual.models.accrual_line import AccrualLineDB
+from app.modules.accrual.models.accrual_line import AccrualLineDB, LineSource
 from app.modules.accrual.models.accrual_line_project import AccrualLineProjectDB
 
 _DEV_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
@@ -344,3 +348,101 @@ async def test_update_line_window_rejects_frozen_orphan(
     )
     assert resp.status_code == 409, resp.text
     assert "frozen" in resp.json()["detail"].lower()
+
+
+async def _line_with_frozen_2026(db: AsyncSession) -> AccrualLineDB:
+    line = AccrualLineDB(
+        name="Repair line",
+        source=LineSource.MANUAL.value,
+        value_eur=Decimal("1200"),
+        window_start=datetime(2026, 1, 1).date(),
+        window_end=datetime(2026, 12, 1).date(),
+    )
+    db.add(line)
+    await db.flush()
+    for m in range(1, 13):
+        db.add(
+            AccrualCellDB(
+                line_id=line.id,
+                year=2026,
+                month=m,
+                amount=Decimal("100"),
+                source=CellSource.MANUAL.value,
+            )
+        )
+    await db.flush()
+    frozen = (
+        await db.execute(
+            select(AccrualCellDB).where(AccrualCellDB.line_id == line.id, AccrualCellDB.month == 3)
+        )
+    ).scalar_one()
+    frozen.is_frozen = True
+    frozen.frozen_at = datetime(2026, 4, 1, tzinfo=UTC)
+    frozen.frozen_eur_amount = frozen.amount
+    await db.commit()
+    return line
+
+
+@pytest_asyncio.fixture
+async def manager_client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
+    async def override_get_db() -> AsyncGenerator[AsyncSession]:
+        yield db_session
+
+    async def override_user() -> TokenData:
+        return TokenData(
+            user_id=str(uuid4()),
+            email="mgr@example.com",
+            roles=["mgr"],
+            permissions=["accrual:view", "accrual:manage"],
+        )
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = override_user
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        yield ac
+    app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_patch_window_move_with_frozen_orphan_returns_409(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    line = await _line_with_frozen_2026(db_session)
+    resp = await client.patch(
+        f"/api/accrual/lines/{line.id}",
+        json={"window_start": "2024-01-01", "window_end": "2024-12-01"},
+    )
+    assert resp.status_code == 409, resp.text
+
+
+@pytest.mark.asyncio
+async def test_patch_window_move_include_frozen_succeeds(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    line = await _line_with_frozen_2026(db_session)
+    resp = await client.patch(
+        f"/api/accrual/lines/{line.id}",
+        json={
+            "window_start": "2024-01-01",
+            "window_end": "2024-12-01",
+            "include_frozen": True,
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["window_start"] == "2024-01-01"
+
+
+@pytest.mark.asyncio
+async def test_patch_window_move_include_frozen_requires_period_manage(
+    manager_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    line = await _line_with_frozen_2026(db_session)
+    resp = await manager_client.patch(
+        f"/api/accrual/lines/{line.id}",
+        json={
+            "window_start": "2024-01-01",
+            "window_end": "2024-12-01",
+            "include_frozen": True,
+        },
+    )
+    assert resp.status_code == 403, resp.text

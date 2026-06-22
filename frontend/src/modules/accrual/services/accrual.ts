@@ -98,11 +98,11 @@ export const accrualApi = {
     },
     redistribute: async (
       lineId: string,
-      force = false,
+      opts: { force?: boolean; includeFrozen?: boolean } = {},
     ): Promise<{ cells_updated: number }> => {
       const r = await api.post<{ cells_updated: number }>(
         `/accrual/lines/${lineId}/redistribute`,
-        { force },
+        { force: opts.force ?? false, include_frozen: opts.includeFrozen ?? false },
       );
       return r.data;
     },

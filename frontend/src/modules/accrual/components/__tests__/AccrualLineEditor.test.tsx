@@ -16,10 +16,17 @@ vi.mock('@/modules/accrual/services/accrual', () => ({
       linkProject: vi.fn(),
       unlinkProject: vi.fn(),
       redistribute: vi.fn(),
+      setRate: vi.fn(),
     },
     cells: { upsertOnLine: vi.fn(), clearOverride: vi.fn(), bulk: vi.fn() },
   },
 }));
+
+let mockCanUnlock = true;
+vi.mock('@/core/permissions', async () => {
+  const actual = await vi.importActual<typeof import('@/core/permissions')>('@/core/permissions');
+  return { ...actual, usePermission: () => mockCanUnlock };
+});
 
 vi.mock('@/core/hooks/useProjects', () => ({
   useAllProjectSummaries: () => ({ data: [] }),
@@ -143,5 +150,63 @@ describe('AccrualLineEditor — edit mode', () => {
     await waitFor(() => expect(accrualApi.lines.update).toHaveBeenCalled());
     const [, payload] = vi.mocked(accrualApi.lines.update).mock.calls[0];
     expect(payload).not.toHaveProperty('rate');
+  });
+});
+
+describe('AccrualLineEditor — unlock frozen cells', () => {
+  const EDIT_LINE = {
+    id: 'l1',
+    name: 'Frozen line',
+    source: 'manual',
+    excel_code: null,
+    value_eur: '1200.00',
+    value_orig: null,
+    currency: 'EUR',
+    rate: null,
+    period_rate: null,
+    window_start: '2026-01-01',
+    window_end: '2026-12-01',
+    projects: [],
+  };
+
+  beforeEach(() => {
+    mockCanUnlock = true;
+    vi.mocked(accrualApi.lines.get).mockResolvedValue(EDIT_LINE as never);
+    vi.mocked(accrualApi.lines.redistribute).mockResolvedValue({ cells_updated: 12 } as never);
+  });
+
+  it('hides the unlock checkbox without period_manage permission', async () => {
+    mockCanUnlock = false;
+    renderWith(<AccrualLineEditor lineId="l1" onClose={vi.fn()} />);
+    await screen.findByText('Edit accrual line');
+    expect(screen.queryByLabelText(/unlock frozen cells/i)).not.toBeInTheDocument();
+  });
+
+  it('redistribute sends include_frozen when unlock is checked', async () => {
+    const user = userEvent.setup();
+    renderWith(<AccrualLineEditor lineId="l1" onClose={vi.fn()} />);
+    await screen.findByText('Edit accrual line');
+
+    await user.click(screen.getByLabelText(/unlock frozen cells/i));
+    await user.click(screen.getByRole('button', { name: /redistribute/i }));
+
+    await waitFor(() =>
+      expect(accrualApi.lines.redistribute).toHaveBeenCalledWith('l1', {
+        force: true,
+        includeFrozen: true,
+      }),
+    );
+  });
+
+  it('disables redistribute while the form has unsaved changes', async () => {
+    const user = userEvent.setup();
+    renderWith(<AccrualLineEditor lineId="l1" onClose={vi.fn()} />);
+    await screen.findByText('Edit accrual line');
+
+    const value = screen.getByLabelText('Value €');
+    await user.clear(value);
+    await user.type(value, '9999');
+
+    expect(screen.getByRole('button', { name: /redistribute/i })).toBeDisabled();
   });
 });

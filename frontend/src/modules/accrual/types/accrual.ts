@@ -134,6 +134,8 @@ export interface AccrualLineUpdate {
   window_end?: string | null;
   /** FX override (foreign per €). Send a value to override, null to clear (follow period). */
   rate?: string | null;
+  /** Repair flag: when true, redistribute/window-move rewrites frozen (recognized) cells. Admin-only. */
+  include_frozen?: boolean;
 }
 
 export interface AccrualGridMonth {

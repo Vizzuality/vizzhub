@@ -15,7 +15,7 @@ from app.core.auth import TokenData
 from app.core.models.project import ProjectDB
 from app.core.models.user import UserDB
 from app.core.permissions.actions import Action
-from app.core.permissions.dependencies import require_permission
+from app.core.permissions.dependencies import assert_permission, require_permission
 from app.core.services.exchange_rate_service import currency_to_code
 from app.core.sql_helpers import user_display_name_expr
 from app.modules.accrual.models.accrual_cell import AccrualCellDB
@@ -456,7 +456,10 @@ async def upsert_line_cell(
 
 @router.post(
     "/lines/{line_id}/redistribute",
-    responses={404: {"description": "Line not found"}},
+    responses={
+        403: {"description": "include_frozen requires accrual:period_manage"},
+        404: {"description": "Line not found"},
+    },
 )
 async def redistribute_line(
     line_id: UUID,
@@ -468,16 +471,21 @@ async def redistribute_line(
     line = await db.get(AccrualLineDB, line_id)
     if line is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Line not found")
-    cells_updated = await cell_service.redistribute_for_line(
-        db,
-        line_id=line_id,
-        force=payload.force,
-    )
+    if payload.include_frozen:
+        assert_permission(user, Action.ACCRUAL_PERIOD_MANAGE)
+        cells_updated = await cell_service.redistribute_for_line(
+            db, line_id=line_id, force=True, full_range=True, include_frozen=True
+        )
+    else:
+        cells_updated = await cell_service.redistribute_for_line(
+            db, line_id=line_id, force=payload.force
+        )
     logger.info(
         "accrual_redistribute_line_endpoint",
         line_id=str(line_id),
         cells_updated=cells_updated,
         force=payload.force,
+        include_frozen=payload.include_frozen,
         user_id=user.user_id,
     )
     return {"cells_updated": cells_updated}
