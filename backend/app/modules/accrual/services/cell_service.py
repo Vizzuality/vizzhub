@@ -50,12 +50,14 @@ def _eligible_target_months(
     months: list[tuple[int, int]],
     *,
     force: bool,
+    include_frozen: bool,
 ) -> list[tuple[int, int]]:
-    """Months that redistribute may write: not frozen, and not override-when-not-force."""
+    """Months that redistribute may write: not frozen (unless include_frozen),
+    and not override-when-not-force."""
     result: list[tuple[int, int]] = []
     for ym in months:
         cell = by_ym.get(ym)
-        if cell and cell.is_frozen:
+        if cell and cell.is_frozen and not include_frozen:
             continue
         if cell and cell.is_manual_override and not force:
             continue
@@ -68,13 +70,15 @@ def _reserved_amount(
     months_set: set[tuple[int, int]],
     *,
     force: bool,
+    include_frozen: bool,
 ) -> Decimal:
-    """Sum of cell amounts excluded from redistribution (frozen always, overrides unless force).
-
-    Frozen cells are summed across the whole line (out-of-range frozen amounts still
-    reduce the value pool); overrides only count when in the visible range.
-    """
-    frozen = sum((c.amount for c in by_ym.values() if c.is_frozen), Decimal("0"))
+    """Sum of cell amounts excluded from redistribution. Frozen cells are reserved
+    unless include_frozen (then they are targets, reserved 0); overrides unless force."""
+    frozen = (
+        Decimal("0")
+        if include_frozen
+        else sum((c.amount for c in by_ym.values() if c.is_frozen), Decimal("0"))
+    )
     if force:
         return frozen
     overrides = sum(
@@ -110,13 +114,16 @@ def _apply_redistribution_to_line(
     per_month: Decimal,
     *,
     force: bool,
+    include_frozen: bool,
     source: CellSource,
 ) -> int:
     """Upsert ``per_month`` into every target cell of a line.
 
     New cells get ``source``; existing non-override cells get their source
     updated. Manual-override cells that are being force-overwritten also have
-    their source reset.
+    their source reset. A frozen cell (only a target when ``include_frozen``)
+    has its ``frozen_eur_amount`` snapshot re-synced to the new amount so the
+    recognised figure reflects the correction.
     """
     for ym in target_months:
         existing_cell = by_ym.get(ym)
@@ -134,6 +141,8 @@ def _apply_redistribution_to_line(
             )
         else:
             existing_cell.amount = per_month
+            if existing_cell.is_frozen and include_frozen:
+                existing_cell.frozen_eur_amount = per_month
             if force:
                 existing_cell.is_manual_override = False
                 existing_cell.source = source.value
@@ -148,6 +157,7 @@ async def redistribute_for_line(
     line_id: UUID,
     force: bool = False,
     full_range: bool = False,
+    include_frozen: bool = False,
     source: CellSource = CellSource.MANUAL,
 ) -> int:
     """Spread a line's ``value_eur`` uniformly across its window months.
@@ -155,7 +165,9 @@ async def redistribute_for_line(
     Pool is the line's declared value; range is its editable window. Frozen cells
     are never touched and their amounts are reserved out of the pool. Manual
     overrides survive (and are reserved) unless ``force``. ``full_range`` skips the
-    open-period clip and writes the whole window. Returns the count written.
+    open-period clip and writes the whole window. ``include_frozen`` makes frozen
+    cells redistribution targets and re-syncs their ``frozen_eur_amount`` snapshot
+    to the new amount. Returns the count written.
     """
     line = (
         await db.execute(select(AccrualLineDB).where(AccrualLineDB.id == line_id))
@@ -179,16 +191,25 @@ async def redistribute_for_line(
     )
     by_ym: dict[tuple[int, int], AccrualCellDB] = {(c.year, c.month): c for c in existing}
 
-    target_months = _eligible_target_months(by_ym, months, force=force)
+    target_months = _eligible_target_months(
+        by_ym, months, force=force, include_frozen=include_frozen
+    )
     if not target_months:
         return 0
 
-    reserved = _reserved_amount(by_ym, set(months), force=force)
+    reserved = _reserved_amount(by_ym, set(months), force=force, include_frozen=include_frozen)
     remaining = max(Decimal(line.value_eur) - reserved, Decimal("0"))
     per_month = _quantize(remaining / Decimal(len(target_months)))
 
     written = _apply_redistribution_to_line(
-        db, line_id, target_months, by_ym, per_month, force=force, source=source
+        db,
+        line_id,
+        target_months,
+        by_ym,
+        per_month,
+        force=force,
+        include_frozen=include_frozen,
+        source=source,
     )
     await db.flush()
     logger.info(
@@ -196,6 +217,7 @@ async def redistribute_for_line(
         line_id=str(line_id),
         cells_written=written,
         force=force,
+        include_frozen=include_frozen,
     )
     return written
 

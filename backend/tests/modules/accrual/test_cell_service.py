@@ -376,3 +376,78 @@ async def test_set_line_rate_clear_noop_without_window_start(db_session: AsyncSe
     assert result is None
     assert line.rate == Decimal("1.08")  # unchanged
     assert line.value_eur == Decimal("1111.11")  # untouched
+
+
+async def _freeze_months(db: AsyncSession, line_id, months: list[int], *, year: int = 2026) -> None:
+    """Mark the given months of a line frozen, snapshotting frozen_eur_amount."""
+    from datetime import datetime
+
+    rows = (
+        (await db.execute(select(AccrualCellDB).where(AccrualCellDB.line_id == line_id)))
+        .scalars()
+        .all()
+    )
+    for c in rows:
+        if c.year == year and c.month in months:
+            c.is_frozen = True
+            c.frozen_at = datetime(year, max(months) + 1, 1, tzinfo=UTC)
+            c.frozen_eur_amount = c.amount
+    await db.flush()
+
+
+@pytest.mark.asyncio
+async def test_redistribute_include_frozen_rewrites_and_syncs_frozen(
+    db_session: AsyncSession,
+) -> None:
+    """include_frozen rewrites frozen cells and syncs frozen_eur_amount to the new amount."""
+    line = await _make_line(db_session, value_eur="1200")
+    await cell_service.redistribute_for_line(db_session, line_id=line.id)  # 12 × 100
+    await _freeze_months(db_session, line.id, [1, 2, 3])
+
+    line.value_eur = Decimal("2400")
+    await db_session.flush()
+    n = await cell_service.redistribute_for_line(
+        db_session, line_id=line.id, force=True, full_range=True, include_frozen=True
+    )
+    assert n == 12
+    cells = {
+        c.month: c
+        for c in (
+            await db_session.execute(select(AccrualCellDB).where(AccrualCellDB.line_id == line.id))
+        )
+        .scalars()
+        .all()
+    }
+    assert all(c.amount == Decimal("200.00") for c in cells.values())  # 2400 / 12
+    for m in (1, 2, 3):
+        assert cells[m].is_frozen is True
+        assert cells[m].frozen_eur_amount == Decimal("200.00")  # synced
+
+
+@pytest.mark.asyncio
+async def test_redistribute_without_include_frozen_still_reserves_frozen(
+    db_session: AsyncSession,
+) -> None:
+    """Regression: with include_frozen=False frozen cells are reserved even under force+full_range."""
+    line = await _make_line(db_session, value_eur="1200")
+    await cell_service.redistribute_for_line(db_session, line_id=line.id)  # 12 × 100
+    await _freeze_months(db_session, line.id, [1, 2, 3])
+
+    line.value_eur = Decimal("2400")
+    await db_session.flush()
+    await cell_service.redistribute_for_line(
+        db_session, line_id=line.id, force=True, full_range=True, include_frozen=False
+    )
+    cells = {
+        c.month: c
+        for c in (
+            await db_session.execute(select(AccrualCellDB).where(AccrualCellDB.line_id == line.id))
+        )
+        .scalars()
+        .all()
+    }
+    for m in (1, 2, 3):
+        assert cells[m].amount == Decimal("100.00")  # untouched
+        assert cells[m].frozen_eur_amount == Decimal("100.00")
+    # (2400 - 300 reserved) / 9 non-frozen months
+    assert cells[4].amount == Decimal("233.33")
