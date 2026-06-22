@@ -171,17 +171,25 @@ export function AccrualLineEditor({ lineId, onClose }: AccrualLineEditorProps): 
   const [form, setForm] = useState<LineForm>(EMPTY_FORM);
   const [newProjects, setNewProjects] = useState<AccrualLineProject[]>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
 
-  // Seed the form: blank for create, fetched detail for edit.
+  // Reset transient UI state only when switching lines — NOT on the detail
+  // refetch that follows a save, so the success message and the unlock toggle
+  // survive a save (which keeps the sheet open).
+  useEffect(() => {
+    setUnlockFrozen(false);
+    setFeedback(null);
+  }, [editId, isCreate]);
+
+  // Seed the form: blank for create, fetched detail for edit. Re-seeds after a
+  // save (detail refetch) so the form matches the persisted line → not dirty.
   useEffect(() => {
     if (isCreate) {
-      setUnlockFrozen(false);
       setForm(EMPTY_FORM);
       setNewProjects([]);
       return;
     }
     if (detail) {
-      setUnlockFrozen(false);
       setForm({
         name: detail.name ?? '',
         valueEur: detail.value_eur ?? '0',
@@ -204,8 +212,10 @@ export function AccrualLineEditor({ lineId, onClose }: AccrualLineEditorProps): 
   );
   const allProjects = useAllProjectSummaries().data ?? [];
 
-  const setField = (key: keyof LineForm, value: string): void =>
+  const setField = (key: keyof LineForm, value: string): void => {
+    setFeedback(null);
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
 
   const windowInvalid =
     Boolean(form.windowStart) &&
@@ -285,10 +295,23 @@ export function AccrualLineEditor({ lineId, onClose }: AccrualLineEditorProps): 
       };
       await create.mutateAsync(payload).then(onClose).catch(() => undefined);
     } else if (editId) {
-      await update
-        .mutateAsync({ id: editId, payload: buildPayload() })
-        .then(onClose)
-        .catch(() => undefined);
+      // A window change triggers a server-side redistribute (reconcile); a
+      // plain field edit does not. Compute before the save refetch re-seeds.
+      const windowChanged =
+        form.windowStart !== (detail?.window_start ?? '') ||
+        form.windowEnd !== (detail?.window_end ?? '');
+      try {
+        await update.mutateAsync({ id: editId, payload: buildPayload() });
+        // Keep the sheet open so the user can redistribute right after saving,
+        // and confirm what happened (closing silently gave no feedback).
+        setFeedback(
+          windowChanged
+            ? 'Saved. Cells redistributed across the window.'
+            : 'Saved. Click Redistribute to spread the value across the window.',
+        );
+      } catch {
+        // Mutation errors surface via the shared error toast.
+      }
     }
   };
 
@@ -444,12 +467,23 @@ export function AccrualLineEditor({ lineId, onClose }: AccrualLineEditorProps): 
               size="sm"
               disabled={isDirty}
               title={isDirty ? 'Save changes first' : undefined}
-              onClick={() =>
+              onClick={() => {
                 void redistributeLine(
                   editId,
                   unlockFrozen ? { force: true, includeFrozen: true } : undefined,
-                )
-              }
+                ).then((n) => {
+                  if (n === undefined) return;
+                  if (n > 0) {
+                    setFeedback(`Redistributed across ${n} cell${n === 1 ? '' : 's'}.`);
+                  } else if (unlockFrozen) {
+                    setFeedback('No cells in the window to redistribute.');
+                  } else {
+                    setFeedback(
+                      'No non-frozen cells to redistribute — tick “Unlock frozen cells” to rewrite recognized months.',
+                    );
+                  }
+                });
+              }}
             >
               {unlockFrozen ? 'Redistribute full range (incl. recognized)' : 'Redistribute across window'}
             </Button>
@@ -457,6 +491,12 @@ export function AccrualLineEditor({ lineId, onClose }: AccrualLineEditorProps): 
               <p className="text-xs text-muted-foreground">Save changes first to redistribute.</p>
             )}
           </div>
+        )}
+
+        {feedback && (
+          <p className="text-xs text-emerald-600" role="status">
+            {feedback}
+          </p>
         )}
 
         <SheetFooter className="mt-auto flex-row items-center justify-between gap-2">
@@ -474,7 +514,7 @@ export function AccrualLineEditor({ lineId, onClose }: AccrualLineEditorProps): 
           )}
           <div className="ml-auto flex gap-2">
             <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
+              {isCreate ? 'Cancel' : 'Close'}
             </Button>
             <Button type="button" onClick={() => void handleSave()} disabled={saving || windowInvalid}>
               {saving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
