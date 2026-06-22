@@ -222,7 +222,9 @@ async def redistribute_for_line(
     return written
 
 
-async def reconcile_line_window(db: AsyncSession, *, line_id: UUID) -> int:
+async def reconcile_line_window(
+    db: AsyncSession, *, line_id: UUID, include_frozen: bool = False
+) -> int:
     """Reconcile a line's cells to its (already updated) window after a window change.
 
     Cells live at fixed (year, month) slots and are decoupled from the window, so
@@ -249,7 +251,7 @@ async def reconcile_line_window(db: AsyncSession, *, line_id: UUID) -> int:
     out_of_window = [c for c in cells if (c.year, c.month) not in window_months]
 
     frozen_orphans = sum(1 for c in out_of_window if c.is_frozen)
-    if frozen_orphans:
+    if frozen_orphans and not include_frozen:
         raise CellFrozenError(
             f"Cannot move window: {frozen_orphans} frozen cell(s) would fall outside "
             "the new window — recognised revenue cannot be relocated"
@@ -262,11 +264,19 @@ async def reconcile_line_window(db: AsyncSession, *, line_id: UUID) -> int:
     source = (
         CellSource.TEAM_BUDGET if line.source == LineSource.TEAM_BUDGET.value else CellSource.MANUAL
     )
-    await redistribute_for_line(db, line_id=line_id, force=False, full_range=True, source=source)
+    await redistribute_for_line(
+        db,
+        line_id=line_id,
+        force=include_frozen,
+        full_range=True,
+        include_frozen=include_frozen,
+        source=source,
+    )
     logger.info(
         "accrual_line_window_reconciled",
         line_id=str(line_id),
         orphans_deleted=len(out_of_window),
+        include_frozen=include_frozen,
     )
     return len(out_of_window)
 

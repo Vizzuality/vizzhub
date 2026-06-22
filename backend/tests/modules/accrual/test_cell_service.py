@@ -223,6 +223,47 @@ async def test_reconcile_line_window_rejects_frozen_orphan(
 
 
 @pytest.mark.asyncio
+async def test_reconcile_include_frozen_moves_frozen_orphan(
+    db_session: AsyncSession,
+) -> None:
+    """With include_frozen, a frozen cell outside the new window is removed, not blocked."""
+    from datetime import datetime
+
+    line = await _make_line(db_session, value_eur="1200")
+    await cell_service.redistribute_for_line(db_session, line_id=line.id)
+    frozen = (
+        await db_session.execute(
+            select(AccrualCellDB).where(AccrualCellDB.line_id == line.id, AccrualCellDB.month == 3)
+        )
+    ).scalar_one()
+    frozen.is_frozen = True
+    frozen.frozen_at = datetime(2026, 4, 1, tzinfo=UTC)
+    frozen.frozen_eur_amount = frozen.amount
+    await db_session.flush()
+
+    line.window_start = date(2024, 1, 1)
+    line.window_end = date(2024, 12, 1)
+    await db_session.flush()
+
+    orphans = await cell_service.reconcile_line_window(
+        db_session, line_id=line.id, include_frozen=True
+    )
+    assert orphans == 12  # all 2026 cells fell outside the 2024 window
+    survivors = (
+        (
+            await db_session.execute(
+                select(AccrualCellDB).where(
+                    AccrualCellDB.line_id == line.id, AccrualCellDB.year == 2026
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert survivors == []  # frozen 2026/03 included in the deletion
+
+
+@pytest.mark.asyncio
 async def test_set_line_rate_recomputes_value_eur_and_redistributes(
     db_session: AsyncSession,
 ) -> None:
