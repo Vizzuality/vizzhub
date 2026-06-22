@@ -227,8 +227,9 @@ describe('AccrualLineEditor — unlock frozen cells', () => {
     );
   });
 
-  it('disables redistribute while the form has unsaved changes', async () => {
+  it('saves pending edits before redistributing (no manual save needed)', async () => {
     const user = userEvent.setup();
+    vi.mocked(accrualApi.lines.update).mockResolvedValue({ id: 'l1' } as never);
     renderWith(<AccrualLineEditor lineId="l1" onClose={vi.fn()} />);
     await screen.findByText('Edit accrual line');
 
@@ -236,7 +237,12 @@ describe('AccrualLineEditor — unlock frozen cells', () => {
     await user.clear(value);
     await user.type(value, '9999');
 
-    expect(screen.getByRole('button', { name: /redistribute/i })).toBeDisabled();
+    // Button stays enabled while dirty; clicking it saves first, then redistributes.
+    await user.click(screen.getByRole('button', { name: /redistribute/i }));
+
+    // Edits are persisted (update) and only then redistributed — no manual save.
+    await waitFor(() => expect(accrualApi.lines.update).toHaveBeenCalled());
+    expect(accrualApi.lines.redistribute).toHaveBeenCalled();
   });
 
   it('shows a feedback message with the cell count after redistribute', async () => {

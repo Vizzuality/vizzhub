@@ -172,6 +172,7 @@ export function AccrualLineEditor({ lineId, onClose }: AccrualLineEditorProps): 
   const [newProjects, setNewProjects] = useState<AccrualLineProject[]>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [redistributing, setRedistributing] = useState(false);
 
   // Reset transient UI state only when switching lines — NOT on the detail
   // refetch that follows a save, so the success message and the unlock toggle
@@ -315,6 +316,36 @@ export function AccrualLineEditor({ lineId, onClose }: AccrualLineEditorProps): 
     }
   };
 
+  const handleRedistribute = async (): Promise<void> => {
+    if (!editId) return;
+    setRedistributing(true);
+    try {
+      // Redistribute runs server-side against the PERSISTED line, so persist any
+      // pending edits first — otherwise it would spread the stale value/window.
+      if (isDirty) {
+        await update.mutateAsync({ id: editId, payload: buildPayload() });
+      }
+      const n = await redistributeLine(
+        editId,
+        unlockFrozen ? { force: true, includeFrozen: true } : undefined,
+      );
+      if (n === undefined) return;
+      if (n > 0) {
+        setFeedback(`Redistributed across ${n} cell${n === 1 ? '' : 's'}.`);
+      } else if (unlockFrozen) {
+        setFeedback('No cells in the window to redistribute.');
+      } else {
+        setFeedback(
+          'No non-frozen cells to redistribute — tick “Unlock frozen cells” to rewrite recognized months.',
+        );
+      }
+    } catch {
+      // Save errors surface via the shared error toast.
+    } finally {
+      setRedistributing(false);
+    }
+  };
+
   const handleDelete = async (): Promise<void> => {
     if (!editId) return;
     await remove.mutateAsync(editId).catch(() => undefined);
@@ -443,7 +474,7 @@ export function AccrualLineEditor({ lineId, onClose }: AccrualLineEditorProps): 
             <Label>Redistribute</Label>
             <p className="text-xs text-muted-foreground">
               Spread <strong>Value €</strong> evenly across the window's mutable months
-              (skips frozen cells and manual overrides).
+              (skips frozen cells and manual overrides). Pending edits are saved first.
             </p>
             {canUnlock && (
               <label className="flex items-start gap-2 text-xs text-muted-foreground">
@@ -465,31 +496,12 @@ export function AccrualLineEditor({ lineId, onClose }: AccrualLineEditorProps): 
               type="button"
               variant="outline"
               size="sm"
-              disabled={isDirty}
-              title={isDirty ? 'Save changes first' : undefined}
-              onClick={() => {
-                void redistributeLine(
-                  editId,
-                  unlockFrozen ? { force: true, includeFrozen: true } : undefined,
-                ).then((n) => {
-                  if (n === undefined) return;
-                  if (n > 0) {
-                    setFeedback(`Redistributed across ${n} cell${n === 1 ? '' : 's'}.`);
-                  } else if (unlockFrozen) {
-                    setFeedback('No cells in the window to redistribute.');
-                  } else {
-                    setFeedback(
-                      'No non-frozen cells to redistribute — tick “Unlock frozen cells” to rewrite recognized months.',
-                    );
-                  }
-                });
-              }}
+              disabled={redistributing || windowInvalid}
+              onClick={() => void handleRedistribute()}
             >
+              {redistributing && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
               {unlockFrozen ? 'Redistribute full range (incl. recognized)' : 'Redistribute across window'}
             </Button>
-            {isDirty && (
-              <p className="text-xs text-muted-foreground">Save changes first to redistribute.</p>
-            )}
           </div>
         )}
 
