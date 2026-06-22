@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { usePermission, Action } from '@/core/permissions';
 import { Check, ChevronsUpDown, Loader2, Trash2, X } from 'lucide-react';
 import {
   Sheet,
@@ -158,6 +159,9 @@ export function AccrualLineEditor({ lineId, onClose }: AccrualLineEditorProps): 
   const { create, update, remove, linkProject, unlinkProject } = useLineMutations();
   const { redistributeLine } = useAccrualMutations();
 
+  const canUnlock = usePermission(Action.ACCRUAL_PERIOD_MANAGE);
+  const [unlockFrozen, setUnlockFrozen] = useState(false);
+
   const { data: detail } = useQuery({
     queryKey: queryKeys.accrual.lines.detail(editId ?? 'none'),
     queryFn: () => accrualApi.lines.get(editId as string),
@@ -171,11 +175,13 @@ export function AccrualLineEditor({ lineId, onClose }: AccrualLineEditorProps): 
   // Seed the form: blank for create, fetched detail for edit.
   useEffect(() => {
     if (isCreate) {
+      setUnlockFrozen(false);
       setForm(EMPTY_FORM);
       setNewProjects([]);
       return;
     }
     if (detail) {
+      setUnlockFrozen(false);
       setForm({
         name: detail.name ?? '',
         valueEur: detail.value_eur ?? '0',
@@ -206,6 +212,19 @@ export function AccrualLineEditor({ lineId, onClose }: AccrualLineEditorProps): 
     Boolean(form.windowEnd) &&
     form.windowStart > form.windowEnd;
 
+  const isDirty = useMemo(() => {
+    if (isCreate || !detail) return false;
+    return (
+      form.name !== (detail.name ?? '') ||
+      form.valueEur !== (detail.value_eur ?? '0') ||
+      form.valueOrig !== (detail.value_orig ?? '') ||
+      form.currency !== (detail.currency ?? '') ||
+      form.rate !== (detail.rate ?? '') ||
+      form.windowStart !== (detail.window_start ?? '') ||
+      form.windowEnd !== (detail.window_end ?? '')
+    );
+  }, [isCreate, detail, form]);
+
   const buildPayload = (): AccrualLineUpdate => {
     const payload: AccrualLineUpdate = {
       name: form.name.trim() || null,
@@ -220,6 +239,9 @@ export function AccrualLineEditor({ lineId, onClose }: AccrualLineEditorProps): 
     const currentRate = form.rate.trim();
     if (currentRate !== (detail?.rate ?? '')) {
       payload.rate = currentRate || null;
+    }
+    if (unlockFrozen) {
+      payload.include_frozen = true;
     }
     return payload;
   };
@@ -400,14 +422,40 @@ export function AccrualLineEditor({ lineId, onClose }: AccrualLineEditorProps): 
               Spread <strong>Value €</strong> evenly across the window's mutable months
               (skips frozen cells and manual overrides).
             </p>
+            {canUnlock && (
+              <label className="flex items-start gap-2 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={unlockFrozen}
+                  onChange={(e) => setUnlockFrozen(e.target.checked)}
+                  aria-label="Unlock frozen cells"
+                />
+                <span>
+                  <strong className="text-foreground">Unlock frozen cells.</strong> Overwrites
+                  recognized (frozen) revenue across the whole window — for correcting import
+                  data only.
+                </span>
+              </label>
+            )}
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => void redistributeLine(editId)}
+              disabled={isDirty}
+              title={isDirty ? 'Save changes first' : undefined}
+              onClick={() =>
+                void redistributeLine(
+                  editId,
+                  unlockFrozen ? { force: true, includeFrozen: true } : undefined,
+                )
+              }
             >
-              Redistribute across window
+              {unlockFrozen ? 'Redistribute full range (incl. recognized)' : 'Redistribute across window'}
             </Button>
+            {isDirty && (
+              <p className="text-xs text-muted-foreground">Save changes first to redistribute.</p>
+            )}
           </div>
         )}
 
