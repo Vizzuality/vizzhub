@@ -91,7 +91,36 @@ describe('AccrualLineEditor — edit mode', () => {
 
     await user.click(screen.getByRole('button', { name: /^save$/i }));
     await waitFor(() => expect(accrualApi.lines.update).toHaveBeenCalledWith('l1', expect.anything()));
+    // Save keeps the sheet open (so the user can redistribute next) and shows feedback.
+    expect(await screen.findByRole('status')).toHaveTextContent(/saved/i);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('Close button closes the sheet without saving', async () => {
+    vi.mocked(accrualApi.lines.get).mockResolvedValue({
+      id: 'l1',
+      name: 'Existing line',
+      source: 'manual',
+      excel_code: null,
+      value_eur: '500.00',
+      value_orig: null,
+      currency: 'EUR',
+      window_start: '2026-01-01',
+      window_end: '2026-12-01',
+      projects: [],
+    });
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+
+    renderWith(<AccrualLineEditor lineId="l1" onClose={onClose} />);
+    await screen.findByDisplayValue('Existing line');
+
+    // Two buttons read "Close": the Sheet's built-in X (rendered first) and the
+    // footer button. Target the footer one (last).
+    const closeButtons = screen.getAllByRole('button', { name: /^close$/i });
+    await user.click(closeButtons[closeButtons.length - 1]);
     expect(onClose).toHaveBeenCalled();
+    expect(accrualApi.lines.update).not.toHaveBeenCalled();
   });
 
   it('sends the FX override only when the rate field changes', async () => {
@@ -198,8 +227,9 @@ describe('AccrualLineEditor — unlock frozen cells', () => {
     );
   });
 
-  it('disables redistribute while the form has unsaved changes', async () => {
+  it('saves pending edits before redistributing (no manual save needed)', async () => {
     const user = userEvent.setup();
+    vi.mocked(accrualApi.lines.update).mockResolvedValue({ id: 'l1' } as never);
     renderWith(<AccrualLineEditor lineId="l1" onClose={vi.fn()} />);
     await screen.findByText('Edit accrual line');
 
@@ -207,6 +237,21 @@ describe('AccrualLineEditor — unlock frozen cells', () => {
     await user.clear(value);
     await user.type(value, '9999');
 
-    expect(screen.getByRole('button', { name: /redistribute/i })).toBeDisabled();
+    // Button stays enabled while dirty; clicking it saves first, then redistributes.
+    await user.click(screen.getByRole('button', { name: /redistribute/i }));
+
+    // Edits are persisted (update) and only then redistributed — no manual save.
+    await waitFor(() => expect(accrualApi.lines.update).toHaveBeenCalled());
+    expect(accrualApi.lines.redistribute).toHaveBeenCalled();
+  });
+
+  it('shows a feedback message with the cell count after redistribute', async () => {
+    const user = userEvent.setup();
+    renderWith(<AccrualLineEditor lineId="l1" onClose={vi.fn()} />);
+    await screen.findByText('Edit accrual line');
+
+    await user.click(screen.getByRole('button', { name: /redistribute/i }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent(/redistributed across 12 cells/i);
   });
 });

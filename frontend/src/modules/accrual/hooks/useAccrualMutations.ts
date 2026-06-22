@@ -14,7 +14,7 @@ export interface UseAccrualMutationsReturn {
   redistributeLine: (
     lineId: string,
     opts?: { force?: boolean; includeFrozen?: boolean },
-  ) => Promise<void>;
+  ) => Promise<number | undefined>;
   setLineRate: (lineId: string, rate: string | null) => Promise<void>;
   savingState: SavingState;
   failedCells: ReadonlySet<string>;
@@ -163,10 +163,13 @@ export function useAccrualMutations(): UseAccrualMutationsReturn {
   );
 
   const redistributeLine = useCallback(
-    (lineId: string, opts?: { force?: boolean; includeFrozen?: boolean }): Promise<void> =>
+    (
+      lineId: string,
+      opts?: { force?: boolean; includeFrozen?: boolean },
+    ): Promise<number | undefined> =>
       redistributeMutation
         .mutateAsync({ lineId, opts })
-        .then(() => undefined)
+        .then((r) => r.cells_updated)
         .catch(() => undefined),
     [redistributeMutation],
   );
