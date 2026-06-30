@@ -22,6 +22,9 @@ export const Action = {
   EVENTS_VIEW: 'events:view',
   EVENTS_MANAGE: 'events:manage',
 
+  PORTFOLIO_VIEW: 'portfolio:view',
+  PORTFOLIO_MANAGE: 'portfolio:manage',
+
   DEVSTACK_VIEW: 'devstack:view',
   DEVSTACK_MANAGE: 'devstack:manage',
 
