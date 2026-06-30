@@ -111,7 +111,9 @@ async def seed_clients(db: AsyncSession) -> tuple[int, int]:
         FROM accrual_excel_rows
         WHERE client IS NOT NULL AND btrim(client) <> ''
           AND import_run_id = (
-            SELECT id FROM accrual_import_runs ORDER BY completed_at DESC LIMIT 1
+            SELECT id FROM accrual_import_runs
+            WHERE completed_at IS NOT NULL
+            ORDER BY completed_at DESC LIMIT 1
           )
         """
                 )
@@ -139,27 +141,30 @@ async def seed_clients(db: AsyncSession) -> tuple[int, int]:
         clients_created += 1
 
     # 2. Best-effort project→client via excel_code bridge. Never overwrite a non-null client_id.
-    linked = (
+    # Use the same _slugify() as step 1 to avoid accent-folding mismatch with SQL regexp_replace.
+    bridge_rows = (
         await db.execute(
             text(
                 """
-        WITH map AS (
-            SELECT DISTINCT alp.project_id, btrim(er.client) AS client
-            FROM accrual_excel_rows er
-            JOIN accrual_lines al ON al.excel_code = er.excel_code
-            JOIN accrual_line_projects alp ON alp.line_id = al.id
-            WHERE er.client IS NOT NULL AND btrim(er.client) <> ''
-        )
-        UPDATE projects p
-        SET client_id = c.id
-        FROM map, clients c
-        WHERE p.id = map.project_id
-          AND c.slug = regexp_replace(lower(btrim(map.client)), '[^a-z0-9]+', '-', 'g')
-          AND p.client_id IS NULL
+        SELECT DISTINCT alp.project_id, btrim(er.client) AS client
+        FROM accrual_excel_rows er
+        JOIN accrual_lines al ON al.excel_code = er.excel_code
+        JOIN accrual_line_projects alp ON alp.line_id = al.id
+        WHERE er.client IS NOT NULL AND btrim(er.client) <> ''
         """
             )
         )
-    ).rowcount or 0
+    ).all()
+    linked = 0
+    for row in bridge_rows:
+        cid = slug_to_id.get(_slugify(row.client))
+        if cid is None:
+            continue
+        result = await db.execute(
+            text("UPDATE projects SET client_id = :cid WHERE id = :pid AND client_id IS NULL"),
+            {"cid": cid, "pid": row.project_id},
+        )
+        linked += result.rowcount
     logger.info("clients_seeded", clients_created=clients_created, projects_linked=linked)
     return clients_created, linked
 

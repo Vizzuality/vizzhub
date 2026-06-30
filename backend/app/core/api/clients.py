@@ -44,7 +44,6 @@ async def list_clients(
     current_user: PortfolioViewer,
     db: DBSession,
     search: str = "",
-    sort_by: str = "name",
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
 ) -> ClientListResponse:
