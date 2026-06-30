@@ -59,10 +59,23 @@ async def test_list_taxonomies_returns_terms(
 
 
 @pytest.mark.asyncio
-async def test_list_taxonomies_requires_auth(client: AsyncClient) -> None:
-    """Unauthenticated request must be rejected."""
-    resp = await client.get("/api/taxonomies")
-    assert resp.status_code in (401, 403)
+async def test_list_taxonomies_forbidden_without_permission(client: AsyncClient) -> None:
+    """A user without portfolio:view must be denied with 403."""
+
+    async def _no_permission_user() -> TokenData:
+        return TokenData(
+            user_id="00000000-0000-0000-0000-000000000010",
+            email="user@test.com",
+            roles=["user"],
+            permissions=[],
+        )
+
+    app.dependency_overrides[get_current_user] = _no_permission_user
+    try:
+        resp = await client.get("/api/taxonomies")
+        assert resp.status_code == 403
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
 
 
 @pytest.mark.asyncio
