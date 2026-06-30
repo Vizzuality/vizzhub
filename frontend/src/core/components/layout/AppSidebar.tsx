@@ -5,6 +5,7 @@ import {
   BarChart3,
   Blocks,
   BookOpen,
+  Briefcase,
   CalendarDays,
   ClipboardList,
   Coins,
@@ -215,9 +216,11 @@ export function AppSidebar(): JSX.Element {
     Action.ADMIN_USERS,
     Action.TRACKER_MANAGE_ALL_REPORTS,
   );
+  const canPortfolio = usePermission(Action.PORTFOLIO_MANAGE);
   const isAdmin = bypassAuth || canAdmin;
   const showTrackerAdmin = bypassAuth || canTrackerAdmin;
-  const showAdminSection = isAdmin || showTrackerAdmin;
+  const showPortfolio = bypassAuth || canPortfolio;
+  const showAdminSection = isAdmin || showTrackerAdmin || showPortfolio;
 
   const isActive = (path: string): boolean => {
     if (path === '/scorecard') {
@@ -418,6 +421,21 @@ export function AppSidebar(): JSX.Element {
                       isActive={location.pathname.startsWith('/admin/accrual')}
                       items={ACCRUAL_TABS}
                     />
+                  )}
+
+                  {showPortfolio && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={location.pathname.startsWith('/admin/portfolio')}
+                        tooltip="Portfolio"
+                      >
+                        <GuardedLink to="/admin/portfolio">
+                          <Briefcase />
+                          <span>Portfolio</span>
+                        </GuardedLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
                   )}
                 </SidebarMenu>
               </SidebarGroupContent>
