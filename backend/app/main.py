@@ -16,6 +16,7 @@ from app.config import get_settings, load_scoring_config_from_db
 from app.core.api import admin_assets as admin_assets_router
 from app.core.api import admin_users as admin_users_router
 from app.core.api import auth as auth_router
+from app.core.api import clients as clients_router
 from app.core.api import commands as commands_router
 from app.core.api import currencies as currencies_router
 from app.core.api import functional_areas as functional_areas_router
@@ -275,6 +276,7 @@ app.include_router(
     prefix="/api/taxonomies",
     tags=["taxonomies"],
 )
+app.include_router(clients_router.router, prefix="/api/clients", tags=["clients"])
 app.include_router(jobs_router.router, prefix="/api")
 app.include_router(scorecard_router, prefix="/api", tags=["scorecard"])
 app.include_router(iso_router, prefix="/api/iso", tags=["iso"])
