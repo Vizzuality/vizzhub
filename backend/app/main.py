@@ -40,6 +40,7 @@ from app.modules.iso.router import router as iso_router
 from app.modules.iso_docs.router import router as iso_docs_router
 from app.modules.notifications.router import router as notifications_router
 from app.modules.playbook.router import router as playbook_router
+from app.modules.portfolio.router import router as portfolio_router
 from app.modules.scorecard.router import router as scorecard_router
 from app.modules.tracker.router import router as tracker_router
 
@@ -278,6 +279,7 @@ app.include_router(notifications_router, prefix="/api", tags=["notifications"])
 app.include_router(playbook_router, prefix="/api/playbook", tags=["playbook"])
 app.include_router(iso_docs_router, prefix="/api/iso-docs", tags=["iso-docs"])
 app.include_router(events_router, prefix="/api/events", tags=["events"])
+app.include_router(portfolio_router, prefix="/api/portfolio", tags=["portfolio"])
 app.include_router(devstack_router, prefix="/api/devstack", tags=["devstack"])
 app.include_router(commands_router.router, prefix="/api")
 
