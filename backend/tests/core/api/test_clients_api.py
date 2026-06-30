@@ -124,3 +124,42 @@ async def test_create_client_forbidden_without_manage_permission(
         assert resp.status_code == 403
     finally:
         app.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest.mark.asyncio
+async def test_merge_endpoint_returns_merged_projects(
+    portfolio_manager_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    """POST /{target_id}/merge reassigns projects and returns merged_projects count."""
+    target = ClientDB(name="Canonical Corp", slug="canonical-corp")
+    source = ClientDB(name="Old Name Corp", slug="old-name-corp")
+    db_session.add_all([target, source])
+    await db_session.commit()
+
+    resp = await portfolio_manager_client.post(
+        f"/api/clients/{target.id}/merge",
+        json={"source_ids": [str(source.id)]},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["merged_projects"] == 0
+    assert body["target"]["id"] == str(target.id)
+    assert body["target"]["slug"] == "canonical-corp"
+
+
+@pytest.mark.asyncio
+async def test_merge_endpoint_400_on_target_in_sources(
+    portfolio_manager_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    """POST /{target_id}/merge with target in source_ids must return 400."""
+    c = ClientDB(name="Self Ref", slug="self-ref")
+    db_session.add(c)
+    await db_session.commit()
+
+    resp = await portfolio_manager_client.post(
+        f"/api/clients/{c.id}/merge",
+        json={"source_ids": [str(c.id)]},
+    )
+    assert resp.status_code == 400

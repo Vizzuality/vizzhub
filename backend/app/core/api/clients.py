@@ -3,6 +3,7 @@
 import re
 import unicodedata
 from typing import Annotated
+from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -14,6 +15,7 @@ from app.core.auth import TokenData
 from app.core.models.client import Client, ClientCreate, ClientDB, ClientUpdate
 from app.core.models.project import ProjectDB
 from app.core.permissions import Action, require_permission
+from app.core.services.client_service import merge_clients
 
 PortfolioViewer = Annotated[TokenData, Depends(require_permission(Action.PORTFOLIO_VIEW))]
 PortfolioManager = Annotated[TokenData, Depends(require_permission(Action.PORTFOLIO_MANAGE))]
@@ -118,3 +120,30 @@ async def update_client(
     await db.refresh(obj)
     logger.info("client_updated", client_id=str(obj.id), user_id=current_user.user_id)
     return Client.model_validate(obj)
+
+
+class MergeRequest(BaseModel):
+    source_ids: list[UUID]
+
+
+class MergeResponse(BaseModel):
+    merged_projects: int
+    target: Client
+
+
+@router.post("/{target_id}/merge", responses={400: {"description": "Invalid merge"}})
+@limiter.limit("20/minute")
+async def merge_clients_endpoint(
+    request: Request,
+    current_user: PortfolioManager,
+    db: DBSession,
+    target_id: UUID,
+    payload: MergeRequest,
+) -> MergeResponse:
+    try:
+        moved = await merge_clients(db, target_id=target_id, source_ids=payload.source_ids)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await db.flush()
+    target = (await db.execute(select(ClientDB).where(ClientDB.id == target_id))).scalar_one()
+    return MergeResponse(merged_projects=moved, target=Client.model_validate(target))
