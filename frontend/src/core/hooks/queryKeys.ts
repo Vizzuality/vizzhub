@@ -256,6 +256,15 @@ export const queryKeys = {
     stats: (year?: number) => ['events', 'stats', year] as const,
     options: ['events', 'options'] as const,
   },
+  portfolio: {
+    all: ['portfolio'] as const,
+    clients: {
+      all: ['portfolio', 'clients'] as const,
+      list: (params: Record<string, unknown>) =>
+        ['portfolio', 'clients', 'list', params] as const,
+    },
+    taxonomies: ['portfolio', 'taxonomies'] as const,
+  },
   devstack: {
     all: ['devstack'] as const,
     list: (params: Record<string, unknown>) => ['devstack', 'list', params] as const,
