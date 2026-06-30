@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/core/hooks/queryKeys';
 import { portfolioApi } from '../services/portfolio';
 import type { ClientCreate, ClientListParams, ClientUpdate, MergeRequest } from '../types/portfolio';
@@ -7,6 +7,11 @@ export function useClients(params: ClientListParams = {}) {
   return useQuery({
     queryKey: queryKeys.portfolio.clients.list(params as unknown as Record<string, unknown>),
     queryFn: () => portfolioApi.listClients(params),
+    // Keep the previous page/search results visible while the next query loads, so the
+    // list never collapses to `undefined` on a key change. Without this, the page's
+    // `isLoading && !data` branch swaps in a spinner on every keystroke-driven search,
+    // unmounting the search input and stealing focus. Codebase convention (useProjects).
+    placeholderData: keepPreviousData,
   });
 }
 
