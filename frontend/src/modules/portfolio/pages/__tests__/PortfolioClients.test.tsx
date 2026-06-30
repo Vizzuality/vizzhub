@@ -53,6 +53,12 @@ describe('PortfolioClients', () => {
     expect(screen.getByText('4')).toBeInTheDocument();
   });
 
+  it('renders slug in the table', () => {
+    mockUsePermission.mockReturnValue(true);
+    renderPage();
+    expect(screen.getByText('acme-foundation')).toBeInTheDocument();
+  });
+
   it('hides write affordances when user lacks PORTFOLIO_MANAGE', () => {
     mockUsePermission.mockReturnValue(false);
     renderPage();

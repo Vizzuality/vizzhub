@@ -49,6 +49,8 @@ export default function PortfolioClients(): JSX.Element {
 
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [formOpen, setFormOpen] = useState(false);
+
+  useEffect(() => setSelected({}), [page]);
   const [editing, setEditing] = useState<Client | null>(null);
   const [mergeOpen, setMergeOpen] = useState(false);
 
@@ -104,6 +106,7 @@ export default function PortfolioClients(): JSX.Element {
                   <tr className="text-xs text-muted-foreground border-b">
                     {canManage && <th className="w-8 pb-2" />}
                     <th className="text-left font-medium pb-2">Client</th>
+                    <th className="text-left font-medium pb-2">Code</th>
                     <th className="text-right font-medium pb-2 pr-4">Projects</th>
                     <th className="text-left font-medium pb-2">Status</th>
                   </tr>
@@ -136,6 +139,7 @@ export default function PortfolioClients(): JSX.Element {
                         </td>
                       )}
                       <td className="py-2 font-medium text-foreground">{c.name}</td>
+                      <td className="py-2 text-xs text-muted-foreground font-mono">{c.slug}</td>
                       <td className="py-2 text-right tabular-nums pr-4">{c.project_count}</td>
                       <td className="py-2">
                         <span className="inline-flex items-center gap-1.5">
