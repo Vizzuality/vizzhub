@@ -25,3 +25,23 @@ def test_app_boots_without_portfolio_errors() -> None:
     from app.main import app  # noqa: F401
 
     assert app is not None
+
+
+def test_taxonomies_route_registered() -> None:
+    """GET /api/taxonomies must be registered (non-404 even without auth)."""
+    import httpx
+    from httpx import ASGITransport
+
+    from app.main import app
+
+    async def _check() -> int:
+        async with httpx.AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as ac:
+            resp = await ac.get("/api/taxonomies")
+            return resp.status_code
+
+    import asyncio
+
+    status = asyncio.run(_check())
+    assert status in (200, 401, 403), f"Expected non-404, got {status}"
