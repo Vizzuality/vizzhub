@@ -96,7 +96,7 @@ async def update_client(
     request: Request,
     current_user: PortfolioManager,
     db: DBSession,
-    client_id: str,
+    client_id: UUID,
     payload: ClientUpdate,
 ) -> Client:
     obj = (await db.execute(select(ClientDB).where(ClientDB.id == client_id))).scalar_one_or_none()

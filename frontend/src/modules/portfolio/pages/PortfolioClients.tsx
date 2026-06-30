@@ -57,7 +57,6 @@ export default function PortfolioClients(): JSX.Element {
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const selectedIds = Object.keys(selected).filter((id) => selected[id]);
   const selectedClients = items.filter((c) => selected[c.id]);
 
   const toggle = (id: string): void => setSelected((s) => ({ ...s, [id]: !s[id] }));
@@ -79,9 +78,9 @@ export default function PortfolioClients(): JSX.Element {
         </div>
         {canManage && (
           <div className="flex items-center gap-2">
-            {selectedIds.length >= 2 && (
+            {selectedClients.length >= 2 && (
               <Button size="sm" variant="outline" onClick={() => setMergeOpen(true)}>
-                Merge selected ({selectedIds.length})
+                Merge selected ({selectedClients.length})
               </Button>
             )}
             <Button
