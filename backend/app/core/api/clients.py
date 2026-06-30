@@ -42,6 +42,7 @@ async def list_clients(
     current_user: PortfolioViewer,
     db: DBSession,
     search: str = "",
+    sort_by: str = "name",
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
 ) -> ClientListResponse:
@@ -85,7 +86,10 @@ async def create_client(
     return model
 
 
-@router.patch("/{client_id}", responses={404: {"description": "Not found"}})
+@router.patch(
+    "/{client_id}",
+    responses={404: {"description": "Not found"}, 409: {"description": "Duplicate client"}},
+)
 @limiter.limit("30/minute")
 async def update_client(
     request: Request,
@@ -98,8 +102,16 @@ async def update_client(
     if obj is None:
         raise HTTPException(status_code=404, detail="Client not found")
     if payload.name is not None:
+        new_slug = slugify(payload.name)
+        collision = (
+            await db.execute(
+                select(ClientDB).where(ClientDB.slug == new_slug, ClientDB.id != client_id)
+            )
+        ).scalar_one_or_none()
+        if collision is not None:
+            raise HTTPException(status_code=409, detail="A client with this name already exists")
         obj.name = payload.name.strip()
-        obj.slug = slugify(payload.name)
+        obj.slug = new_slug
     if payload.is_active is not None:
         obj.is_active = payload.is_active
     await db.flush()

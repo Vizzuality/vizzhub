@@ -74,6 +74,37 @@ async def test_list_clients_search(
 
 
 @pytest.mark.asyncio
+async def test_patch_duplicate_slug_409(
+    portfolio_manager_client: AsyncClient,
+) -> None:
+    """Renaming a client to a name that slugifies to an existing client's slug must 409."""
+    r1 = await portfolio_manager_client.post("/api/clients", json={"name": "Acme Ltd"})
+    assert r1.status_code == 201
+    r2 = await portfolio_manager_client.post("/api/clients", json={"name": "Beta Org"})
+    assert r2.status_code == 201
+    beta_id = r2.json()["id"]
+    resp = await portfolio_manager_client.patch(
+        f"/api/clients/{beta_id}", json={"name": "Acme Ltd"}
+    )
+    assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_patch_own_name_succeeds(
+    portfolio_manager_client: AsyncClient,
+) -> None:
+    """Renaming a client to its own current name (same slug) must succeed with 200."""
+    r = await portfolio_manager_client.post("/api/clients", json={"name": "Same Name Co"})
+    assert r.status_code == 201
+    client_id = r.json()["id"]
+    resp = await portfolio_manager_client.patch(
+        f"/api/clients/{client_id}", json={"name": "Same Name Co"}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["slug"] == "same-name-co"
+
+
+@pytest.mark.asyncio
 async def test_create_client_forbidden_without_manage_permission(
     client: AsyncClient,
 ) -> None:
