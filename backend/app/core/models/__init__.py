@@ -1,3 +1,4 @@
+from app.core.models.client import Client, ClientCreate, ClientDB, ClientUpdate
 from app.core.models.exchange_rate import ExchangeRate, ExchangeRateDB
 from app.core.models.functional_area import (
     FunctionalArea,
@@ -27,6 +28,10 @@ from app.core.models.rate import Rate, RateCreate, RateDB
 from app.core.models.user import User, UserDB, UserPublic, UserUpdate
 
 __all__ = [
+    "Client",
+    "ClientCreate",
+    "ClientDB",
+    "ClientUpdate",
     "ExchangeRate",
     "ExchangeRateDB",
     "FunctionalArea",

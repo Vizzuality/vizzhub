@@ -75,6 +75,11 @@ class ProjectDB(Base):
         ForeignKey("programs.id", ondelete="SET NULL"),
         nullable=True,
     )
+    client_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("clients.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     code: Mapped[str | None] = mapped_column(String(100), nullable=True)
     is_billable: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_absence: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -229,5 +234,6 @@ class ProjectResponse(Project):
     """Project response with resolved program and project manager names."""
 
     program_name: str | None = None
+    client_name: str | None = None
     project_manager_name: str | None = None
     original_budget: Decimal | None = None
