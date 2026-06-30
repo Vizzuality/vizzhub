@@ -1,5 +1,5 @@
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.core.models.taxonomy import Cardinality, TaxonomyDB, TaxonomyTermDB
 
@@ -23,3 +23,12 @@ async def test_create_taxonomy_with_terms(db_session):
     assert len(terms) == 1
     assert terms[0].name == "Nature"
     assert tax.cardinality == Cardinality.MULTI
+
+    # The ORM must serialize the enum by VALUE (lowercase), matching the labels the
+    # Alembic migration creates ('single'/'multi') — NOT the member name ('MULTI').
+    # Guards against the StrEnum/native-enum drift where create_all (name-based) and
+    # the migration (value-based) disagree and inserts fail against the real DB.
+    raw = await db_session.execute(
+        text("SELECT cardinality::text FROM taxonomies WHERE id = :id"), {"id": tax.id}
+    )
+    assert raw.scalar_one() == "multi"

@@ -36,7 +36,12 @@ class TaxonomyDB(Base):
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     cardinality: Mapped[Cardinality] = mapped_column(
-        SAEnum(Cardinality, name="taxonomy_cardinality", create_type=False),
+        SAEnum(
+            Cardinality,
+            name="taxonomy_cardinality",
+            create_type=False,
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+        ),
         nullable=False,
         default=Cardinality.MULTI,
     )
