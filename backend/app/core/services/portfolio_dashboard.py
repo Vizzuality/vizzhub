@@ -29,6 +29,7 @@ from app.modules.tracker.services import aggregation_service
 logger = structlog.get_logger()
 
 BREAKDOWN_SLUGS = ("impact-area", "service")
+TOP_CLIENTS = 15
 
 
 def _end_year(p: ProjectDB) -> int | None:
@@ -54,8 +55,6 @@ async def _eur_rates(db: AsyncSession, currencies: set[str]) -> dict[str, Decima
 
 
 def _to_eur(total_cost: float, currency: str | None, rates: dict[str, Decimal]) -> float | None:
-    if not total_cost:
-        return 0.0
     if currency is None:
         return None
     code = exchange_rate_service.currency_to_code(currency)
@@ -187,7 +186,7 @@ async def build_portfolio_summary(
             avg_margin=avg_margin,
         ),
         volume_by_year=volume_by_year,
-        spend_by_client=spend_rows[:15],
+        spend_by_client=spend_rows[:TOP_CLIENTS],
         margin_split=MarginSplit(gain=gain, loss=loss, no_data=no_data, avg_margin=avg_margin),
         breakdowns=await _breakdowns(db),
     )
