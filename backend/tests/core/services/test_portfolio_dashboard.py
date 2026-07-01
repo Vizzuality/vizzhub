@@ -23,9 +23,7 @@ async def _project(db, **kw):
     return p
 
 
-async def _cost_fixtures(
-    db, project, *, cost: float, currency: str = "EUR", period_date: date = date(2024, 1, 1)
-) -> None:
+async def _cost_fixtures(db, project, *, cost: float, period_date: date = date(2024, 1, 1)) -> None:
     """Insert the minimal chain for real non-zero cost: period → user → report → part.
 
     The project's currency is set on creation; this just drives a non-zero
@@ -130,16 +128,12 @@ async def test_rateless_currency_excluded_from_total_spend(db_session):
     eur_project = await _project(
         db_session, name="EUR project", start_date=date(2023, 1, 1), currency="EUR"
     )
-    await _cost_fixtures(
-        db_session, eur_project, cost=1000.0, currency="EUR", period_date=date(2024, 1, 1)
-    )
+    await _cost_fixtures(db_session, eur_project, cost=1000.0, period_date=date(2024, 1, 1))
 
     gbp_project = await _project(
         db_session, name="GBP project", start_date=date(2023, 1, 1), currency="GBP"
     )
-    await _cost_fixtures(
-        db_session, gbp_project, cost=5000.0, currency="GBP", period_date=date(2024, 2, 1)
-    )
+    await _cost_fixtures(db_session, gbp_project, cost=5000.0, period_date=date(2024, 2, 1))
 
     summary = await build_portfolio_summary(db_session, year=None)
 

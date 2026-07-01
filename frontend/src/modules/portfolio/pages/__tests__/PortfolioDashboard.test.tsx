@@ -18,9 +18,9 @@ vi.mock('../../hooks/usePortfolioDashboard', () => ({
   }),
 }));
 
-function renderPage(): void {
+function renderPage(initialEntries?: string[]): void {
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={initialEntries || ['/']}>
       <PortfolioDashboard />
     </MemoryRouter>,
   );
@@ -42,5 +42,10 @@ describe('PortfolioDashboard', () => {
   it('shows the empty state when no client-linked spend', () => {
     renderPage();
     expect(screen.getByText(/No projects linked to a client yet/i)).toBeInTheDocument();
+  });
+
+  it('renders year arrows when year is selected in URL', () => {
+    renderPage(['/?year=2025']);
+    expect(screen.getByText('2025')).toBeInTheDocument();
   });
 });

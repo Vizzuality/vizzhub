@@ -6,9 +6,3 @@ export function formatAxisEur(value: number): string {
   if (abs >= 1_000) return `€${Math.round(value / 1_000)}k`;
   return `€${Math.round(value)}`;
 }
-
-export const PALETTE = [
-  '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
-  '#06b6d4', '#ec4899', '#f97316', '#14b8a6', '#a855f7',
-  '#84cc16', '#e11d48', '#0ea5e9', '#d946ef', '#eab308',
-];

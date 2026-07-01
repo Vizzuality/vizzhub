@@ -24,7 +24,7 @@ export default function PortfolioDashboard(): JSX.Element {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center">
         <div className="flex items-center gap-2">
           <Button
             variant={state.year === ALL ? 'default' : 'outline'}
