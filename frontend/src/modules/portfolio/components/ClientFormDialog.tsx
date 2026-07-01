@@ -68,7 +68,7 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
                 checked={isActive}
                 onChange={(e) => setIsActive(e.target.checked)}
               />
-              Active
+              <span>Active</span>
             </label>
           )}
         </div>
