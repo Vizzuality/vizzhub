@@ -54,6 +54,8 @@ import { Periods as AccrualPeriods } from './modules/accrual/pages/Periods';
 import { Accrual } from './modules/accrual/pages/Accrual';
 import { AccrualDashboard } from './modules/accrual/pages/Dashboard';
 import PortfolioClients from './modules/portfolio/pages/PortfolioClients';
+import PortfolioLayout from './modules/portfolio/pages/PortfolioLayout';
+import PortfolioDashboard from './modules/portfolio/pages/PortfolioDashboard';
 import NotFound from './core/pages/NotFound';
 
 const SentryRoutes = Sentry.withSentryReactRouterV6Routing(Routes);
@@ -126,7 +128,10 @@ function AppRoutes(): JSX.Element {
           <Route path="/admin" element={<Admin />}>
             {AdminCoreRoutes()}
             {AdminTrackerRoutes()}
-            <Route path="portfolio" element={<PortfolioClients />} />
+            <Route path="portfolio" element={<PortfolioLayout />}>
+              <Route index element={<PortfolioClients />} />
+              <Route path="dashboard" element={<PortfolioDashboard />} />
+            </Route>
           </Route>
           <Route path="/iso" element={<ISO />}>
             <Route path="snapshots" element={<ISOSnapshots />} />
@@ -198,8 +203,11 @@ function AppRoutes(): JSX.Element {
               {AdminTrackerRoutes()}
             </Route>
           </Route>
-          <Route element={<PermissionRoute require={Action.PORTFOLIO_MANAGE} />}>
-            <Route path="/admin/portfolio" element={<PortfolioClients />} />
+          <Route element={<PermissionRoute require={Action.PORTFOLIO_VIEW} />}>
+            <Route path="/admin/portfolio" element={<PortfolioLayout />}>
+              <Route index element={<PortfolioClients />} />
+              <Route path="dashboard" element={<PortfolioDashboard />} />
+            </Route>
           </Route>
           <Route path="/iso/docs" element={<IsoDocs />} />
           <Route element={<PermissionRoute require={Action.ISO_VIEW} />}>

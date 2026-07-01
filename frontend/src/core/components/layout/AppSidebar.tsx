@@ -216,7 +216,7 @@ export function AppSidebar(): JSX.Element {
     Action.ADMIN_USERS,
     Action.TRACKER_MANAGE_ALL_REPORTS,
   );
-  const canPortfolio = usePermission(Action.PORTFOLIO_MANAGE);
+  const canPortfolio = usePermission(Action.PORTFOLIO_VIEW);
   const isAdmin = bypassAuth || canAdmin;
   const showTrackerAdmin = bypassAuth || canTrackerAdmin;
   const showPortfolio = bypassAuth || canPortfolio;
