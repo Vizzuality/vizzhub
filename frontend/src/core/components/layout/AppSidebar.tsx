@@ -110,6 +110,11 @@ const EVENTS_TABS = [
   { to: '/events/dashboard', label: 'Dashboard' },
 ] as const;
 
+const PORTFOLIO_TABS = [
+  { to: '/admin/portfolio', label: 'Clients' },
+  { to: '/admin/portfolio/dashboard', label: 'Dashboard' },
+] as const;
+
 function GuardedLink({
   to,
   children,
@@ -424,18 +429,12 @@ export function AppSidebar(): JSX.Element {
                   )}
 
                   {showPortfolio && (
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={location.pathname.startsWith('/admin/portfolio')}
-                        tooltip="Portfolio"
-                      >
-                        <GuardedLink to="/admin/portfolio">
-                          <Briefcase />
-                          <span>Portfolio</span>
-                        </GuardedLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
+                    <CollapsibleMenuItem
+                      icon={Briefcase}
+                      label="Portfolio"
+                      isActive={location.pathname.startsWith('/admin/portfolio')}
+                      items={PORTFOLIO_TABS}
+                    />
                   )}
                 </SidebarMenu>
               </SidebarGroupContent>
