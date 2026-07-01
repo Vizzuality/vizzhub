@@ -15,4 +15,19 @@ describe('ClientFormDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: /save/i }));
     await waitFor(() => expect(createMutate).toHaveBeenCalledWith({ name: 'New Org' }));
   });
+
+  it('includes code and primary contact when provided', async () => {
+    render(<ClientFormDialog open onOpenChange={() => {}} client={null} />);
+    fireEvent.change(screen.getByLabelText(/^name$/i), { target: { value: 'New Org' } });
+    fireEvent.change(screen.getByLabelText(/code/i), { target: { value: 'NEW' } });
+    fireEvent.change(screen.getByLabelText(/primary contact/i), { target: { value: 'Jane Doe' } });
+    fireEvent.click(screen.getByRole('button', { name: /save/i }));
+    await waitFor(() =>
+      expect(createMutate).toHaveBeenCalledWith({
+        name: 'New Org',
+        code: 'NEW',
+        primary_contact: 'Jane Doe',
+      }),
+    );
+  });
 });

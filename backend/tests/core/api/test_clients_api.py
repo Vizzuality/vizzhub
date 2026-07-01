@@ -53,6 +53,77 @@ async def test_create_client_slugifies(
 
 
 @pytest.mark.asyncio
+async def test_create_with_code_and_primary_contact(
+    portfolio_manager_client: AsyncClient,
+) -> None:
+    resp = await portfolio_manager_client.post(
+        "/api/clients",
+        json={"name": "Coded Co", "code": "  CODE1 ", "primary_contact": " Jane Doe "},
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["code"] == "CODE1"
+    assert body["primary_contact"] == "Jane Doe"
+
+
+@pytest.mark.asyncio
+async def test_patch_updates_code_and_clears_primary_contact(
+    portfolio_manager_client: AsyncClient,
+) -> None:
+    r = await portfolio_manager_client.post(
+        "/api/clients",
+        json={"name": "Patchable Co", "code": "OLD", "primary_contact": "Original"},
+    )
+    client_id = r.json()["id"]
+    # Update code, clear primary_contact with an explicit null.
+    resp = await portfolio_manager_client.patch(
+        f"/api/clients/{client_id}",
+        json={"code": "NEW", "primary_contact": None},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["code"] == "NEW"
+    assert body["primary_contact"] is None
+
+
+@pytest.mark.asyncio
+async def test_patch_omitting_code_leaves_it_unchanged(
+    portfolio_manager_client: AsyncClient,
+) -> None:
+    r = await portfolio_manager_client.post(
+        "/api/clients", json={"name": "Keep Code Co", "code": "KEEP"}
+    )
+    client_id = r.json()["id"]
+    resp = await portfolio_manager_client.patch(
+        f"/api/clients/{client_id}", json={"name": "Keep Code Co Renamed"}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["code"] == "KEEP"
+
+
+@pytest.mark.asyncio
+async def test_create_duplicate_code_409(
+    portfolio_manager_client: AsyncClient,
+) -> None:
+    await portfolio_manager_client.post("/api/clients", json={"name": "First Co", "code": "SHARED"})
+    resp = await portfolio_manager_client.post(
+        "/api/clients", json={"name": "Second Co", "code": "SHARED"}
+    )
+    assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_patch_to_duplicate_code_409(
+    portfolio_manager_client: AsyncClient,
+) -> None:
+    await portfolio_manager_client.post("/api/clients", json={"name": "Owner Co", "code": "TAKEN"})
+    r = await portfolio_manager_client.post("/api/clients", json={"name": "Other Co"})
+    other_id = r.json()["id"]
+    resp = await portfolio_manager_client.patch(f"/api/clients/{other_id}", json={"code": "TAKEN"})
+    assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
 async def test_create_duplicate_slug_409(
     portfolio_manager_client: AsyncClient,
 ) -> None:

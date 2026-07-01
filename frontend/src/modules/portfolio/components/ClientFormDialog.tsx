@@ -10,7 +10,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { useCreateClient, useUpdateClient } from '../hooks/useClients';
-import type { Client } from '../types/portfolio';
+import type { Client, ClientCreate } from '../types/portfolio';
 
 interface ClientFormDialogProps {
   readonly open: boolean;
@@ -22,6 +22,8 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
   const create = useCreateClient();
   const update = useUpdateClient();
   const [name, setName] = useState('');
+  const [code, setCode] = useState('');
+  const [primaryContact, setPrimaryContact] = useState('');
   const [isActive, setIsActive] = useState(true);
   const isEdit = client !== null;
   const saving = create.isPending || update.isPending;
@@ -29,6 +31,8 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
   useEffect(() => {
     if (open) {
       setName(client?.name ?? '');
+      setCode(client?.code ?? '');
+      setPrimaryContact(client?.primary_contact ?? '');
       setIsActive(client?.is_active ?? true);
     }
   }, [open, client]);
@@ -37,9 +41,20 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
     const trimmed = name.trim();
     if (!trimmed) return;
     if (isEdit && client) {
-      await update.mutateAsync({ id: client.id, data: { name: trimmed, is_active: isActive } });
+      await update.mutateAsync({
+        id: client.id,
+        data: {
+          name: trimmed,
+          code: code.trim() || null,
+          primary_contact: primaryContact.trim() || null,
+          is_active: isActive,
+        },
+      });
     } else {
-      await create.mutateAsync({ name: trimmed });
+      const payload: ClientCreate = { name: trimmed };
+      if (code.trim()) payload.code = code.trim();
+      if (primaryContact.trim()) payload.primary_contact = primaryContact.trim();
+      await create.mutateAsync(payload);
     }
     onOpenChange(false);
   };
@@ -58,6 +73,26 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Client name"
+              className="h-8 text-sm"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="client-code">Code</Label>
+            <Input
+              id="client-code"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="Optional client code"
+              className="h-8 text-sm"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="client-primary-contact">Primary contact</Label>
+            <Input
+              id="client-primary-contact"
+              value={primaryContact}
+              onChange={(e) => setPrimaryContact(e.target.value)}
+              placeholder="Optional primary contact"
               className="h-8 text-sm"
             />
           </div>

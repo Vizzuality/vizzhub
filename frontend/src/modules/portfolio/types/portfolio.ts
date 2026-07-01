@@ -2,6 +2,8 @@ export interface Client {
   id: string;
   name: string;
   slug: string;
+  code: string | null;
+  primary_contact: string | null;
   is_active: boolean;
   project_count: number;
   created_at: string;
@@ -10,10 +12,14 @@ export interface Client {
 
 export interface ClientCreate {
   name: string;
+  code?: string | null;
+  primary_contact?: string | null;
 }
 
 export interface ClientUpdate {
   name?: string;
+  code?: string | null;
+  primary_contact?: string | null;
   is_active?: boolean;
 }
 

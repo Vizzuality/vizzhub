@@ -14,6 +14,8 @@ vi.mock('../../hooks/useClients', () => ({
           id: '1',
           name: 'Acme Foundation',
           slug: 'acme-foundation',
+          code: 'ACME',
+          primary_contact: 'Jane Doe',
           is_active: true,
           project_count: 4,
           created_at: '',
@@ -53,10 +55,11 @@ describe('PortfolioClients', () => {
     expect(screen.getByText('4')).toBeInTheDocument();
   });
 
-  it('renders slug in the table', () => {
+  it('renders code and primary contact in the table', () => {
     mockUsePermission.mockReturnValue(true);
     renderPage();
-    expect(screen.getByText('acme-foundation')).toBeInTheDocument();
+    expect(screen.getByText('ACME')).toBeInTheDocument();
+    expect(screen.getByText('Jane Doe')).toBeInTheDocument();
   });
 
   it('hides write affordances when user lacks PORTFOLIO_MANAGE', () => {

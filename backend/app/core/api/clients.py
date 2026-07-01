@@ -30,6 +30,19 @@ def slugify(name: str) -> str:
     return re.sub(r"[-\s]+", "-", value)
 
 
+def _clean(value: str | None) -> str | None:
+    """Normalize an optional string: strip whitespace, coerce empty to None."""
+    return (value or "").strip() or None
+
+
+async def _code_taken(db: DBSession, code: str, exclude_id: UUID | None = None) -> bool:
+    """Whether another client already uses this (non-null) code."""
+    stmt = select(ClientDB.id).where(ClientDB.code == code)
+    if exclude_id is not None:
+        stmt = stmt.where(ClientDB.id != exclude_id)
+    return (await db.execute(stmt)).first() is not None
+
+
 class ClientListResponse(BaseModel):
     items: list[Client]
     total: int
@@ -77,7 +90,15 @@ async def create_client(
     existing = await db.execute(select(ClientDB).where(ClientDB.slug == slug))
     if existing.scalar_one_or_none() is not None:
         raise HTTPException(status_code=409, detail="A client with this name already exists")
-    obj = ClientDB(name=payload.name.strip(), slug=slug)
+    code = _clean(payload.code)
+    if code is not None and await _code_taken(db, code):
+        raise HTTPException(status_code=409, detail="A client with this code already exists")
+    obj = ClientDB(
+        name=payload.name.strip(),
+        slug=slug,
+        code=code,
+        primary_contact=_clean(payload.primary_contact),
+    )
     db.add(obj)
     await db.flush()
     await db.refresh(obj)
@@ -113,6 +134,13 @@ async def update_client(
             raise HTTPException(status_code=409, detail="A client with this name already exists")
         obj.name = payload.name.strip()
         obj.slug = new_slug
+    if "code" in payload.model_fields_set:
+        new_code = _clean(payload.code)
+        if new_code is not None and await _code_taken(db, new_code, exclude_id=client_id):
+            raise HTTPException(status_code=409, detail="A client with this code already exists")
+        obj.code = new_code
+    if "primary_contact" in payload.model_fields_set:
+        obj.primary_contact = _clean(payload.primary_contact)
     if payload.is_active is not None:
         obj.is_active = payload.is_active
     await db.flush()

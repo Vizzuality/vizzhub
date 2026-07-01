@@ -106,6 +106,7 @@ export default function PortfolioClients(): JSX.Element {
                     {canManage && <th className="w-8 pb-2" />}
                     <th className="text-left font-medium pb-2">Client</th>
                     <th className="text-left font-medium pb-2">Code</th>
+                    <th className="text-left font-medium pb-2">Contact</th>
                     <th className="text-right font-medium pb-2 pr-4">Projects</th>
                     <th className="text-left font-medium pb-2">Status</th>
                   </tr>
@@ -138,7 +139,10 @@ export default function PortfolioClients(): JSX.Element {
                         </td>
                       )}
                       <td className="py-2 font-medium text-foreground">{c.name}</td>
-                      <td className="py-2 text-xs text-muted-foreground font-mono">{c.slug}</td>
+                      <td className="py-2 text-xs text-muted-foreground font-mono">
+                        {c.code ?? '—'}
+                      </td>
+                      <td className="py-2 text-muted-foreground">{c.primary_contact ?? '—'}</td>
                       <td className="py-2 text-right tabular-nums pr-4">{c.project_count}</td>
                       <td className="py-2">
                         <span className="inline-flex items-center gap-1.5">
