@@ -66,3 +66,50 @@ export interface Taxonomy {
   sort_order: number;
   terms: TaxonomyTerm[];
 }
+
+export interface YearVolume {
+  year: number;
+  count: number;
+}
+
+export interface ClientSpend {
+  client_id: string;
+  client_name: string;
+  spend_eur: number;
+  project_count: number;
+}
+
+export interface MarginSplit {
+  gain: number;
+  loss: number;
+  no_data: number;
+  avg_margin: number | null;
+}
+
+export interface TermCount {
+  term_name: string;
+  count: number;
+}
+
+export interface TermBreakdown {
+  taxonomy_slug: string;
+  taxonomy_name: string;
+  terms: TermCount[];
+}
+
+export interface PortfolioKpis {
+  project_count: number;
+  total_spend_eur: number;
+  client_count: number;
+  avg_margin: number | null;
+}
+
+export interface PortfolioDashboardSummary {
+  year: number | null;
+  available_years: number[];
+  kpis: PortfolioKpis;
+  volume_by_year: YearVolume[];
+  spend_by_client: ClientSpend[];
+  margin_split: MarginSplit;
+  breakdowns: TermBreakdown[];
+}

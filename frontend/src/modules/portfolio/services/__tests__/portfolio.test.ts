@@ -24,4 +24,13 @@ describe('portfolioApi', () => {
     expect(api.post).toHaveBeenCalledWith('/clients/t/merge', { source_ids: ['a', 'b'] });
     expect(res.merged_projects).toBe(3);
   });
+
+  it('fetches dashboard summary with a year param', async () => {
+    (api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { year: 2026, available_years: [2026], kpis: {}, volume_by_year: [],
+        spend_by_client: [], margin_split: {}, breakdowns: [] },
+    });
+    await portfolioApi.dashboard.summary(2026);
+    expect(api.get).toHaveBeenCalledWith('/portfolio/dashboard/summary', { params: { year: 2026 } });
+  });
 });

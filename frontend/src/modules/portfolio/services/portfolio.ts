@@ -7,6 +7,7 @@ import type {
   ClientUpdate,
   MergeRequest,
   MergeResponse,
+  PortfolioDashboardSummary,
   Taxonomy,
 } from '../types/portfolio';
 
@@ -34,5 +35,14 @@ export const portfolioApi = {
   listTaxonomies: async (): Promise<Taxonomy[]> => {
     const response = await api.get<Taxonomy[]>('/taxonomies');
     return response.data;
+  },
+
+  dashboard: {
+    summary: async (year?: number): Promise<PortfolioDashboardSummary> => {
+      const response = await api.get<PortfolioDashboardSummary>('/portfolio/dashboard/summary', {
+        params: year ? { year } : {},
+      });
+      return response.data;
+    },
   },
 };
