@@ -116,7 +116,7 @@ describe('ProjectCard', () => {
       renderWithRouter(<ProjectCard project={mockProject} />);
 
       const link = screen.getByRole('link');
-      expect(link.getAttribute('href')).toBe('/scorecard/project-123');
+      expect(link.getAttribute('href')).toBe('/projects/project-123/scorecard');
     });
 
     it('renders minimal project with only name', () => {
@@ -190,7 +190,7 @@ describe('ProjectCard', () => {
       renderWithRouter(<ProjectCard project={mockProject} viewMode="grid" />);
 
       const link = screen.getByRole('link');
-      expect(link.getAttribute('href')).toBe('/scorecard/project-123');
+      expect(link.getAttribute('href')).toBe('/projects/project-123/scorecard');
     });
 
     it('renders dates in grid view', () => {
