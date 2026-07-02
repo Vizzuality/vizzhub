@@ -1,10 +1,13 @@
-"""Portfolio analytics dashboard — cross-module analytical reads (F1, read-only).
+"""Portfolio leaderboards — cross-module analytical reads (F1 redesign, read-only).
 
-Lives in core/services because it JOINs across core (projects, clients, taxonomies)
-and reads tracker-derived costs; analytical JOINs belong here per architecture rule 4.
+Ranks finished billable projects (and rolls up by client) on margin %, profit €,
+and delay months. Lives in core/services because it JOINs core projects/clients
+with tracker-derived costs (architecture rule 4). Reads the persisted
+projects.finished_at (backfilled effective close) for delay.
 """
 
 from collections import defaultdict
+from dataclasses import dataclass
 from decimal import Decimal
 
 import structlog
@@ -13,35 +16,30 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.client import ClientDB
 from app.core.models.project import ProjectDB
-from app.core.models.taxonomy import EntityTermDB, TaxonomyDB, TaxonomyTermDB
 from app.core.services import exchange_rate_service
 from app.modules.portfolio.schemas.dashboard import (
-    ClientSpend,
-    MarginSplit,
-    PortfolioDashboardSummary,
-    PortfolioKpis,
-    TermBreakdown,
-    TermCount,
-    YearVolume,
+    ClientLeaderboard,
+    ClientRow,
+    ProjectLeaderboard,
+    ProjectRow,
 )
 from app.modules.tracker.services import aggregation_service
 
 logger = structlog.get_logger()
 
-BREAKDOWN_SLUGS = ("impact-area", "service")
-TOP_CLIENTS = 15
+UNASSIGNED = "— Unassigned"
 
 
-def _end_year(p: ProjectDB) -> int | None:
-    if p.start_date is None:
-        return None
-    return (p.end_date or p.start_date).year
-
-
-def _active_in_year(p: ProjectDB, year: int) -> bool:
-    if p.start_date is None:
-        return False
-    return p.start_date.year <= year <= _end_year(p)
+@dataclass
+class _ProjectMetric:
+    project_id: str
+    name: str
+    client_id: str | None
+    client_name: str | None
+    margin_pct: float
+    profit_eur: float | None
+    budget_eur: float | None
+    delay_months: int | None
 
 
 async def _eur_rates(db: AsyncSession, currencies: set[str]) -> dict[str, Decimal]:
@@ -54,56 +52,31 @@ async def _eur_rates(db: AsyncSession, currencies: set[str]) -> dict[str, Decima
     return rates
 
 
-def _to_eur(total_cost: float, currency: str | None, rates: dict[str, Decimal]) -> float | None:
+def _to_eur(amount: float, currency: str | None, rates: dict[str, Decimal]) -> float | None:
     if currency is None:
         return None
     code = exchange_rate_service.currency_to_code(currency)
     if code == "EUR":
-        return total_cost
+        return amount
     rate = rates.get(code)
     if rate is None or rate == 0:
         return None
-    return total_cost / float(rate)
+    return amount / float(rate)
 
 
-async def _breakdowns(db: AsyncSession) -> list[TermBreakdown]:
-    tax_rows = (
-        (
-            await db.execute(
-                select(TaxonomyDB)
-                .where(TaxonomyDB.slug.in_(BREAKDOWN_SLUGS), TaxonomyDB.is_active.is_(True))
-                .order_by(TaxonomyDB.sort_order)
-            )
-        )
-        .scalars()
-        .all()
-    )
-    counts = defaultdict(int)
-    rows = await db.execute(
-        select(EntityTermDB.taxonomy_id, TaxonomyTermDB.name).join(
-            TaxonomyTermDB, TaxonomyTermDB.id == EntityTermDB.term_id
-        )
-    )
-    for taxonomy_id, term_name in rows.all():
-        counts[(taxonomy_id, term_name)] += 1
-    out: list[TermBreakdown] = []
-    for tax in tax_rows:
-        terms = [
-            TermCount(term_name=name, count=n) for (tid, name), n in counts.items() if tid == tax.id
-        ]
-        terms.sort(key=lambda t: t.count, reverse=True)
-        out.append(TermBreakdown(taxonomy_slug=tax.slug, taxonomy_name=tax.name, terms=terms))
-    return out
+def _months_between(later, earlier) -> int:
+    return (later.year - earlier.year) * 12 + (later.month - earlier.month)
 
 
-async def build_portfolio_summary(
-    db: AsyncSession, *, year: int | None = None
-) -> PortfolioDashboardSummary:
-    projects = (
+async def _scope(db: AsyncSession) -> list[ProjectDB]:
+    return list(
         (
             await db.execute(
                 select(ProjectDB).where(
-                    ProjectDB.is_billable.is_(True), ProjectDB.is_absence.is_(False)
+                    ProjectDB.status == "finished",
+                    ProjectDB.is_billable.is_(True),
+                    ProjectDB.is_absence.is_(False),
+                    ProjectDB.budget.is_not(None),
                 )
             )
         )
@@ -111,82 +84,108 @@ async def build_portfolio_summary(
         .all()
     )
 
-    # volume_by_year + available_years span ALL candidate projects (trend, not year-scoped).
-    volume: dict[int, int] = defaultdict(int)
-    for p in projects:
-        if p.start_date is None:
-            continue
-        for y in range(p.start_date.year, _end_year(p) + 1):
-            volume[y] += 1
-    volume_by_year = [YearVolume(year=y, count=volume[y]) for y in sorted(volume)]
-    available_years = sorted(volume)
 
-    in_scope = [p for p in projects if year is None or _active_in_year(p, year)]
-    scope_ids = [p.id for p in in_scope]
+async def _collect(db: AsyncSession, year: int | None) -> tuple[list[int], list[_ProjectMetric]]:
+    """Shared scope + per-project metrics used by both leaderboards."""
+    projects = await _scope(db)
+    available_years = sorted({p.finished_at.year for p in projects if p.finished_at is not None})
+    in_scope = [
+        p
+        for p in projects
+        if year is None or (p.finished_at is not None and p.finished_at.year == year)
+    ]
     summaries = (
-        await aggregation_service.get_batch_cost_summaries(db, scope_ids) if scope_ids else {}
+        await aggregation_service.get_batch_cost_summaries(db, [p.id for p in in_scope])
+        if in_scope
+        else {}
     )
-
-    currencies = {s.currency for s in summaries.values() if s.currency}
-    rates = await _eur_rates(db, currencies)
+    rates = await _eur_rates(db, {s.currency for s in summaries.values() if s.currency})
 
     client_ids = {p.client_id for p in in_scope if p.client_id is not None}
-    client_names = {}
+    client_names: dict = {}
     if client_ids:
         rows = await db.execute(
             select(ClientDB.id, ClientDB.name).where(ClientDB.id.in_(client_ids))
         )
         client_names = {cid: name for cid, name in rows.all()}
 
-    total_spend = 0.0
-    gain = loss = no_data = 0
-    margins: list[float] = []
-    spend_by_client: dict = defaultdict(lambda: {"spend": 0.0, "count": 0})
+    metrics: list[_ProjectMetric] = []
     for p in in_scope:
         s = summaries.get(p.id)
-        eur = _to_eur(s.total_cost, s.currency, rates) if s else 0.0
-        if eur is not None:
-            total_spend += eur
-        if p.client_id is not None:
-            entry = spend_by_client[p.client_id]
-            entry["count"] += 1
-            if eur is not None:
-                entry["spend"] += eur
-        burn = s.burn_percentage if s else None
-        if burn is None:
-            no_data += 1
-        else:
-            margin = 100 - burn
-            margins.append(margin)
-            if margin >= 0:
-                gain += 1
-            else:
-                loss += 1
-
-    avg_margin = round(sum(margins) / len(margins), 2) if margins else None
-    spend_rows = [
-        ClientSpend(
-            client_id=str(cid),
-            client_name=client_names.get(cid, "—"),
-            spend_eur=round(v["spend"], 2),
-            project_count=v["count"],
+        if s is None or not s.budget:
+            continue
+        profit = s.budget - s.total_cost
+        profit_eur = _to_eur(profit, s.currency, rates)
+        budget_eur = _to_eur(s.budget, s.currency, rates)
+        delay = (
+            _months_between(p.finished_at, p.end_date)
+            if p.finished_at is not None and p.end_date is not None
+            else None
         )
-        for cid, v in spend_by_client.items()
-    ]
-    spend_rows.sort(key=lambda c: c.spend_eur, reverse=True)
+        metrics.append(
+            _ProjectMetric(
+                project_id=str(p.id),
+                name=p.name,
+                client_id=str(p.client_id) if p.client_id else None,
+                client_name=client_names.get(p.client_id),
+                margin_pct=round(profit / s.budget * 100, 2),
+                profit_eur=round(profit_eur, 2) if profit_eur is not None else None,
+                budget_eur=budget_eur,
+                delay_months=delay,
+            )
+        )
+    return available_years, metrics
 
-    logger.info("portfolio_dashboard_built", year=year, projects=len(in_scope))
-    return PortfolioDashboardSummary(
-        year=year,
-        available_years=available_years,
-        kpis=PortfolioKpis(
-            project_count=len(in_scope),
-            total_spend_eur=round(total_spend, 2),
-            client_count=len(client_ids),
-            avg_margin=avg_margin,
-        ),
-        volume_by_year=volume_by_year,
-        spend_by_client=spend_rows[:TOP_CLIENTS],
-        margin_split=MarginSplit(gain=gain, loss=loss, no_data=no_data, avg_margin=avg_margin),
-        breakdowns=await _breakdowns(db),
+
+async def build_project_leaderboard(
+    db: AsyncSession, *, year: int | None = None
+) -> ProjectLeaderboard:
+    available_years, metrics = await _collect(db, year)
+    rows = [
+        ProjectRow(
+            project_id=m.project_id,
+            name=m.name,
+            client_id=m.client_id,
+            client_name=m.client_name,
+            margin_pct=m.margin_pct,
+            profit_eur=m.profit_eur,
+            delay_months=m.delay_months,
+        )
+        for m in metrics
+    ]
+    logger.info("portfolio_project_leaderboard_built", year=year, rows=len(rows))
+    return ProjectLeaderboard(available_years=available_years, rows=rows)
+
+
+async def build_client_leaderboard(
+    db: AsyncSession, *, year: int | None = None
+) -> ClientLeaderboard:
+    available_years, metrics = await _collect(db, year)
+    agg: dict[tuple[str | None, str], dict] = defaultdict(
+        lambda: {"count": 0, "profit_eur": 0.0, "budget_eur": 0.0, "has_eur": False, "delays": []}
     )
+    for m in metrics:
+        e = agg[(m.client_id, m.client_name or UNASSIGNED)]
+        e["count"] += 1
+        if m.delay_months is not None:
+            e["delays"].append(m.delay_months)
+        if m.profit_eur is not None and m.budget_eur:
+            e["profit_eur"] += m.profit_eur
+            e["budget_eur"] += m.budget_eur
+            e["has_eur"] = True
+
+    rows: list[ClientRow] = []
+    for (cid, cname), e in agg.items():
+        margin = (e["profit_eur"] / e["budget_eur"] * 100) if e["budget_eur"] else None
+        rows.append(
+            ClientRow(
+                client_id=cid,
+                client_name=cname,
+                project_count=e["count"],
+                profit_eur=round(e["profit_eur"], 2) if e["has_eur"] else None,
+                margin_pct=round(margin, 2) if margin is not None else None,
+                delay_months=round(sum(e["delays"]) / len(e["delays"]), 1) if e["delays"] else None,
+            )
+        )
+    logger.info("portfolio_client_leaderboard_built", year=year, rows=len(rows))
+    return ClientLeaderboard(available_years=available_years, rows=rows)
