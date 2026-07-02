@@ -1,3 +1,4 @@
+import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -5,6 +6,11 @@ import { ProjectProvider } from '@/core/contexts/ProjectContext';
 import ProjectOverview from '../ProjectOverview';
 import type { Project } from '@/core/types/project';
 
+vi.mock('@/core/permissions', () => ({
+  usePermission: () => true,
+  Can: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  Action: { TRACKER_VIEW: 'tracker:view' },
+}));
 vi.mock('@/modules/scorecard/hooks/useProjectScoresMap', () => ({
   useProjectScoresMap: () => ({ scoresMap: { p1: 82 }, isLoading: false }),
 }));

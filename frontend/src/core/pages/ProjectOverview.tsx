@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { useProjectContext } from '@/core/contexts/ProjectContext';
+import { Can, Action } from '@/core/permissions';
 import { useProjectScoresMap } from '@/modules/scorecard/hooks/useProjectScoresMap';
 import { useProjectCostsMap, useProjectProgressMap } from '@/modules/tracker/public';
 
@@ -36,20 +37,22 @@ export default function ProjectOverview(): JSX.Element {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-xs text-muted-foreground">Budget burn</p>
-            <p className="text-2xl font-semibold tabular-nums">
-              {burn === null ? '—' : `${Math.round(burn)}%`}
-            </p>
-            <Link
-              to={`/projects/${projectId}/tracker`}
-              className="text-xs text-primary hover:underline"
-            >
-              View tracker →
-            </Link>
-          </CardContent>
-        </Card>
+        <Can do={Action.TRACKER_VIEW}>
+          <Card>
+            <CardContent className="pt-4">
+              <p className="text-xs text-muted-foreground">Budget burn</p>
+              <p className="text-2xl font-semibold tabular-nums">
+                {burn === null ? '—' : `${Math.round(burn)}%`}
+              </p>
+              <Link
+                to={`/projects/${projectId}/tracker`}
+                className="text-xs text-primary hover:underline"
+              >
+                View tracker →
+              </Link>
+            </CardContent>
+          </Card>
+        </Can>
 
         <Card>
           <CardContent className="pt-4">
