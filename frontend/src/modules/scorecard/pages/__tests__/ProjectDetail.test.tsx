@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import ProjectDetail from '../ProjectDetail';
+import { ProjectProvider } from '@/core/contexts/ProjectContext';
 import type { Project } from '@/core/types/project';
 import type { ScoreResponse } from '../../types';
 
@@ -78,13 +79,6 @@ const mockMetrics = {
   sev1_incident: false,
 };
 
-// Mock functions that can be controlled per test
-const mockUseProject = vi.fn(() => ({
-  data: mockProject,
-  isLoading: false,
-  error: null,
-}));
-
 const mockUseProjectScores = vi.fn(() => ({
   data: mockScores,
   isLoading: false,
@@ -101,13 +95,11 @@ vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
   return {
     ...actual,
-    useParams: () => ({ id: 'project-123' }),
     useNavigate: () => vi.fn(),
   };
 });
 
 vi.mock('@/core/hooks/useProjects', () => ({
-  useProject: () => mockUseProject(),
   useDeleteProject: () => ({
     mutateAsync: vi.fn(),
     isPending: false,
@@ -157,6 +149,7 @@ vi.mock('@/modules/scorecard/hooks/usePeriodCapture', () => ({
     isPending: false,
     error: null,
     isSuccess: false,
+    reset: vi.fn(),
   }),
 }));
 
@@ -212,14 +205,17 @@ function createQueryClient(): QueryClient {
   });
 }
 
-function renderWithProviders(ui: React.ReactElement): ReturnType<typeof render> {
+function renderWithProviders(
+  ui: React.ReactElement,
+  project: Project = mockProject,
+): ReturnType<typeof render> {
   const queryClient = createQueryClient();
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/scorecard/project-123']}>
-        <Routes>
-          <Route path="/scorecard/:id" element={ui} />
-        </Routes>
+      <MemoryRouter initialEntries={['/projects/project-123/scorecard']}>
+        <ProjectProvider project={project}>
+          {ui}
+        </ProjectProvider>
       </MemoryRouter>
     </QueryClientProvider>
   );
@@ -228,11 +224,6 @@ function renderWithProviders(ui: React.ReactElement): ReturnType<typeof render> 
 describe('ProjectDetail', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseProject.mockReturnValue({
-      data: mockProject,
-      isLoading: false,
-      error: null,
-    });
     mockUseProjectScores.mockReturnValue({
       data: mockScores,
       isLoading: false,
@@ -245,51 +236,17 @@ describe('ProjectDetail', () => {
     });
   });
 
-  describe('Loading State', () => {
-    it('renders loading state while project is loading', () => {
-      mockUseProject.mockReturnValue({
-        data: undefined,
-        isLoading: true,
-        error: null,
-      });
-
+  describe('Facet body renders under ProjectProvider', () => {
+    it('renders the scorecard body (SnapshotManager always present)', () => {
       renderWithProviders(<ProjectDetail />);
 
-      expect(document.querySelector('.animate-spin')).toBeTruthy();
-    });
-  });
-
-  describe('Error State', () => {
-    it('shows error when project not found', () => {
-      mockUseProject.mockReturnValue({
-        data: undefined,
-        isLoading: false,
-        error: new Error('Project not found'),
-      });
-
-      renderWithProviders(<ProjectDetail />);
-
-      expect(screen.getByText(/error loading project/i)).toBeInTheDocument();
+      expect(screen.getByText('Export')).toBeInTheDocument();
     });
 
-    it('shows error message from API', () => {
-      mockUseProject.mockReturnValue({
-        data: undefined,
-        isLoading: false,
-        error: new Error('Network error'),
-      });
-
+    it('does not render a back-to-scorecard link', () => {
       renderWithProviders(<ProjectDetail />);
 
-      expect(screen.getByText(/network error/i)).toBeInTheDocument();
-    });
-  });
-
-  describe('Project Header', () => {
-    it('renders project name in header', () => {
-      renderWithProviders(<ProjectDetail />);
-
-      expect(screen.getByText('Test Project')).toBeInTheDocument();
+      expect(screen.queryByText(/back to scorecard/i)).toBeNull();
     });
   });
 
@@ -325,16 +282,6 @@ describe('ProjectDetail', () => {
     });
   });
 
-  describe('Project Actions', () => {
-    it('renders Edit links navigating to project edit page', () => {
-      renderWithProviders(<ProjectDetail />);
-
-      const editLinks = screen.getAllByRole('link', { name: /edit/i });
-      expect(editLinks.length).toBeGreaterThan(0);
-      expect(editLinks[0]).toHaveAttribute('href', '/projects/project-123/edit');
-    });
-  });
-
   describe('Collect Metrics', () => {
     it('renders Collect Metrics button', () => {
       renderWithProviders(<ProjectDetail />);
@@ -343,23 +290,5 @@ describe('ProjectDetail', () => {
     });
   });
 
-  describe('Project Status', () => {
-    it('shows project status badge for live projects', () => {
-      renderWithProviders(<ProjectDetail />);
-
-      expect(screen.getByText('Live')).toBeInTheDocument();
-    });
-
-    it('shows Finished badge for finished projects', () => {
-      mockUseProject.mockReturnValue({
-        data: { ...mockProject, status: 'finished' },
-        isLoading: false,
-        error: null,
-      });
-
-      renderWithProviders(<ProjectDetail />);
-
-      expect(screen.getByText('Finished')).toBeInTheDocument();
-    });
-  });
 });
+

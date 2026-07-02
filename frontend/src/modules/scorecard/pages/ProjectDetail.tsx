@@ -1,8 +1,9 @@
 import { useState, useCallback, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useUrlState } from '@/shared/hooks/useUrlState';
 import { usePermission, Action } from '@/core/permissions';
-import { useProject, useDeleteProject, useUpdateProjectStatus } from '@/core/hooks/useProjects';
+import { useDeleteProject, useUpdateProjectStatus } from '@/core/hooks/useProjects';
+import { useProjectContext } from '@/core/contexts/ProjectContext';
 import { useProjectScores } from '../hooks/useScores';
 import { useProjectMetrics, useUpdateGovernance, useUpdatePMSatisfaction, useUpdateTestMaturity, useUpdateArchitecture, useUpdateStrategicImpact, useUpdateClientSurvey } from '../hooks/useMetrics';
 import { useCapturePeriod } from '../hooks/usePeriodCapture';
@@ -14,7 +15,6 @@ import DimensionChart from '../components/DimensionChart/DimensionChart';
 import type { SnapshotType, Dimension } from '../types';
 import { ALL_DIMENSIONS } from '../types';
 import {
-  ProjectHeader,
   ProjectDialogs,
   CollectorNotifications,
   EVMSection,
@@ -39,7 +39,7 @@ import {
 } from '@/shared/components/ui/alert-dialog';
 
 export default function ProjectDetail(): JSX.Element {
-  const { id } = useParams<{ id: string }>();
+  const { project, projectId: id } = useProjectContext();
   const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showFinishDialog, setShowFinishDialog] = useState(false);
@@ -93,7 +93,6 @@ export default function ProjectDetail(): JSX.Element {
     setDimsState({ hiddenDimensions: '' });
   }, [setDimsState]);
 
-  const { data: project, isLoading: projectLoading, error: projectError } = useProject(id!);
   const { data: scores, isLoading: scoresLoading, error: scoresError } = useProjectScores(
     id!,
     selectedPeriod?.year,
@@ -195,26 +194,8 @@ export default function ProjectDetail(): JSX.Element {
     }
   }, [pendingUpdate]);
 
-  if (projectLoading) {
-    return <LoadingSpinner />;
-  }
-
-  if (projectError || !project) {
-    return (
-      <Card>
-        <CardContent className="pt-6">
-          <p className="text-destructive">
-            Error loading project: {projectError?.message || 'Project not found'}
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      <ProjectHeader project={project} />
-
       <ProjectDialogs
         projectName={project.name}
         showDeleteConfirm={showDeleteConfirm}

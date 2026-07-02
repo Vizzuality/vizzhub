@@ -6,7 +6,6 @@ export { default as TestMaturityCard } from './TestMaturityCard';
 export { default as ArchitectureCard } from './ArchitectureCard';
 export { default as ClientSurveyCard } from './ClientSurveyCard';
 export { default as StatusControls } from './StatusControls';
-export { default as ProjectHeader } from './ProjectHeader';
 export { default as ProjectDialogs } from './ProjectDialogs';
 export { default as CollectorNotifications } from './CollectorNotifications';
 export { default as EVMSection } from './EVMSection';
