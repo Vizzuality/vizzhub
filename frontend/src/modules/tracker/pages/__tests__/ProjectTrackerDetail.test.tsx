@@ -1,22 +1,48 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { server } from '@/test/setup';
+import { ProjectProvider } from '@/core/contexts/ProjectContext';
+import type { Project } from '@/core/types/project';
 import ProjectTrackerDetail from '../ProjectTrackerDetail';
+
+const mockProject: Project = {
+  id: 'project-1',
+  name: 'Test Project',
+  code: 'TP-1',
+  program_id: null,
+  program_name: null,
+  is_billable: true,
+  has_scorecard: false,
+  has_dependabot_alerts: false,
+  has_budget_alerts: false,
+  currency: 'euro',
+  budget: 50000,
+  notes: null,
+  summary: null,
+  jira_project_key: null,
+  github_repo: null,
+  slack_channel_id: null,
+  project_manager_id: null,
+  project_manager_name: null,
+  client_id: null,
+  client_name: null,
+  start_date: null,
+  end_date: null,
+  status: 'live',
+  finished_at: null,
+  created_at: '2024-01-01T00:00:00Z',
+  updated_at: '2024-01-01T00:00:00Z',
+};
 
 function createQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
 }
-
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
-  return { ...actual, useNavigate: () => vi.fn() };
-});
 
 vi.mock('@/core/hooks/useAuth', () => ({
   useAuth: () => ({
@@ -37,13 +63,13 @@ vi.mock('@/core/hooks/useAuth', () => ({
   }),
 }));
 
-function renderDetail(projectId: string = 'project-1'): ReturnType<typeof render> {
+function renderDetail(project: Project = mockProject): ReturnType<typeof render> {
   return render(
     <QueryClientProvider client={createQueryClient()}>
-      <MemoryRouter initialEntries={[`/tracker/projects/${projectId}`]}>
-        <Routes>
-          <Route path="/tracker/projects/:projectId" element={<ProjectTrackerDetail />} />
-        </Routes>
+      <MemoryRouter initialEntries={[`/projects/${project.id}/tracker`]}>
+        <ProjectProvider project={project}>
+          <ProjectTrackerDetail />
+        </ProjectProvider>
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -106,7 +132,7 @@ describe('ProjectTrackerDetail', () => {
       }),
     );
 
-    renderDetail('project-empty');
+    renderDetail({ ...mockProject, id: 'project-empty' });
 
     await waitFor(() => {
       expect(screen.getByText('No report data')).toBeInTheDocument();
@@ -124,5 +150,21 @@ describe('ProjectTrackerDetail', () => {
     const select = screen.getByLabelText('Period');
     await user.selectOptions(select, 'period-1');
     expect(select).toHaveValue('period-1');
+  });
+
+  it('does not render the inline Back button', async () => {
+    renderDetail();
+    await waitFor(() => {
+      expect(screen.getByText(/50\.000/)).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: /back/i })).toBeNull();
+  });
+
+  it('renders the period select (URL-driven filter)', async () => {
+    renderDetail();
+    await waitFor(() => {
+      expect(screen.getByLabelText('Period')).toBeInTheDocument();
+    });
+    expect(screen.getByLabelText('Period')).toHaveValue('');
   });
 });

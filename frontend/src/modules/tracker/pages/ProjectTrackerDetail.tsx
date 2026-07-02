@@ -1,7 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, Pencil, Calendar, ExternalLink } from 'lucide-react';
-import { Button } from '@/shared/components/ui/button';
+import { ChevronDown, ExternalLink } from 'lucide-react';
+import { useProjectContext } from '@/core/contexts/ProjectContext';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import {
   Collapsible,
@@ -9,11 +8,9 @@ import {
   CollapsibleTrigger,
 } from '@/shared/components/ui/collapsible';
 import { projectsApi } from '@/core/services/projects';
-import { formatDate } from '@/utils/formatters';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 import { useUrlState } from '@/shared/hooks/useUrlState';
 import { Can, Action } from '@/core/permissions';
-import { useProject } from '@/core/hooks/useProjects';
 import {
   useProjectCostSummary,
   useProjectReportParts,
@@ -177,33 +174,31 @@ function InsightsSection({
 }
 
 export default function ProjectTrackerDetail(): JSX.Element {
-  const { projectId } = useParams<{ projectId: string }>();
-  const navigate = useNavigate();
+  const { project, projectId } = useProjectContext();
 
   const { state, setState } = useUrlState({
     period: { defaultValue: '' },
   });
 
-  const { data: project } = useProject(projectId || '');
   const {
     data: summary,
     isLoading: summaryLoading,
     error: summaryError,
-  } = useProjectCostSummary(projectId || '');
+  } = useProjectCostSummary(projectId);
   const { data: parts, isLoading: partsLoading } = useProjectReportParts(
-    projectId || '',
+    projectId,
     state.period || undefined,
   );
   const { data: areaAgg, isLoading: areaLoading } = useProjectAggregations(
-    projectId || '',
+    projectId,
     'functional_area_user',
   );
   const { data: userAgg, isLoading: userLoading } = useProjectAggregations(
-    projectId || '',
+    projectId,
     'user',
   );
-  const { data: budgetLines } = useBudgetLines(projectId || '');
-  const { data: progressList } = useProjectProgress(projectId || '');
+  const { data: budgetLines } = useBudgetLines(projectId);
+  const { data: progressList } = useProjectProgress(projectId);
 
   const latestPercentCompleted = useMemo(() => {
     if (!progressList || progressList.length === 0) return null;
@@ -235,52 +230,14 @@ export default function ProjectTrackerDetail(): JSX.Element {
     );
   }
 
-  const hasMoreInfo = project?.summary || project?.notes || links.length > 0;
+  const hasMoreInfo = project.summary || project.notes || links.length > 0;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-1"
-              onClick={() => navigate('/projects')}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Button>
-            <div>
-              <h1 className="text-2xl font-semibold">
-                {project?.name ?? 'Project'}
-              </h1>
-              {project?.code && (
-                <p className="text-sm text-muted-foreground">{project.code}</p>
-              )}
-            </div>
-          </div>
-          {(project?.start_date || project?.end_date) && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Calendar className="w-4 h-4 shrink-0" />
-              {project.start_date && formatDate(project.start_date)}
-              {project.start_date && project.end_date && ' - '}
-              {project.end_date && formatDate(project.end_date)}
-            </div>
-          )}
-        </div>
-        <Link to={`/projects/${projectId}/edit`}>
-          <Button type="button" variant="ghost" size="sm" className="border border-input">
-            <Pencil className="w-4 h-4 mr-2" />
-            Edit
-          </Button>
-        </Link>
-      </div>
-
       <BurnDashboard
         periods={summary.periods}
         budget={summary.budget}
-        projectEndDate={project?.end_date ?? null}
+        projectEndDate={project.end_date ?? null}
         percentCompleted={latestPercentCompleted}
       />
 
@@ -293,13 +250,13 @@ export default function ProjectTrackerDetail(): JSX.Element {
                 <ChevronDown className="w-4 h-4 transition-transform group-data-[state=closed]:-rotate-90" />
               </CollapsibleTrigger>
               <CollapsibleContent className="pt-4 space-y-4">
-                {project?.summary && (
+                {project.summary && (
                   <div>
                     <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-1">Summary</p>
                     <p className="text-sm">{project.summary}</p>
                   </div>
                 )}
-                {project?.notes && (
+                {project.notes && (
                   <div>
                     <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-1">Notes</p>
                     <p className="text-sm whitespace-pre-line">{project.notes}</p>
@@ -333,24 +290,24 @@ export default function ProjectTrackerDetail(): JSX.Element {
       <TimeByAreaTable rows={areaAgg?.rows ?? []} budgetLines={budgetLines} />
 
       <Can do={Action.TRACKER_MANAGE}>
-        <InvoicesCard projectId={projectId || ''} currency={project?.currency ?? 'euro'} projectName={project?.name} />
+        <InvoicesCard projectId={projectId} currency={project.currency} projectName={project.name} />
       </Can>
 
       <NonStaffCostsCard
-        projectId={projectId || ''}
+        projectId={projectId}
         periods={summary.periods}
       />
 
       <Can do={Action.TRACKER_MANAGE}>
         <ProgressCard
-          projectId={projectId || ''}
+          projectId={projectId}
           periods={summary.periods}
         />
       </Can>
 
       <InsightsSection
         summary={summary}
-        projectEndDate={project?.end_date ?? null}
+        projectEndDate={project.end_date ?? null}
         userRows={userAgg?.rows ?? []}
       />
 
