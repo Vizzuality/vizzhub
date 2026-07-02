@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
 import * as Sentry from '@sentry/react';
 import { AuthProvider } from './core/contexts/AuthContext';
 import { ProtectedRoute } from './core/components/ProtectedRoute';
@@ -57,8 +57,22 @@ import PortfolioClients from './modules/portfolio/pages/PortfolioClients';
 import PortfolioLayout from './modules/portfolio/pages/PortfolioLayout';
 import PortfolioDashboard from './modules/portfolio/pages/PortfolioDashboard';
 import NotFound from './core/pages/NotFound';
+import ProjectHubLayout from './core/pages/ProjectHub';
+import ProjectOverview from './core/pages/ProjectOverview';
 
 const SentryRoutes = Sentry.withSentryReactRouterV6Routing(Routes);
+
+function LegacyScorecardRedirect(): JSX.Element {
+  const { id } = useParams();
+  const { search } = useLocation();
+  return <Navigate to={`/projects/${id}/scorecard${search}`} replace />;
+}
+
+function LegacyTrackerRedirect(): JSX.Element {
+  const { projectId } = useParams();
+  const { search } = useLocation();
+  return <Navigate to={`/projects/${projectId}/tracker${search}`} replace />;
+}
 
 const BYPASS_AUTH =
   import.meta.env.VITE_BYPASS_AUTH === 'true' && !import.meta.env.PROD;
@@ -122,9 +136,19 @@ function AppRoutes(): JSX.Element {
           <Route path="/projects" element={<CoreProjects />} />
           <Route path="/projects/new" element={<ProjectFormPage />} />
           <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
+          <Route path="/projects/:id" element={<ProjectHubLayout />}>
+            <Route index element={<Navigate to="overview" replace />} />
+            <Route path="overview" element={<ProjectOverview />} />
+            <Route element={<PermissionRoute require={Action.SCORECARD_VIEW} />}>
+              <Route path="scorecard" element={<ProjectDetail />} />
+            </Route>
+            <Route element={<PermissionRoute require={Action.TRACKER_VIEW} />}>
+              <Route path="tracker" element={<ProjectTrackerDetail />} />
+            </Route>
+          </Route>
           <Route path="/scorecard" element={<ScorecardProjects />} />
           <Route path="/scorecard/global" element={<GlobalDashboard />} />
-          <Route path="/scorecard/:id" element={<ProjectDetail />} />
+          <Route path="/scorecard/:id" element={<LegacyScorecardRedirect />} />
           <Route path="/admin" element={<Admin />}>
             {AdminCoreRoutes()}
             {AdminTrackerRoutes()}
@@ -141,7 +165,7 @@ function AppRoutes(): JSX.Element {
           <Route path="/tracker/my-report/:periodId" element={<MyReport />} />
           <Route path="/tracker/my-reports" element={<MyReportHistory />} />
           <Route path="/tracker/how-to-report" element={<HowToReport />} />
-          <Route path="/tracker/projects/:projectId" element={<ProjectTrackerDetail />} />
+          <Route path="/tracker/projects/:projectId" element={<LegacyTrackerRedirect />} />
           <Route path="/tracker/invoices/:invoiceId" element={<InvoiceDetail />} />
           <Route path="/capacity/insights" element={<CapacityInsights />} />
           <Route path="/capacity/allocation" element={<CapacityAllocation />} />
@@ -169,14 +193,24 @@ function AppRoutes(): JSX.Element {
           <Route path="/projects" element={<CoreProjects />} />
           <Route path="/projects/new" element={<ProjectFormPage />} />
           <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
+          <Route path="/projects/:id" element={<ProjectHubLayout />}>
+            <Route index element={<Navigate to="overview" replace />} />
+            <Route path="overview" element={<ProjectOverview />} />
+            <Route element={<PermissionRoute require={Action.SCORECARD_VIEW} />}>
+              <Route path="scorecard" element={<ProjectDetail />} />
+            </Route>
+            <Route element={<PermissionRoute require={Action.TRACKER_VIEW} />}>
+              <Route path="tracker" element={<ProjectTrackerDetail />} />
+            </Route>
+          </Route>
           <Route path="/scorecard" element={<ScorecardProjects />} />
           <Route path="/scorecard/global" element={<GlobalDashboard />} />
-          <Route path="/scorecard/:id" element={<ProjectDetail />} />
+          <Route path="/scorecard/:id" element={<LegacyScorecardRedirect />} />
           <Route path="/tracker/my-report" element={<MyReport />} />
           <Route path="/tracker/my-report/:periodId" element={<MyReport />} />
           <Route path="/tracker/my-reports" element={<MyReportHistory />} />
           <Route path="/tracker/how-to-report" element={<HowToReport />} />
-          <Route path="/tracker/projects/:projectId" element={<ProjectTrackerDetail />} />
+          <Route path="/tracker/projects/:projectId" element={<LegacyTrackerRedirect />} />
           <Route element={<PermissionRoute require={Action.TRACKER_MANAGE} />}>
             <Route path="/tracker/invoices/:invoiceId" element={<InvoiceDetail />} />
           </Route>
