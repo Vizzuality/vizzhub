@@ -267,8 +267,10 @@ export const queryKeys = {
     taxonomies: ['portfolio', 'taxonomies'] as const,
     dashboard: {
       all: ['portfolio', 'dashboard'] as const,
-      summary: (filters: Record<string, unknown>) =>
-        ['portfolio', 'dashboard', 'summary', filters] as const,
+      projects: (filters: Record<string, unknown>) =>
+        ['portfolio', 'dashboard', 'projects', filters] as const,
+      clients: (filters: Record<string, unknown>) =>
+        ['portfolio', 'dashboard', 'clients', filters] as const,
     },
   },
   devstack: {

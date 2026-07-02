@@ -25,13 +25,18 @@ describe('portfolioApi', () => {
     expect(res.merged_projects).toBe(3);
   });
 
-  it('fetches dashboard summary with a year param', async () => {
-    (api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { year: 2026, available_years: [2026], kpis: {}, volume_by_year: [],
-        spend_by_client: [], margin_split: {}, breakdowns: [] },
-    });
-    await portfolioApi.dashboard.summary(2026);
-    expect(api.get).toHaveBeenCalledWith('/portfolio/dashboard/summary', { params: { year: 2026 } });
+  it('dashboard.projects GETs /portfolio/dashboard/projects with year', async () => {
+    const mockGet = api.get as ReturnType<typeof vi.fn>;
+    mockGet.mockResolvedValueOnce({ data: { available_years: [2024], rows: [] } });
+    await portfolioApi.dashboard.projects(2024);
+    expect(mockGet).toHaveBeenCalledWith('/portfolio/dashboard/projects', { params: { year: 2024 } });
+  });
+
+  it('dashboard.clients GETs /portfolio/dashboard/clients without year', async () => {
+    const mockGet = api.get as ReturnType<typeof vi.fn>;
+    mockGet.mockResolvedValueOnce({ data: { available_years: [], rows: [] } });
+    await portfolioApi.dashboard.clients();
+    expect(mockGet).toHaveBeenCalledWith('/portfolio/dashboard/clients', { params: {} });
   });
 
   it('listClientOptions GETs /clients/options and returns the array', async () => {

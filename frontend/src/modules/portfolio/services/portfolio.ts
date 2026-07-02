@@ -2,13 +2,14 @@ import api from '@/core/services/client';
 import type {
   Client,
   ClientCreate,
+  ClientLeaderboard,
   ClientListParams,
   ClientListResponse,
   ClientOption,
   ClientUpdate,
   MergeRequest,
   MergeResponse,
-  PortfolioDashboardSummary,
+  ProjectLeaderboard,
   Taxonomy,
 } from '../types/portfolio';
 
@@ -44,8 +45,14 @@ export const portfolioApi = {
   },
 
   dashboard: {
-    summary: async (year?: number): Promise<PortfolioDashboardSummary> => {
-      const response = await api.get<PortfolioDashboardSummary>('/portfolio/dashboard/summary', {
+    projects: async (year?: number): Promise<ProjectLeaderboard> => {
+      const response = await api.get<ProjectLeaderboard>('/portfolio/dashboard/projects', {
+        params: year ? { year } : {},
+      });
+      return response.data;
+    },
+    clients: async (year?: number): Promise<ClientLeaderboard> => {
+      const response = await api.get<ClientLeaderboard>('/portfolio/dashboard/clients', {
         params: year ? { year } : {},
       });
       return response.data;

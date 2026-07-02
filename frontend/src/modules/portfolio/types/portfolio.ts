@@ -73,49 +73,31 @@ export interface Taxonomy {
   terms: TaxonomyTerm[];
 }
 
-export interface YearVolume {
-  year: number;
-  count: number;
+export interface ProjectRow {
+  project_id: string;
+  name: string;
+  client_id: string | null;
+  client_name: string | null;
+  margin_pct: number;
+  profit_eur: number | null;
+  delay_months: number | null;
 }
 
-export interface ClientSpend {
-  client_id: string;
+export interface ClientRow {
+  client_id: string | null;
   client_name: string;
-  spend_eur: number;
   project_count: number;
+  profit_eur: number | null;
+  margin_pct: number | null;
+  delay_months: number | null;
 }
 
-export interface MarginSplit {
-  gain: number;
-  loss: number;
-  no_data: number;
-  avg_margin: number | null;
-}
-
-export interface TermCount {
-  term_name: string;
-  count: number;
-}
-
-export interface TermBreakdown {
-  taxonomy_slug: string;
-  taxonomy_name: string;
-  terms: TermCount[];
-}
-
-export interface PortfolioKpis {
-  project_count: number;
-  total_spend_eur: number;
-  client_count: number;
-  avg_margin: number | null;
-}
-
-export interface PortfolioDashboardSummary {
-  year: number | null;
+export interface ProjectLeaderboard {
   available_years: number[];
-  kpis: PortfolioKpis;
-  volume_by_year: YearVolume[];
-  spend_by_client: ClientSpend[];
-  margin_split: MarginSplit;
-  breakdowns: TermBreakdown[];
+  rows: ProjectRow[];
+}
+
+export interface ClientLeaderboard {
+  available_years: number[];
+  rows: ClientRow[];
 }
