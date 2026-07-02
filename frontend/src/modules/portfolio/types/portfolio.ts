@@ -1,3 +1,9 @@
+export interface ClientOption {
+  id: string;
+  name: string;
+  code: string | null;
+}
+
 export interface Client {
   id: string;
   name: string;

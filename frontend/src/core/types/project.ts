@@ -21,6 +21,8 @@ export interface Project {
   slack_channel_id: string | null;
   project_manager_id: string | null;
   project_manager_name: string | null;
+  client_id: string | null;
+  client_name: string | null;
   start_date: string | null;
   end_date: string | null;
   status: ProjectStatus;
@@ -46,6 +48,7 @@ export interface ProjectCreate {
   github_repo?: string;
   slack_channel_id?: string;
   project_manager_id?: string | null;
+  client_id?: string | null;
   start_date?: string;
   end_date?: string;
   status?: ProjectStatus;
@@ -67,6 +70,7 @@ export interface ProjectUpdate {
   github_repo?: string;
   slack_channel_id?: string | null;
   project_manager_id?: string | null;
+  client_id?: string | null;
   start_date?: string;
   end_date?: string;
   status?: ProjectStatus;
