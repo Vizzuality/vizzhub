@@ -1,8 +1,6 @@
-"""Portfolio dashboard sub-router (read-only, gated portfolio:view).
+"""Portfolio leaderboard endpoints (projects + clients).
 
-NOTE: /summary endpoint migrated to leaderboard endpoints in Task 3.
-This file is a placeholder stub; the old build_portfolio_summary has been
-replaced by build_project_leaderboard / build_client_leaderboard.
+Read-only; both routes gated behind the portfolio:view permission.
 """
 
 from typing import Annotated
@@ -23,7 +21,7 @@ PortfolioViewer = Annotated[TokenData, Depends(require_permission(Action.PORTFOL
 router = APIRouter()
 
 
-@router.get("/projects")
+@router.get("/projects", responses={403: {"description": "Missing portfolio:view permission"}})
 @limiter.limit("60/minute")
 async def project_leaderboard(
     request: Request,
@@ -34,7 +32,7 @@ async def project_leaderboard(
     return await build_project_leaderboard(db, year=year)
 
 
-@router.get("/clients")
+@router.get("/clients", responses={403: {"description": "Missing portfolio:view permission"}})
 @limiter.limit("60/minute")
 async def client_leaderboard(
     request: Request,
