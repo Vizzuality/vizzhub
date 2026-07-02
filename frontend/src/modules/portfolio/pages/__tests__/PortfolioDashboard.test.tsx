@@ -12,6 +12,8 @@ vi.mock('../../hooks/usePortfolioDashboard', () => ({
           margin_pct: 52, profit_eur: 180000, delay_months: 2 },
         { project_id: 'b', name: 'Beta', client_id: null, client_name: null,
           margin_pct: -30, profit_eur: -30000, delay_months: 12 },
+        { project_id: 'g', name: 'Gamma', client_id: null, client_name: null,
+          margin_pct: 10, profit_eur: null, delay_months: null },
       ],
     },
     isLoading: false,
@@ -40,6 +42,17 @@ describe('PortfolioDashboard', () => {
     // header + 2 data rows; Alpha (180k) before Beta (-30k)
     expect(rows[1]).toHaveTextContent('Alpha');
     expect(rows[2]).toHaveTextContent('Beta');
+  });
+
+  it('sorts nulls last in ascending order (profit_eur)', () => {
+    renderPage();
+    // Default is desc; click the toggle to switch to asc
+    fireEvent.click(screen.getByRole('button', { name: '↓' }));
+    const rows = screen.getAllByRole('row');
+    // asc: Beta (-30k) < Alpha (180k) < Gamma (null → +Infinity → last)
+    expect(rows[1]).toHaveTextContent('Beta');
+    expect(rows[2]).toHaveTextContent('Alpha');
+    expect(rows[3]).toHaveTextContent('Gamma');
   });
 
   it('switches to client grouping', () => {

@@ -36,8 +36,9 @@ export default function PortfolioDashboard(): JSX.Element {
   const idx = year === undefined ? -1 : years.indexOf(year);
   const rows = [...board.data.rows] as (ProjectRow | ClientRow)[];
   rows.sort((a, b) => {
-    const av = (a[metric] ?? -Infinity) as number;
-    const bv = (b[metric] ?? -Infinity) as number;
+    const nullSentinel = dir === 'desc' ? -Infinity : Infinity;
+    const av = (a[metric] ?? nullSentinel) as number;
+    const bv = (b[metric] ?? nullSentinel) as number;
     return dir === 'desc' ? bv - av : av - bv;
   });
   const shown = expanded ? rows : rows.slice(0, TOP_N);
