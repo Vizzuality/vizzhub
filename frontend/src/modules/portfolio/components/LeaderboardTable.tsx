@@ -7,7 +7,9 @@ function fmtPct(v: number | null): string {
   return v === null ? '—' : `${v.toFixed(1)}%`;
 }
 function fmtDelay(v: number | null): string {
-  return v === null ? '—' : `${v > 0 ? '+' : ''}${v}mo`;
+  if (v === null) return '—';
+  const sign = v > 0 ? '+' : '';
+  return `${sign}${v}mo`;
 }
 
 const HEAD_ROW =

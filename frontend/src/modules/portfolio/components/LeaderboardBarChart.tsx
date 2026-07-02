@@ -28,11 +28,22 @@ function CategoryTick({ x, y, payload }: TickProps): JSX.Element {
   );
 }
 
-function ChartTooltipBox({ label, text }: { readonly label: string; readonly text: string }): JSX.Element {
+interface PlottedDatum extends BarDatum {
+  readonly display: string;
+}
+
+interface TooltipRenderProps {
+  readonly active?: boolean;
+  readonly payload?: readonly { readonly payload?: PlottedDatum }[];
+}
+
+function LeaderboardTooltip({ active, payload }: TooltipRenderProps): JSX.Element | null {
+  const datum = payload?.[0]?.payload;
+  if (!active || !datum) return null;
   return (
     <div className="bg-popover border rounded-md px-3 py-2 shadow-lg text-xs">
-      <div className="font-medium mb-0.5">{label}</div>
-      <div className="text-muted-foreground">{text}</div>
+      <div className="font-medium mb-0.5">{datum.label}</div>
+      <div className="text-muted-foreground">{datum.display}</div>
     </div>
   );
 }
@@ -48,9 +59,10 @@ export function LeaderboardBarChart({
     return <p className="text-muted-foreground text-sm">No data for this view.</p>;
   }
   const cfg = METRIC_CONFIG[metric];
+  const plotted: PlottedDatum[] = data.map((d) => ({ ...d, display: cfg.valueFormat(d.value) }));
   return (
     <ResponsiveContainer width="100%" height={Math.max(160, data.length * ROW_HEIGHT)}>
-      <BarChart data={data} layout="vertical" margin={{ top: 4, right: 20, bottom: 4, left: 8 }}>
+      <BarChart data={plotted} layout="vertical" margin={{ top: 4, right: 20, bottom: 4, left: 8 }}>
         <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="var(--border)" opacity={0.6} />
         <XAxis
           type="number"
@@ -68,22 +80,9 @@ export function LeaderboardBarChart({
           axisLine={false}
           interval={0}
         />
-        <Tooltip
-          cursor={false}
-          content={({ active, payload }) => {
-            if (!active || !payload?.length) return null;
-            const datum = payload[0];
-            const raw = datum.payload as BarDatum | undefined;
-            return (
-              <ChartTooltipBox
-                label={raw?.label ?? ''}
-                text={cfg.valueFormat(Number(datum.value ?? 0))}
-              />
-            );
-          }}
-        />
+        <Tooltip cursor={false} content={<LeaderboardTooltip />} />
         <Bar dataKey="value" maxBarSize={26} radius={[0, 3, 3, 0]} isAnimationActive={false}>
-          {data.map((d) => (
+          {plotted.map((d) => (
             <Cell key={d.label} fill={barColor(d.value, metric)} />
           ))}
         </Bar>
