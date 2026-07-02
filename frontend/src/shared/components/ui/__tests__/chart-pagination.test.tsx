@@ -3,7 +3,7 @@ import {
   chartPageCount,
   latestChartPage,
   useChartPagination,
-} from '@/modules/capacity/components/ChartPagination';
+} from '@/shared/components/ui/chart-pagination';
 import { renderHook } from '@testing-library/react';
 
 describe('chartPageCount / latestChartPage', () => {
@@ -25,6 +25,11 @@ describe('chartPageCount / latestChartPage', () => {
   it('returns the last page index for a multi-window dataset', () => {
     expect(chartPageCount(18)).toBe(3);
     expect(latestChartPage(18)).toBe(2);
+  });
+
+  it('honours a custom page size', () => {
+    expect(chartPageCount(25, 10)).toBe(3);
+    expect(latestChartPage(25, 10)).toBe(2);
   });
 });
 
@@ -63,5 +68,12 @@ describe('useChartPagination', () => {
     const { result } = renderHook(() => useChartPagination([1, 2, 3, 4, 5, 6, 7], 99));
     expect(result.current.safePage).toBe(1);
     expect(result.current.visible).toEqual([7]);
+  });
+
+  it('windows by a custom page size', () => {
+    const data = Array.from({ length: 25 }, (_, i) => i + 1);
+    const { result } = renderHook(() => useChartPagination(data, 1, 10));
+    expect(result.current.totalPages).toBe(3);
+    expect(result.current.visible).toEqual([11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
   });
 });

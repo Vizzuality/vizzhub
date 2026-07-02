@@ -46,8 +46,8 @@ describe('PortfolioDashboard', () => {
 
   it('sorts nulls last in ascending order (profit_eur)', () => {
     renderPage();
-    // Default is desc; click the toggle to switch to asc
-    fireEvent.click(screen.getByRole('button', { name: '↓' }));
+    // Default is desc ("Highest first"); click the toggle to switch to asc
+    fireEvent.click(screen.getByRole('button', { name: /highest first/i }));
     const rows = screen.getAllByRole('row');
     // asc: Beta (-30k) < Alpha (180k) < Gamma (null → +Infinity → last)
     expect(rows[1]).toHaveTextContent('Beta');

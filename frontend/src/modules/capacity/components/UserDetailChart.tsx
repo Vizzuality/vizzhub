@@ -27,7 +27,7 @@ import {
 import type { ChartDataPoint, PeriodProjectInsight, ReportableUser } from '@/modules/capacity/types/capacity';
 import { ITEM_PALETTE, ABSENCE_COLOR, OTHER_COLOR } from '@/modules/capacity/utils/constants';
 import { MonthRangePicker } from '@/modules/capacity/components/MonthRangePicker';
-import { ChartPagination, latestChartPage, useChartPagination } from './ChartPagination';
+import { ChartPagination, latestChartPage, useChartPagination } from '@/shared/components/ui/chart-pagination';
 import { GroupSeparators } from './GroupSeparators';
 import { shortMonth } from '@/shared/constants/dates';
 

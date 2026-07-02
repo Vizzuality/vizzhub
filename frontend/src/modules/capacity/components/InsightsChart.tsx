@@ -11,7 +11,7 @@ import {
 import type { ChartDataPoint, PeriodInsight } from '@/modules/capacity/types/capacity';
 import { FA_COLORS, FA_ORDER, ABSENCE_COLOR, OTHER_COLOR } from '@/modules/capacity/utils/constants';
 import { shortMonth } from '@/shared/constants/dates';
-import { ChartPagination, latestChartPage, useChartPagination } from './ChartPagination';
+import { ChartPagination, latestChartPage, useChartPagination } from '@/shared/components/ui/chart-pagination';
 import { GroupSeparators } from './GroupSeparators';
 
 function transformData(data: PeriodInsight[]): ChartDataPoint[] {
