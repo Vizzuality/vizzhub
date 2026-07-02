@@ -142,6 +142,7 @@ class ProjectBase(BaseModel):
     finished_at: date | None = None
     slack_channel_id: str | None = Field(None, max_length=50)
     project_manager_id: UUID | None = None
+    client_id: UUID | None = None
 
     @field_validator("jira_project_key")
     @classmethod
@@ -206,6 +207,7 @@ class ProjectUpdate(BaseModel):
     finished_at: date | None = None
     slack_channel_id: str | None = Field(None, max_length=50)
     project_manager_id: UUID | None = None
+    client_id: UUID | None = None
     clear_finished_at: bool = False
 
     @field_validator("jira_project_key")
