@@ -65,13 +65,31 @@ function resolvePathBreadcrumbs(pathname: string): BreadcrumbSegment[] | null {
   return null;
 }
 
+const FACET_LABELS: Record<string, string> = {
+  overview: 'Overview',
+  scorecard: 'Scorecard',
+  tracker: 'Tracker',
+  portfolio: 'Portfolio',
+};
+
 function useBreadcrumbs(): BreadcrumbSegment[] {
   const location = useLocation();
   const { id } = useParams<{ id: string }>();
   const pathname = location.pathname;
 
+  const hubMatch = pathname.match(/^\/projects\/([^/]+)\/([^/]+)$/);
   const isProjectDetail = pathname.match(/^\/scorecard\/[^/]+$/) && pathname !== '/scorecard/global';
-  const { data: project } = useProject(isProjectDetail && id ? id : '');
+
+  const breadcrumbProjectId = hubMatch ? hubMatch[1] : (isProjectDetail && id ? id : '');
+  const { data: project } = useProject(breadcrumbProjectId);
+
+  if (hubMatch) {
+    return [
+      { label: 'Projects', to: '/projects' },
+      { label: project?.name ?? 'Project', to: `/projects/${hubMatch[1]}/overview` },
+      { label: FACET_LABELS[hubMatch[2]] ?? hubMatch[2] },
+    ];
+  }
 
   if (isProjectDetail) {
     return [
