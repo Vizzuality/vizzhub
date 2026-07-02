@@ -19,6 +19,7 @@ from app.core.services.client_service import merge_clients
 
 PortfolioViewer = Annotated[TokenData, Depends(require_permission(Action.PORTFOLIO_VIEW))]
 PortfolioManager = Annotated[TokenData, Depends(require_permission(Action.PORTFOLIO_MANAGE))]
+ProjectManager = Annotated[TokenData, Depends(require_permission(Action.PROJECTS_MANAGE))]
 
 router = APIRouter()
 logger = structlog.get_logger()
@@ -50,6 +51,12 @@ class ClientListResponse(BaseModel):
     page_size: int
 
 
+class ClientOption(BaseModel):
+    id: UUID
+    name: str
+    code: str | None = None
+
+
 @router.get("")
 @limiter.limit("100/minute")
 async def list_clients(
@@ -79,6 +86,24 @@ async def list_clients(
         model.project_count = int(n)
         items.append(model)
     return ClientListResponse(items=items, total=total, page=page, page_size=page_size)
+
+
+@router.get("/options")
+@limiter.limit("100/minute")
+async def list_client_options(
+    request: Request,
+    current_user: ProjectManager,
+    db: DBSession,
+) -> list[ClientOption]:
+    """Flat active-client list for the project edit form selector."""
+    rows = (
+        await db.execute(
+            select(ClientDB.id, ClientDB.name, ClientDB.code)
+            .where(ClientDB.is_active.is_(True))
+            .order_by(ClientDB.name)
+        )
+    ).all()
+    return [ClientOption(id=r.id, name=r.name, code=r.code) for r in rows]
 
 
 @router.post("", status_code=201, responses={409: {"description": "Duplicate client"}})

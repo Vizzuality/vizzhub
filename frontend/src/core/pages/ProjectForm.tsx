@@ -28,6 +28,7 @@ import { queryKeys } from '@/core/hooks/queryKeys';
 import { projectsApi } from '@/core/services/projects';
 import { useBudgetLines, useReplaceBudgetLines } from '@/modules/tracker/hooks/useBudgetLines';
 import { useProjectSettings, useUpdateProjectSettings } from '@/modules/tracker/hooks/useProjectCosts';
+import { useClientOptions } from '@/modules/portfolio/hooks/useClientOptions';
 import { useBudgetPreview } from '@/core/hooks/useBudgetPreview';
 import { trackerApi } from '@/modules/tracker/services/tracker';
 import BudgetLinesEditor from '@/modules/tracker/components/BudgetLinesEditor';
@@ -94,6 +95,7 @@ interface ProjectFormData {
   currency: string;
   program_id: string;
   project_manager_id: string;
+  client_id: string;
   jira_project_key: string;
   github_repo: string;
   start_date: string;
@@ -143,6 +145,7 @@ interface ProjectData {
   currency: string;
   program_id?: string | null;
   project_manager_id?: string | null;
+  client_id?: string | null;
   jira_project_key?: string | null;
   github_repo?: string | null;
   start_date?: string | null;
@@ -166,6 +169,7 @@ function buildFormDefaults(
     currency: project.currency,
     program_id: project.program_id ?? '',
     project_manager_id: project.project_manager_id ?? '',
+    client_id: project.client_id ?? '',
     jira_project_key: project.jira_project_key ?? '',
     github_repo: project.github_repo ?? '',
     start_date: project.start_date ?? '',
@@ -378,6 +382,7 @@ export default function ProjectForm(): JSX.Element {
       currency: 'dollar',
       program_id: '',
       project_manager_id: '',
+      client_id: '',
       jira_project_key: '',
       github_repo: '',
       start_date: '',
@@ -460,6 +465,9 @@ export default function ProjectForm(): JSX.Element {
   const currentProgramId = watch('program_id');
   const currentManagerId = watch('project_manager_id');
   const [pmOpen, setPmOpen] = useState(false);
+  const [clientOpen, setClientOpen] = useState(false);
+  const currentClientId = watch('client_id');
+  const { data: clientOptions = [] } = useClientOptions();
 
   const isMutating = createMutation.isPending || replaceMutation.isPending || budgetMutation.isPending || budgetLinesMutation.isPending || settingsMutation.isPending;
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -540,6 +548,7 @@ export default function ProjectForm(): JSX.Element {
       original_budget: data.original_budget ? Number.parseFloat(data.original_budget) : null,
       program_id: data.program_id || null,
       project_manager_id: data.project_manager_id || null,
+      client_id: data.client_id || null,
       jira_project_key: data.jira_project_key || undefined,
       github_repo: data.github_repo || undefined,
       slack_channel_id: slackChannelId || undefined,
@@ -902,6 +911,63 @@ export default function ProjectForm(): JSX.Element {
                         ))}
                       </NativeSelect>
                     </div>
+                  </div>
+
+                  {/* Row: Client */}
+                  <div className="space-y-2">
+                    <Label htmlFor="client_id" className="h-5 flex items-center">Client</Label>
+                    <Popover open={clientOpen} onOpenChange={setClientOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          id="client_id"
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={clientOpen}
+                          className="w-full justify-between font-normal"
+                        >
+                          <span className="truncate">
+                            {currentClientId
+                              ? clientOptions.find((c) => c.id === currentClientId)?.name ?? 'Unknown'
+                              : 'None'}
+                          </span>
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search clients..." />
+                          <CommandList>
+                            <CommandEmpty>No client found.</CommandEmpty>
+                            <CommandGroup>
+                              <CommandItem
+                                value="__none__"
+                                onSelect={() => {
+                                  setValue('client_id', '');
+                                  setClientOpen(false);
+                                }}
+                              >
+                                <Check className={cn('mr-2 h-4 w-4', !currentClientId ? 'opacity-100' : 'opacity-0')} />
+                                <span className="text-muted-foreground">None</span>
+                              </CommandItem>
+                              {clientOptions.map((c) => (
+                                <CommandItem
+                                  key={c.id}
+                                  value={`${c.name} ${c.code ?? ''}`}
+                                  onSelect={() => {
+                                    setValue('client_id', c.id);
+                                    setClientOpen(false);
+                                  }}
+                                >
+                                  <Check className={cn('mr-2 h-4 w-4', currentClientId === c.id ? 'opacity-100' : 'opacity-0')} />
+                                  <span className="truncate">{c.name}</span>
+                                  {c.code ? <span className="ml-2 text-xs text-muted-foreground">{c.code}</span> : null}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
 
                   {/* Row: Budget (original currency), Currency */}

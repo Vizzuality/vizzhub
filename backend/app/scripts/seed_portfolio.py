@@ -169,10 +169,53 @@ async def seed_clients(db: AsyncSession) -> tuple[int, int]:
     return clients_created, linked
 
 
+async def link_projects_by_code(db: AsyncSession) -> int:
+    """Link projects to clients by matching a dotted-code prefix to clients.code.
+
+    Deterministic and idempotent: only sets client_id where it IS NULL, and
+    clients.code is unique so each prefix maps to at most one client. Union of
+    two prefix sources: the project's own code, and its accrual excel_code
+    (via the accrual_line_projects bridge). Returns the number of rows linked.
+
+    If a project's own code prefix and its accrual excel_code prefix resolve to
+    different clients (anomalous — normally the same dotted-code family), the
+    UPDATE picks one arbitrarily; both are legitimate client matches, so either
+    is acceptable and this stays a safe, non-overwriting best-effort backfill.
+    """
+    result = await db.execute(
+        text(
+            """
+            WITH candidates AS (
+                SELECT p.id AS project_id, c.id AS client_id
+                FROM projects p
+                JOIN clients c ON c.code = split_part(p.code, '.', 1)
+                WHERE p.code IS NOT NULL AND p.code <> '' AND p.client_id IS NULL
+                UNION
+                SELECT alp.project_id, c.id AS client_id
+                FROM accrual_line_projects alp
+                JOIN accrual_lines al ON al.id = alp.line_id
+                JOIN clients c ON c.code = split_part(al.excel_code, '.', 1)
+                JOIN projects p2 ON p2.id = alp.project_id
+                WHERE al.excel_code IS NOT NULL AND al.excel_code <> ''
+                  AND p2.client_id IS NULL
+            )
+            UPDATE projects p
+            SET client_id = candidates.client_id
+            FROM candidates
+            WHERE p.id = candidates.project_id AND p.client_id IS NULL
+            """
+        )
+    )
+    linked = result.rowcount
+    logger.info("projects_linked_by_code", projects_linked=linked)
+    return linked
+
+
 async def main() -> None:
     async with async_session_maker() as db:
         await seed_taxonomies(db)
         await seed_clients(db)
+        await link_projects_by_code(db)
         await db.commit()
 
 

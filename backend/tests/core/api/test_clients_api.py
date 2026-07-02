@@ -234,3 +234,47 @@ async def test_merge_endpoint_400_on_target_in_sources(
         json={"source_ids": [str(c.id)]},
     )
     assert resp.status_code == 400
+
+
+def _pm_only_token() -> TokenData:
+    """projects:manage but NOT portfolio:view — must still read /options."""
+    return TokenData(
+        user_id="00000000-0000-0000-0000-000000000043",
+        email="pm@test.com",
+        roles=["manager"],
+        permissions=["projects:manage"],
+    )
+
+
+@pytest_asyncio.fixture
+async def pm_only_client(db_session: AsyncSession) -> AsyncClient:
+    async def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = _pm_only_token
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        yield ac
+    app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_client_options_returns_active_flat_list(
+    pm_only_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    db_session.add_all(
+        [
+            ClientDB(name="Beta Org", slug="beta-org", code="BETA"),
+            ClientDB(name="Acme Foundation", slug="acme-foundation", code="ACME"),
+            ClientDB(name="Gone Inc", slug="gone-inc", code="GONE", is_active=False),
+        ]
+    )
+    await db_session.flush()
+
+    resp = await pm_only_client.get("/api/clients/options")
+    assert resp.status_code == 200
+    body = resp.json()
+    names = [c["name"] for c in body]
+    assert names == ["Acme Foundation", "Beta Org"]  # active only, name-sorted
+    assert body[0]["code"] == "ACME"
+    assert set(body[0].keys()) == {"id", "name", "code"}

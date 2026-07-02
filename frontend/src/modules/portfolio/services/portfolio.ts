@@ -4,6 +4,7 @@ import type {
   ClientCreate,
   ClientListParams,
   ClientListResponse,
+  ClientOption,
   ClientUpdate,
   MergeRequest,
   MergeResponse,
@@ -14,6 +15,11 @@ import type {
 export const portfolioApi = {
   listClients: async (params: ClientListParams = {}): Promise<ClientListResponse> => {
     const response = await api.get<ClientListResponse>('/clients', { params });
+    return response.data;
+  },
+
+  listClientOptions: async (): Promise<ClientOption[]> => {
+    const response = await api.get<ClientOption[]>('/clients/options');
     return response.data;
   },
 

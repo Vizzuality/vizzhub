@@ -22,6 +22,7 @@ from app.core.api.deps import (
     get_project_or_404,
     limiter,
 )
+from app.core.models.client import ClientDB
 from app.core.models.program import ProgramDB
 from app.core.models.project import ProjectCreateV2, ProjectDB, ProjectResponse, ProjectUpdate
 from app.core.models.user import UserDB
@@ -107,6 +108,7 @@ def _apply_project_data(project: ProjectDB, data: ProjectCreateV2) -> None:
     project.status = data.status.value if data.status else "proposal"
     project.slack_channel_id = data.slack_channel_id
     project.project_manager_id = data.project_manager_id
+    project.client_id = data.client_id
 
 
 @dataclass
@@ -146,14 +148,17 @@ async def list_projects(
 
     program = aliased(ProgramDB)
     manager = aliased(UserDB)
+    client = aliased(ClientDB)
     query = (
         select(
             ProjectDB,
             program.name.label("program_name"),
             user_display_name_expr(manager).label("pm_name"),
+            client.name.label("client_name"),
         )
         .outerjoin(program, ProjectDB.program_id == program.id)
         .outerjoin(manager, ProjectDB.project_manager_id == manager.id)
+        .outerjoin(client, ProjectDB.client_id == client.id)
     )
     count_query = select(func.count()).select_from(ProjectDB)
 
@@ -182,8 +187,10 @@ async def list_projects(
     result = await db.execute(query)
     rows = result.all()
     items = [
-        _project_to_response(proj, program_name=pname, project_manager_name=pmname)
-        for proj, pname, pmname in rows
+        _project_to_response(
+            proj, program_name=pname, project_manager_name=pmname, client_name=cname
+        )
+        for proj, pname, pmname, cname in rows
     ]
 
     return PaginatedProjectsResponse(
@@ -273,21 +280,26 @@ async def get_project(
 ) -> ProjectResponse:
     program = aliased(ProgramDB)
     manager = aliased(UserDB)
+    client = aliased(ClientDB)
     result = await db.execute(
         select(
             ProjectDB,
             program.name.label("program_name"),
             user_display_name_expr(manager).label("pm_name"),
+            client.name.label("client_name"),
         )
         .outerjoin(program, ProjectDB.program_id == program.id)
         .outerjoin(manager, ProjectDB.project_manager_id == manager.id)
+        .outerjoin(client, ProjectDB.client_id == client.id)
         .where(ProjectDB.id == project_id)
     )
     row = result.first()
     if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-    proj, pname, pmname = row
-    return _project_to_response(proj, program_name=pname, project_manager_name=pmname)
+    proj, pname, pmname, cname = row
+    return _project_to_response(
+        proj, program_name=pname, project_manager_name=pmname, client_name=cname
+    )
 
 
 @router.put("/{project_id}")
@@ -352,6 +364,7 @@ async def update_project(
         "has_dependabot_alerts",
         "has_budget_alerts",
         "project_manager_id",
+        "client_id",
     }
 
     project = await get_project_or_404(db, project_id)

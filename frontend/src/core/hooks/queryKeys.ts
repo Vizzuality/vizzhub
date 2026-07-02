@@ -262,6 +262,7 @@ export const queryKeys = {
       all: ['portfolio', 'clients'] as const,
       list: (params: Record<string, unknown>) =>
         ['portfolio', 'clients', 'list', params] as const,
+      options: () => [...queryKeys.portfolio.clients.all, 'options'] as const,
     },
     taxonomies: ['portfolio', 'taxonomies'] as const,
     dashboard: {

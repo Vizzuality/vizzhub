@@ -33,4 +33,13 @@ describe('portfolioApi', () => {
     await portfolioApi.dashboard.summary(2026);
     expect(api.get).toHaveBeenCalledWith('/portfolio/dashboard/summary', { params: { year: 2026 } });
   });
+
+  it('listClientOptions GETs /clients/options and returns the array', async () => {
+    const mockGet = api.get as ReturnType<typeof vi.fn>;
+    const data = [{ id: 'c1', name: 'Acme', code: 'ACME' }];
+    mockGet.mockResolvedValueOnce({ data });
+    const result = await portfolioApi.listClientOptions();
+    expect(mockGet).toHaveBeenCalledWith('/clients/options');
+    expect(result).toEqual(data);
+  });
 });
