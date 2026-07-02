@@ -168,7 +168,7 @@ function ProjectActions({
     <div className="flex items-center gap-1">
       {project.has_scorecard && (
         <Link
-          to={`/scorecard/${project.id}`}
+          to={`/projects/${project.id}/scorecard`}
           className={cn(linkClass, 'text-primary hover:bg-primary/10')}
         >
           <TrendingUp className="w-3.5 h-3.5" />
@@ -176,7 +176,7 @@ function ProjectActions({
         </Link>
       )}
       <Link
-        to={`/tracker/projects/${project.id}`}
+        to={`/projects/${project.id}/tracker`}
         className={cn(linkClass, 'text-primary hover:bg-primary/10')}
       >
         <Wallet className="w-3.5 h-3.5" />

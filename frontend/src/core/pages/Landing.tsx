@@ -113,7 +113,7 @@ function TopScores(): JSX.Element | null {
               key={p.id}
               type="button"
               className="landing__top5-row"
-              onClick={() => navigate(`/scorecard/${p.id}`)}
+              onClick={() => navigate(`/projects/${p.id}/overview`)}
             >
               <span className="landing__top5-rank">{String(i + 1).padStart(2, '0')}</span>
               <span className="landing__top5-name">{p.name}</span>
