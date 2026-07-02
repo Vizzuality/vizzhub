@@ -176,6 +176,11 @@ async def link_projects_by_code(db: AsyncSession) -> int:
     clients.code is unique so each prefix maps to at most one client. Union of
     two prefix sources: the project's own code, and its accrual excel_code
     (via the accrual_line_projects bridge). Returns the number of rows linked.
+
+    If a project's own code prefix and its accrual excel_code prefix resolve to
+    different clients (anomalous — normally the same dotted-code family), the
+    UPDATE picks one arbitrarily; both are legitimate client matches, so either
+    is acceptable and this stays a safe, non-overwriting best-effort backfill.
     """
     result = await db.execute(
         text(

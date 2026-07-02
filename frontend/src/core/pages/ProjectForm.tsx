@@ -914,7 +914,7 @@ export default function ProjectForm(): JSX.Element {
                   </div>
 
                   {/* Row: Client */}
-                  <div>
+                  <div className="space-y-2">
                     <Label htmlFor="client_id" className="h-5 flex items-center">Client</Label>
                     <Popover open={clientOpen} onOpenChange={setClientOpen}>
                       <PopoverTrigger asChild>
