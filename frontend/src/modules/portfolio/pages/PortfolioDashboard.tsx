@@ -11,6 +11,7 @@ import type { ClientRow, ProjectRow } from '../types/portfolio';
 const ALL = 'all';
 const TOP_N = 10;
 type Metric = 'profit_eur' | 'margin_pct' | 'delay_months';
+const METRICS: readonly Metric[] = ['profit_eur', 'margin_pct', 'delay_months'];
 
 export default function PortfolioDashboard(): JSX.Element {
   const { state, setState } = useUrlState({
@@ -22,8 +23,10 @@ export default function PortfolioDashboard(): JSX.Element {
   const [expanded, setExpanded] = useState(false);
   const year = state.year === ALL ? undefined : Number.parseInt(state.year, 10);
   const isClient = state.group === 'client';
-  const metric = state.metric as Metric;
-  const dir = state.dir as 'asc' | 'desc';
+  const metric: Metric = METRICS.includes(state.metric as Metric)
+    ? (state.metric as Metric)
+    : 'profit_eur';
+  const dir: 'asc' | 'desc' = state.dir === 'asc' ? 'asc' : 'desc';
 
   const projectBoard = useProjectLeaderboard(year);
   const clientBoard = useClientLeaderboard(year);

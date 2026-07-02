@@ -57,6 +57,9 @@ _BACKFILL_SQL = text(
 
 
 async def backfill_effective_close(db: AsyncSession) -> int:
+    # Value-idempotent, not count-idempotent: projects whose 95%-cost month equals
+    # end_date keep matching the `finished_at = end_date` guard, so a re-run rewrites
+    # them to the same value and the returned count can differ between runs.
     result = await db.execute(_BACKFILL_SQL)
     updated = result.rowcount
     logger.info("effective_close_backfilled", projects_updated=updated)
