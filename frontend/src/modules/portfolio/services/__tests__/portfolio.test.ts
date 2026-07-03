@@ -62,9 +62,13 @@ describe('portfolioApi.import', () => {
   });
 
   it('applies decisions', async () => {
-    vi.mocked(api.post).mockResolvedValue({ data: { applied: 1, created_programs: 1, linked: 0, skipped: 0, unmapped_terms: [], unresolved_clients: [] } });
-    const result = await portfolioApi.import.apply('b1', [{ staging_id: 's1', action: 'create' }]);
-    expect(result.created_programs).toBe(1);
-    expect(api.post).toHaveBeenCalledWith('/portfolio/import/b1/apply', [{ staging_id: 's1', action: 'create' }]);
+    vi.mocked(api.post).mockResolvedValue({ data: { applied: 1, programs_created: 1, projects_linked_to_program: 1, skipped: 0, unmapped_terms: [], unresolved_clients: [] } });
+    const result = await portfolioApi.import.apply('b1', [
+      { staging_id: 's1', project_id: 'p1', program_action: 'create' },
+    ]);
+    expect(result.programs_created).toBe(1);
+    expect(api.post).toHaveBeenCalledWith('/portfolio/import/b1/apply', [
+      { staging_id: 's1', project_id: 'p1', program_action: 'create' },
+    ]);
   });
 });

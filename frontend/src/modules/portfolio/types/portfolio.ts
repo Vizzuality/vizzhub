@@ -102,7 +102,7 @@ export interface ClientLeaderboard {
   rows: ClientRow[];
 }
 
-export type MatchAction = 'link' | 'create' | 'skip';
+export type ProgramAction = 'inherit' | 'link' | 'create' | 'none';
 
 export interface OverviewUploadResult {
   batch_id: string;
@@ -110,18 +110,20 @@ export interface OverviewUploadResult {
   old_count: number;
 }
 
-export interface OverviewCandidate {
-  kind: 'program' | 'project';
+export interface OverviewProjectCandidate {
   id: string;
   name: string;
   score: number;
 }
 
-export interface OverviewSuggested {
-  action: MatchAction;
-  program_id: string | null;
+export interface OverviewSuggestedProject {
   project_id: string | null;
   score: number;
+}
+
+export interface OverviewCurrentProgram {
+  program_id: string | null;
+  name: string | null;
 }
 
 export interface OverviewMatch {
@@ -131,21 +133,23 @@ export interface OverviewMatch {
   client_type_raw: string | null;
   service_raw: string | null;
   impact_area_raw: string | null;
-  suggested: OverviewSuggested;
-  candidates: OverviewCandidate[];
+  suggested_project: OverviewSuggestedProject;
+  project_candidates: OverviewProjectCandidate[];
+  current_program: OverviewCurrentProgram;
 }
 
 export interface OverviewDecision {
   staging_id: string;
-  action: MatchAction;
+  project_id: string | null;
+  program_action: ProgramAction;
   program_id?: string | null;
-  project_id?: string | null;
+  new_program_name?: string | null;
 }
 
 export interface OverviewApplyResult {
   applied: number;
-  created_programs: number;
-  linked: number;
+  programs_created: number;
+  projects_linked_to_program: number;
   skipped: number;
   unmapped_terms: string[];
   unresolved_clients: string[];
