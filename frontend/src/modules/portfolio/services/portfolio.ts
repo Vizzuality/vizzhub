@@ -9,6 +9,10 @@ import type {
   ClientUpdate,
   MergeRequest,
   MergeResponse,
+  OverviewApplyResult,
+  OverviewDecision,
+  OverviewMatch,
+  OverviewUploadResult,
   ProjectLeaderboard,
   Taxonomy,
 } from '../types/portfolio';
@@ -55,6 +59,30 @@ export const portfolioApi = {
       const response = await api.get<ClientLeaderboard>('/portfolio/dashboard/clients', {
         params: year ? { year } : {},
       });
+      return response.data;
+    },
+  },
+
+  import: {
+    upload: async (file: File): Promise<OverviewUploadResult> => {
+      const form = new FormData();
+      form.append('file', file);
+      // axios sets a global application/json Content-Type; undefined lets the
+      // browser attach the multipart boundary. (Codebase gotcha.)
+      const response = await api.post<OverviewUploadResult>('/portfolio/import/upload', form, {
+        headers: { 'Content-Type': undefined },
+      });
+      return response.data;
+    },
+    matches: async (batchId: string): Promise<OverviewMatch[]> => {
+      const response = await api.get<OverviewMatch[]>(`/portfolio/import/${batchId}/matches`);
+      return response.data;
+    },
+    apply: async (batchId: string, decisions: OverviewDecision[]): Promise<OverviewApplyResult> => {
+      const response = await api.post<OverviewApplyResult>(
+        `/portfolio/import/${batchId}/apply`,
+        decisions,
+      );
       return response.data;
     },
   },

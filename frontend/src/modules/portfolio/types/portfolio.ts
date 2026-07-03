@@ -101,3 +101,52 @@ export interface ClientLeaderboard {
   available_years: number[];
   rows: ClientRow[];
 }
+
+export type MatchAction = 'link' | 'create' | 'skip';
+
+export interface OverviewUploadResult {
+  batch_id: string;
+  row_count: number;
+  old_count: number;
+}
+
+export interface OverviewCandidate {
+  kind: 'program' | 'project';
+  id: string;
+  name: string;
+  score: number;
+}
+
+export interface OverviewSuggested {
+  action: MatchAction;
+  program_id: string | null;
+  project_id: string | null;
+  score: number;
+}
+
+export interface OverviewMatch {
+  staging_id: string;
+  name: string;
+  is_old_project: boolean;
+  client_type_raw: string | null;
+  service_raw: string | null;
+  impact_area_raw: string | null;
+  suggested: OverviewSuggested;
+  candidates: OverviewCandidate[];
+}
+
+export interface OverviewDecision {
+  staging_id: string;
+  action: MatchAction;
+  program_id?: string | null;
+  project_id?: string | null;
+}
+
+export interface OverviewApplyResult {
+  applied: number;
+  created_programs: number;
+  linked: number;
+  skipped: number;
+  unmapped_terms: string[];
+  unresolved_clients: string[];
+}

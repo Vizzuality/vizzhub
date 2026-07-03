@@ -48,3 +48,23 @@ describe('portfolioApi', () => {
     expect(result).toEqual(data);
   });
 });
+
+describe('portfolioApi.import', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('uploads with multipart headers override', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: { batch_id: 'b1', row_count: 3, old_count: 1 } });
+    const file = new File(['x'], 'overview.xlsx');
+    const result = await portfolioApi.import.upload(file);
+    expect(result.batch_id).toBe('b1');
+    const [, , config] = vi.mocked(api.post).mock.calls[0];
+    expect((config as { headers: Record<string, unknown> }).headers['Content-Type']).toBeUndefined();
+  });
+
+  it('applies decisions', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: { applied: 1, created_programs: 1, linked: 0, skipped: 0, unmapped_terms: [], unresolved_clients: [] } });
+    const result = await portfolioApi.import.apply('b1', [{ staging_id: 's1', action: 'create' }]);
+    expect(result.created_programs).toBe(1);
+    expect(api.post).toHaveBeenCalledWith('/portfolio/import/b1/apply', [{ staging_id: 's1', action: 'create' }]);
+  });
+});

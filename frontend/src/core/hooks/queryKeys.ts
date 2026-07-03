@@ -272,6 +272,10 @@ export const queryKeys = {
       clients: (filters: Record<string, unknown>) =>
         ['portfolio', 'dashboard', 'clients', filters] as const,
     },
+    import: {
+      all: ['portfolio', 'import'] as const,
+      matches: (batchId: string) => ['portfolio', 'import', 'matches', batchId] as const,
+    },
   },
   devstack: {
     all: ['devstack'] as const,
