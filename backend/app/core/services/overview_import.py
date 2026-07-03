@@ -21,7 +21,7 @@ from app.core.models.portfolio_overview import (
 from app.core.models.program import ProgramDB
 from app.core.models.project import ProjectDB
 from app.core.models.taxonomy import EntityTermDB, TaxonomyDB, TaxonomyTermDB
-from app.core.services.name_matching import Scored, rank
+from app.core.services.name_matching import rank
 
 logger = structlog.get_logger()
 
@@ -169,17 +169,20 @@ CANDIDATE_THRESHOLD = 0.35
 
 
 @dataclass
-class CandidateData:
-    kind: str
+class ProjectCandidate:
     id: UUID
     name: str
     score: float
 
 
 @dataclass
-class SuggestedData:
-    action: MatchAction
+class CurrentProgram:
     program_id: UUID | None
+    name: str | None
+
+
+@dataclass
+class SuggestedProject:
     project_id: UUID | None
     score: float
 
@@ -192,43 +195,22 @@ class StagingMatchData:
     client_type_raw: str | None
     service_raw: str | None
     impact_area_raw: str | None
-    suggested: SuggestedData
-    candidates: list[CandidateData]
-
-
-async def _match_targets(
-    db: AsyncSession,
-) -> tuple[list[tuple[str, tuple[str, UUID, str]]], list[tuple[str, tuple[str, UUID, str]]]]:
-    programs = (await db.execute(select(ProgramDB.id, ProgramDB.name))).all()
-    projects = (
-        await db.execute(
-            select(ProjectDB.id, ProjectDB.name).where(
-                ProjectDB.is_billable.is_(True),
-                ProjectDB.is_absence.is_(False),
-                ProjectDB.program_id.is_(None),
-            )
-        )
-    ).all()
-    prog_cands = [(p.name, ("program", p.id, p.name)) for p in programs]
-    proj_cands = [(p.name, ("project", p.id, p.name)) for p in projects]
-    return prog_cands, proj_cands
-
-
-def _suggest(is_old: bool, ranked: list[Scored]) -> SuggestedData:
-    if is_old:
-        return SuggestedData(MatchAction.SKIP, None, None, 0.0)
-    best_prog = next((s for s in ranked if s.payload[0] == "program"), None)
-    if best_prog is not None and best_prog.score >= STRONG:
-        return SuggestedData(MatchAction.LINK, best_prog.payload[1], None, best_prog.score)
-    best_proj = next((s for s in ranked if s.payload[0] == "project"), None)
-    if best_proj is not None and best_proj.score >= STRONG:
-        return SuggestedData(MatchAction.CREATE, None, best_proj.payload[1], best_proj.score)
-    return SuggestedData(MatchAction.CREATE, None, None, 0.0)
+    suggested_project: SuggestedProject
+    project_candidates: list[ProjectCandidate]
+    current_program: CurrentProgram
 
 
 async def build_matches(db: AsyncSession, batch_id: UUID) -> list[StagingMatchData]:
-    prog_cands, proj_cands = await _match_targets(db)
-    all_cands = prog_cands + proj_cands
+    projects = (
+        await db.execute(
+            select(ProjectDB.id, ProjectDB.name, ProjectDB.program_id).where(
+                ProjectDB.is_billable.is_(True), ProjectDB.is_absence.is_(False)
+            )
+        )
+    ).all()
+    prog_names = dict((await db.execute(select(ProgramDB.id, ProgramDB.name))).all())
+    prog_of = {p.id: p.program_id for p in projects}
+    candidates = [(p.name, (p.id, p.name)) for p in projects]
     staging = (
         (
             await db.execute(
@@ -242,11 +224,18 @@ async def build_matches(db: AsyncSession, batch_id: UUID) -> list[StagingMatchDa
     )
     result: list[StagingMatchData] = []
     for row in staging:
-        ranked = rank(row.name, all_cands, limit=5, threshold=CANDIDATE_THRESHOLD)
-        candidates = [
-            CandidateData(kind=s.payload[0], id=s.payload[1], name=s.payload[2], score=s.score)
-            for s in ranked
+        ranked = rank(row.name, candidates, limit=5, threshold=CANDIDATE_THRESHOLD)
+        proj_cands = [
+            ProjectCandidate(id=s.payload[0], name=s.payload[1], score=s.score) for s in ranked
         ]
+        best = ranked[0] if ranked else None
+        if best is not None and best.score >= STRONG:
+            suggested = SuggestedProject(project_id=best.payload[0], score=best.score)
+            prog_id = prog_of.get(best.payload[0])
+            current = CurrentProgram(program_id=prog_id, name=prog_names.get(prog_id))
+        else:
+            suggested = SuggestedProject(project_id=None, score=0.0)
+            current = CurrentProgram(program_id=None, name=None)
         result.append(
             StagingMatchData(
                 staging_id=row.id,
@@ -255,8 +244,9 @@ async def build_matches(db: AsyncSession, batch_id: UUID) -> list[StagingMatchDa
                 client_type_raw=row.client_type_raw,
                 service_raw=row.service_raw,
                 impact_area_raw=row.impact_area_raw,
-                suggested=_suggest(row.is_old_project, ranked),
-                candidates=candidates,
+                suggested_project=suggested,
+                project_candidates=proj_cands,
+                current_program=current,
             )
         )
     return result
