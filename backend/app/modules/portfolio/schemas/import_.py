@@ -41,6 +41,12 @@ class StagingMatch(BaseModel):
     current_program: CurrentProgram
 
 
+class ImportProject(BaseModel):
+    id: UUID
+    name: str
+    program_id: UUID | None = None
+
+
 class MatchDecision(BaseModel):
     staging_id: UUID
     project_id: UUID | None = None

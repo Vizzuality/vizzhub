@@ -116,6 +116,12 @@ export interface OverviewProjectCandidate {
   score: number;
 }
 
+export interface OverviewImportProject {
+  id: string;
+  name: string;
+  program_id: string | null;
+}
+
 export interface OverviewSuggestedProject {
   project_id: string | null;
   score: number;

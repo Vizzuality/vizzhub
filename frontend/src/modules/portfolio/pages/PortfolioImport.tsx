@@ -4,10 +4,10 @@ import { usePermission } from '@/core/permissions/usePermission';
 import { Action } from '@/core/permissions/constants';
 import { Button } from '@/shared/components/ui/button';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
-import { useActiveProjectSummaries } from '@/core/hooks/useProjects';
 import { usePrograms } from '@/core/hooks/usePrograms';
 import {
   useApplyOverview,
+  useImportProjects,
   useOverviewMatches,
   useUploadOverview,
 } from '../hooks/useOverviewImport';
@@ -49,13 +49,20 @@ export default function PortfolioImport(): JSX.Element {
   const apply = useApplyOverview();
   const { data: matches, isLoading } = useOverviewMatches(batchId);
   const { data: programs = [] } = usePrograms();
-  const { data: activeProjects = [] } = useActiveProjectSummaries();
+  const { data: importProjects = [] } = useImportProjects();
 
   const decisionList = useMemo(() => Object.values(decisions), [decisions]);
 
   const allProjects: OverviewProjectCandidate[] = useMemo(
-    () => activeProjects.map((p) => ({ id: p.id, name: p.name, score: 0 })),
-    [activeProjects],
+    () => importProjects.map((p) => ({ id: p.id, name: p.name, score: 0 })),
+    [importProjects],
+  );
+
+  // Look up a project's real program to derive program context when the reviewer
+  // picks any project (not just the server-suggested one).
+  const programByProject = useMemo(
+    () => new Map(importProjects.map((p) => [p.id, p.program_id])),
+    [importProjects],
   );
 
   useEffect(() => {
@@ -134,25 +141,26 @@ export default function PortfolioImport(): JSX.Element {
                       value={d?.project_id ?? null}
                       candidates={m.project_candidates}
                       allProjects={allProjects}
-                      onChange={(pid) =>
+                      onChange={(pid) => {
+                        const projectProgram = pid ? (programByProject.get(pid) ?? null) : null;
                         patch(m.staging_id, {
                           project_id: pid,
-                          program_action: pid
-                            ? m.current_program.program_id
-                              ? 'inherit'
-                              : 'create'
-                            : 'none',
-                          program_id: pid ? m.current_program.program_id : null,
+                          program_action: pid ? (projectProgram ? 'inherit' : 'create') : 'none',
+                          program_id: projectProgram,
                           new_program_name: pid
                             ? (allProjects.find((p) => p.id === pid)?.name ?? m.name)
                             : null,
-                        })
-                      }
+                        });
+                      }}
                     />
                     <ProgramPicker
                       action={d?.program_action ?? 'none'}
                       programId={d?.program_id ?? null}
-                      inheritedName={m.current_program.name}
+                      inheritedName={
+                        d?.program_id
+                          ? (programs.find((p) => p.id === d.program_id)?.name ?? null)
+                          : m.current_program.name
+                      }
                       programs={programs}
                       onLink={(pid) =>
                         patch(m.staging_id, { program_action: 'link', program_id: pid })

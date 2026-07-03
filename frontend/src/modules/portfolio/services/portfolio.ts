@@ -11,6 +11,7 @@ import type {
   MergeResponse,
   OverviewApplyResult,
   OverviewDecision,
+  OverviewImportProject,
   OverviewMatch,
   OverviewUploadResult,
   ProjectLeaderboard,
@@ -72,6 +73,10 @@ export const portfolioApi = {
       const response = await api.post<OverviewUploadResult>('/portfolio/import/upload', form, {
         headers: { 'Content-Type': undefined },
       });
+      return response.data;
+    },
+    projects: async (): Promise<OverviewImportProject[]> => {
+      const response = await api.get<OverviewImportProject[]>('/portfolio/import/projects');
       return response.data;
     },
     matches: async (batchId: string): Promise<OverviewMatch[]> => {

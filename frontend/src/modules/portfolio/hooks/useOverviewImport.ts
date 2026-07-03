@@ -9,6 +9,14 @@ export function useUploadOverview() {
   });
 }
 
+export function useImportProjects() {
+  return useQuery({
+    queryKey: queryKeys.portfolio.import.projects,
+    queryFn: () => portfolioApi.import.projects(),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useOverviewMatches(batchId: string | null) {
   return useQuery({
     queryKey: queryKeys.portfolio.import.matches(batchId ?? ''),

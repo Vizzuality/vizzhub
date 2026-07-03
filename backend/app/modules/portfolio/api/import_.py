@@ -5,9 +5,11 @@ from uuid import UUID, uuid4
 
 import structlog
 from fastapi import APIRouter, Depends, Request, UploadFile
+from sqlalchemy import select
 
 from app.core.api.deps import DBSession, limiter
 from app.core.auth import TokenData
+from app.core.models.project import ProjectDB
 from app.core.permissions import Action, require_permission
 from app.core.services.overview_import import (
     DecisionInput,
@@ -19,6 +21,7 @@ from app.core.services.overview_import import (
 from app.modules.portfolio.schemas.import_ import (
     ApplyResult,
     CurrentProgram,
+    ImportProject,
     MatchDecision,
     ProjectCandidate,
     StagingMatch,
@@ -43,6 +46,26 @@ async def upload_overview(
     batch_id = uuid4()
     count, old = await replace_staging(db, batch_id, rows)
     return UploadResult(batch_id=batch_id, row_count=count, old_count=old)
+
+
+@router.get("/projects", responses={403: {"description": "Missing portfolio:view"}})
+@limiter.limit("60/minute")
+async def list_import_projects(
+    request: Request, current_user: PortfolioViewer, db: DBSession
+) -> list[ImportProject]:
+    """All billable, non-absence projects (any status) for the import project picker.
+
+    Mirrors the build_matches candidate universe so finished projects are pickable too,
+    and carries program_id so the UI can derive program context for any chosen project.
+    """
+    rows = (
+        await db.execute(
+            select(ProjectDB.id, ProjectDB.name, ProjectDB.program_id)
+            .where(ProjectDB.is_billable.is_(True), ProjectDB.is_absence.is_(False))
+            .order_by(ProjectDB.name)
+        )
+    ).all()
+    return [ImportProject(id=r.id, name=r.name, program_id=r.program_id) for r in rows]
 
 
 @router.get("/{batch_id}/matches", responses={403: {"description": "Missing portfolio:view"}})
