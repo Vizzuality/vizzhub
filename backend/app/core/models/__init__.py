@@ -14,6 +14,11 @@ from app.core.models.mcp_oauth import (
     MCPOAuthRefreshTokenDB,
 )
 from app.core.models.oauth import OAuthStateDB, OAuthToken, OAuthTokenDB
+from app.core.models.portfolio_overview import (  # noqa: F401
+    MatchAction,
+    PortfolioOverviewStagingDB,
+    PortfolioProfileDB,
+)
 from app.core.models.program import Program, ProgramCreate, ProgramDB
 from app.core.models.project import (
     Project,
@@ -48,9 +53,12 @@ __all__ = [
     "MCPOAuthClientDB",
     "MCPOAuthCodeDB",
     "MCPOAuthRefreshTokenDB",
+    "MatchAction",
     "OAuthStateDB",
     "OAuthToken",
     "OAuthTokenDB",
+    "PortfolioOverviewStagingDB",
+    "PortfolioProfileDB",
     "Program",
     "ProgramCreate",
     "ProgramDB",
