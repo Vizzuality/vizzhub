@@ -5,10 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import PortfolioImport from '../PortfolioImport';
 
 const mockPermission = vi.fn();
-
-vi.mock('@/core/permissions/usePermission', () => ({
-  usePermission: (...args: Parameters<typeof mockPermission>) => mockPermission(...args),
-}));
+vi.mock('@/core/permissions/usePermission', () => ({ usePermission: () => mockPermission() }));
 
 function renderPage(): void {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -28,7 +25,7 @@ describe('PortfolioImport', () => {
     expect(screen.getByLabelText('Overview spreadsheet')).toBeInTheDocument();
   });
 
-  it('redirects a non-manager away (no upload control)', () => {
+  it('redirects a non-manager away', () => {
     mockPermission.mockReturnValue(false);
     renderPage();
     expect(screen.queryByLabelText('Overview spreadsheet')).not.toBeInTheDocument();

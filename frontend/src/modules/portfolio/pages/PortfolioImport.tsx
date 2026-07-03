@@ -7,21 +7,35 @@ import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 import {
   useApplyOverview,
   useOverviewMatches,
+  usePrograms,
   useUploadOverview,
 } from '../hooks/useOverviewImport';
-import type { OverviewDecision, OverviewMatch } from '../types/portfolio';
+import { ProjectPicker } from '../components/ProjectPicker';
+import { ProgramPicker } from '../components/ProgramPicker';
+import type { OverviewDecision, OverviewMatch, OverviewProjectCandidate } from '../types/portfolio';
 
 type DecisionMap = Record<string, OverviewDecision>;
 
-function toInitialDecisions(matches: OverviewMatch[]): DecisionMap {
+function seed(matches: OverviewMatch[]): DecisionMap {
   const map: DecisionMap = {};
   for (const m of matches) {
-    map[m.staging_id] = {
-      staging_id: m.staging_id,
-      action: m.suggested.action,
-      program_id: m.suggested.program_id,
-      project_id: m.suggested.project_id,
-    };
+    const pid = m.suggested_project.project_id;
+    if (m.current_program.program_id) {
+      map[m.staging_id] = {
+        staging_id: m.staging_id,
+        project_id: pid,
+        program_action: 'inherit',
+        program_id: m.current_program.program_id,
+      };
+    } else {
+      const name = m.project_candidates.find((c) => c.id === pid)?.name ?? m.name;
+      map[m.staging_id] = {
+        staging_id: m.staging_id,
+        project_id: pid,
+        program_action: pid ? 'create' : 'none',
+        new_program_name: name,
+      };
+    }
   }
   return map;
 }
@@ -33,13 +47,26 @@ export default function PortfolioImport(): JSX.Element {
   const upload = useUploadOverview();
   const apply = useApplyOverview();
   const { data: matches, isLoading } = useOverviewMatches(batchId);
+  const { data: programs = [] } = usePrograms();
 
   const decisionList = useMemo(() => Object.values(decisions), [decisions]);
 
-  // Seed per-row decisions from the backend's suggestions once matches arrive.
+  const allProjects: OverviewProjectCandidate[] = useMemo(
+    () =>
+      Object.values(
+        (matches ?? [])
+          .flatMap((m) => m.project_candidates)
+          .reduce<Record<string, OverviewProjectCandidate>>((acc, c) => {
+            acc[c.id] = c;
+            return acc;
+          }, {}),
+      ),
+    [matches],
+  );
+
   useEffect(() => {
     if (matches && matches.length > 0) {
-      setDecisions((prev) => (Object.keys(prev).length === 0 ? toInitialDecisions(matches) : prev));
+      setDecisions((prev) => (Object.keys(prev).length === 0 ? seed(matches) : prev));
     }
   }, [matches]);
 
@@ -48,28 +75,20 @@ export default function PortfolioImport(): JSX.Element {
   }
 
   const onFile = async (file: File): Promise<void> => {
-    const res = await upload.mutateAsync(file);
     setDecisions({});
+    const res = await upload.mutateAsync(file);
     setBatchId(res.batch_id);
   };
 
-  const setAction = (
-    id: string,
-    action: OverviewDecision['action'],
-    programId?: string | null,
-  ): void => {
-    setDecisions((prev) => ({
-      ...prev,
-      [id]: { ...prev[id], action, program_id: programId ?? null, project_id: null },
-    }));
-  };
+  const patch = (id: string, p: Partial<OverviewDecision>): void =>
+    setDecisions((prev) => ({ ...prev, [id]: { ...prev[id], ...p } }));
 
   return (
     <div className="space-y-4">
       {!batchId && (
         <div className="rounded-md border border-dashed p-6 text-center">
           <p className="mb-3 text-sm text-muted-foreground">
-            Upload the Portfolio Overview spreadsheet (.xlsx) to stage rows for matching.
+            Upload the Portfolio Overview spreadsheet (.xlsx).
           </p>
           <input
             type="file"
@@ -99,48 +118,70 @@ export default function PortfolioImport(): JSX.Element {
           </div>
 
           <ul className="divide-y">
-            {matches.map((m) => (
-              <li key={m.staging_id} className="flex items-center justify-between gap-4 py-2">
-                <div className="min-w-0">
-                  <p className="truncate font-medium">{m.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {[m.client_type_raw, m.service_raw, m.impact_area_raw]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </p>
-                </div>
-                <select
-                  aria-label={`Match for ${m.name}`}
-                  className="rounded border px-2 py-1 text-sm"
-                  value={
-                    decisions[m.staging_id]?.program_id ??
-                    decisions[m.staging_id]?.action ??
-                    'create'
-                  }
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (v === 'create' || v === 'skip') setAction(m.staging_id, v);
-                    else setAction(m.staging_id, 'link', v);
-                  }}
-                >
-                  <option value="create">Create new program</option>
-                  <option value="skip">Skip</option>
-                  {m.candidates
-                    .filter((c) => c.kind === 'program')
-                    .map((c) => (
-                      <option key={c.id} value={c.id}>
-                        Link: {c.name} ({Math.round(c.score * 100)}%)
-                      </option>
-                    ))}
-                </select>
-              </li>
-            ))}
+            {matches.map((m) => {
+              const d = decisions[m.staging_id];
+              return (
+                <li key={m.staging_id} className="flex items-center justify-between gap-4 py-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">
+                      {m.name}
+                      {m.is_old_project && (
+                        <span className="ml-2 rounded bg-muted px-1 text-xs">old</span>
+                      )}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {[m.client_type_raw, m.service_raw, m.impact_area_raw]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <ProjectPicker
+                      value={d?.project_id ?? null}
+                      candidates={m.project_candidates}
+                      allProjects={allProjects}
+                      onChange={(pid) =>
+                        patch(m.staging_id, {
+                          project_id: pid,
+                          program_action: pid
+                            ? m.current_program.program_id
+                              ? 'inherit'
+                              : 'create'
+                            : 'none',
+                          program_id: pid ? m.current_program.program_id : null,
+                          new_program_name: pid ? m.name : null,
+                        })
+                      }
+                    />
+                    <ProgramPicker
+                      action={d?.program_action ?? 'none'}
+                      programId={d?.program_id ?? null}
+                      inheritedName={m.current_program.name}
+                      programs={programs}
+                      onLink={(pid) =>
+                        patch(m.staging_id, { program_action: 'link', program_id: pid })
+                      }
+                      onCreate={() =>
+                        patch(m.staging_id, {
+                          program_action: 'create',
+                          program_id: null,
+                          new_program_name: m.name,
+                        })
+                      }
+                      onNone={() =>
+                        patch(m.staging_id, { program_action: 'none', program_id: null })
+                      }
+                    />
+                  </div>
+                </li>
+              );
+            })}
           </ul>
 
           {apply.data && (
             <output className="block rounded-md border p-3 text-sm">
-              Applied {apply.data.applied} · created {apply.data.created_programs} · linked{' '}
-              {apply.data.linked} · skipped {apply.data.skipped}
+              Applied {apply.data.applied} · programs created {apply.data.programs_created} ·
+              linked {apply.data.projects_linked_to_program} · skipped {apply.data.skipped}
               {apply.data.unmapped_terms.length > 0 && (
                 <p className="mt-1 text-aux-yellow">
                   Unmapped terms: {apply.data.unmapped_terms.join(', ')}
