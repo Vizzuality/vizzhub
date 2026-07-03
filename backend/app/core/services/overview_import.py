@@ -6,10 +6,13 @@ from uuid import UUID
 
 import structlog
 from openpyxl import load_workbook
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.models.portfolio_overview import PortfolioOverviewStagingDB
+from app.core.models.portfolio_overview import MatchAction, PortfolioOverviewStagingDB
+from app.core.models.program import ProgramDB
+from app.core.models.project import ProjectDB
+from app.core.services.name_matching import rank
 
 logger = structlog.get_logger()
 
@@ -150,3 +153,101 @@ async def replace_staging(
     await db.flush()
     logger.info("portfolio_overview_uploaded", batch_id=str(batch_id), rows=len(rows), old=old)
     return len(rows), old
+
+
+STRONG = 0.85
+CANDIDATE_THRESHOLD = 0.35
+
+
+@dataclass
+class CandidateData:
+    kind: str
+    id: UUID
+    name: str
+    score: float
+
+
+@dataclass
+class SuggestedData:
+    action: MatchAction
+    program_id: UUID | None
+    project_id: UUID | None
+    score: float
+
+
+@dataclass
+class StagingMatchData:
+    staging_id: UUID
+    name: str
+    is_old_project: bool
+    client_type_raw: str | None
+    service_raw: str | None
+    impact_area_raw: str | None
+    suggested: SuggestedData
+    candidates: list[CandidateData]
+
+
+async def _match_targets(
+    db: AsyncSession,
+) -> tuple[list[tuple[str, tuple[str, UUID, str]]], ...]:
+    programs = (await db.execute(select(ProgramDB.id, ProgramDB.name))).all()
+    projects = (
+        await db.execute(
+            select(ProjectDB.id, ProjectDB.name).where(
+                ProjectDB.is_billable.is_(True),
+                ProjectDB.is_absence.is_(False),
+                ProjectDB.program_id.is_(None),
+            )
+        )
+    ).all()
+    prog_cands = [(p.name, ("program", p.id, p.name)) for p in programs]
+    proj_cands = [(p.name, ("project", p.id, p.name)) for p in projects]
+    return prog_cands, proj_cands
+
+
+def _suggest(is_old: bool, ranked: list) -> SuggestedData:
+    if is_old:
+        return SuggestedData(MatchAction.SKIP, None, None, 0.0)
+    best_prog = next((s for s in ranked if s.payload[0] == "program"), None)
+    if best_prog is not None and best_prog.score >= STRONG:
+        return SuggestedData(MatchAction.LINK, best_prog.payload[1], None, best_prog.score)
+    best_proj = next((s for s in ranked if s.payload[0] == "project"), None)
+    if best_proj is not None and best_proj.score >= STRONG:
+        return SuggestedData(MatchAction.CREATE, None, best_proj.payload[1], best_proj.score)
+    return SuggestedData(MatchAction.CREATE, None, None, 0.0)
+
+
+async def build_matches(db: AsyncSession, batch_id: UUID) -> list[StagingMatchData]:
+    prog_cands, proj_cands = await _match_targets(db)
+    all_cands = prog_cands + proj_cands
+    staging = (
+        (
+            await db.execute(
+                select(PortfolioOverviewStagingDB)
+                .where(PortfolioOverviewStagingDB.import_batch == batch_id)
+                .order_by(PortfolioOverviewStagingDB.row_index)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    result: list[StagingMatchData] = []
+    for row in staging:
+        ranked = rank(row.name, all_cands, limit=5, threshold=CANDIDATE_THRESHOLD)
+        candidates = [
+            CandidateData(kind=s.payload[0], id=s.payload[1], name=s.payload[2], score=s.score)
+            for s in ranked
+        ]
+        result.append(
+            StagingMatchData(
+                staging_id=row.id,
+                name=row.name,
+                is_old_project=row.is_old_project,
+                client_type_raw=row.client_type_raw,
+                service_raw=row.service_raw,
+                impact_area_raw=row.impact_area_raw,
+                suggested=_suggest(row.is_old_project, ranked),
+                candidates=candidates,
+            )
+        )
+    return result
