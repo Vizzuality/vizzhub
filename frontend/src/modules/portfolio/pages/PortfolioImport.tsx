@@ -49,6 +49,7 @@ export default function PortfolioImport(): JSX.Element {
 
   const onFile = async (file: File): Promise<void> => {
     const res = await upload.mutateAsync(file);
+    setDecisions({});
     setBatchId(res.batch_id);
   };
 
