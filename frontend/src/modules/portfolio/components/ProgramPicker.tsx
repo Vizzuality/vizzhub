@@ -12,13 +12,12 @@ import {
 } from '@/shared/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover';
 import type { ProgramAction } from '../types/portfolio';
-import type { ProgramOption } from '../hooks/useOverviewImport';
 
 interface ProgramPickerProps {
   readonly action: ProgramAction;
   readonly programId: string | null;
   readonly inheritedName: string | null;
-  readonly programs: readonly ProgramOption[];
+  readonly programs: readonly { readonly id: string; readonly name: string }[];
   readonly onLink: (programId: string) => void;
   readonly onCreate: () => void;
   readonly onNone: () => void;

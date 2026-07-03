@@ -4,10 +4,11 @@ import { usePermission } from '@/core/permissions/usePermission';
 import { Action } from '@/core/permissions/constants';
 import { Button } from '@/shared/components/ui/button';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
+import { useActiveProjectSummaries } from '@/core/hooks/useProjects';
+import { usePrograms } from '@/core/hooks/usePrograms';
 import {
   useApplyOverview,
   useOverviewMatches,
-  usePrograms,
   useUploadOverview,
 } from '../hooks/useOverviewImport';
 import { ProjectPicker } from '../components/ProjectPicker';
@@ -48,20 +49,13 @@ export default function PortfolioImport(): JSX.Element {
   const apply = useApplyOverview();
   const { data: matches, isLoading } = useOverviewMatches(batchId);
   const { data: programs = [] } = usePrograms();
+  const { data: activeProjects = [] } = useActiveProjectSummaries();
 
   const decisionList = useMemo(() => Object.values(decisions), [decisions]);
 
   const allProjects: OverviewProjectCandidate[] = useMemo(
-    () =>
-      Object.values(
-        (matches ?? [])
-          .flatMap((m) => m.project_candidates)
-          .reduce<Record<string, OverviewProjectCandidate>>((acc, c) => {
-            acc[c.id] = c;
-            return acc;
-          }, {}),
-      ),
-    [matches],
+    () => activeProjects.map((p) => ({ id: p.id, name: p.name, score: 0 })),
+    [activeProjects],
   );
 
   useEffect(() => {
@@ -149,7 +143,9 @@ export default function PortfolioImport(): JSX.Element {
                               : 'create'
                             : 'none',
                           program_id: pid ? m.current_program.program_id : null,
-                          new_program_name: pid ? m.name : null,
+                          new_program_name: pid
+                            ? (allProjects.find((p) => p.id === pid)?.name ?? m.name)
+                            : null,
                         })
                       }
                     />

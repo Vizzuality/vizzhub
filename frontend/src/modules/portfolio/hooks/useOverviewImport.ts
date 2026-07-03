@@ -1,23 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import api from '@/core/services/client';
 import { queryKeys } from '@/core/hooks/queryKeys';
 import { portfolioApi } from '../services/portfolio';
 import type { OverviewDecision } from '../types/portfolio';
-
-export interface ProgramOption {
-  id: string;
-  name: string;
-}
-
-export function usePrograms() {
-  return useQuery({
-    queryKey: ['programs', 'options'],
-    queryFn: async (): Promise<ProgramOption[]> => {
-      const res = await api.get<ProgramOption[]>('/programs');
-      return res.data;
-    },
-  });
-}
 
 export function useUploadOverview() {
   return useMutation({
