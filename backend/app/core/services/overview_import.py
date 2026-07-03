@@ -8,7 +8,6 @@ from uuid import UUID
 import structlog
 from openpyxl import load_workbook
 from sqlalchemy import delete, select
-from sqlalchemy import delete as sa_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import func
 
@@ -359,7 +358,7 @@ async def _apply_terms(
             continue
         # Replace this program's terms for this taxonomy (idempotent).
         await db.execute(
-            sa_delete(EntityTermDB).where(
+            delete(EntityTermDB).where(
                 EntityTermDB.program_id == program_id, EntityTermDB.taxonomy_id == tax.id
             )
         )
@@ -428,6 +427,8 @@ async def apply_decisions(
     unmapped: list[str] = []
     unresolved: list[str] = []
     for d in decisions:
+        # Capture staging_id from the dataclass now — safe even if the savepoint rolls back.
+        staging_id_str = str(d.staging_id)
         row = (
             await db.execute(
                 select(PortfolioOverviewStagingDB).where(
@@ -439,33 +440,36 @@ async def apply_decisions(
         if row is None:
             continue
         try:
-            if d.action == MatchAction.SKIP:
-                row.match_action = MatchAction.SKIP
+            async with db.begin_nested():
+                if d.action == MatchAction.SKIP:
+                    row.match_action = MatchAction.SKIP
+                    row.decided_by = UUID(user_id) if user_id else None
+                    row.decided_at = datetime.now(UTC)
+                    await db.flush()
+                    skipped += 1
+                    continue
+                program = await _resolve_program(db, row, d)
+                await _upsert_profile(db, row, program.id)
+                row_unmapped = await _apply_terms(db, row, program.id, user_id)
+                row_unresolved_client = await _cascade_client(db, row, program.id)
+                row.match_action = d.action
+                row.matched_program_id = program.id
+                row.matched_project_id = d.project_id
                 row.decided_by = UUID(user_id) if user_id else None
                 row.decided_at = datetime.now(UTC)
                 await db.flush()
-                skipped += 1
-                continue
-            program = await _resolve_program(db, row, d)
-            await _upsert_profile(db, row, program.id)
-            unmapped.extend(await _apply_terms(db, row, program.id, user_id))
-            unresolved_client = await _cascade_client(db, row, program.id)
-            if unresolved_client:
-                unresolved.append(unresolved_client)
-            row.match_action = d.action
-            row.matched_program_id = program.id
-            row.matched_project_id = d.project_id
-            row.decided_by = UUID(user_id) if user_id else None
-            row.decided_at = datetime.now(UTC)
-            await db.flush()
+            # Savepoint released successfully — merge results into outer accumulators.
+            unmapped.extend(row_unmapped)
+            if row_unresolved_client:
+                unresolved.append(row_unresolved_client)
             applied += 1
             if d.action == MatchAction.LINK:
                 linked += 1
             else:
                 created += 1
         except Exception:
-            await db.rollback()
-            logger.warning("portfolio_overview_row_failed", staging_id=str(d.staging_id))
+            # Savepoint already rolled back — only this row is undone; outer tx survives.
+            logger.warning("portfolio_overview_row_failed", staging_id=staging_id_str)
     logger.info(
         "portfolio_overview_applied",
         batch_id=str(batch_id),

@@ -177,3 +177,30 @@ async def test_reapply_is_idempotent_on_terms(db_session: AsyncSession) -> None:
         )
     ).scalar_one()
     assert count == 1  # not duplicated
+
+
+@pytest.mark.asyncio
+async def test_failing_row_does_not_discard_prior_rows(db_session: AsyncSession) -> None:
+    """A row that raises during apply_decisions must not roll back previously applied rows."""
+    await _seed_taxonomies(db_session)
+    batch = uuid4()
+
+    # Row A — a normal CREATE that should succeed.
+    row_a = await _stage(db_session, batch, name="Good One")
+
+    # Row B — LINK with a program_id that does not exist → scalar_one() raises.
+    row_b = await _stage(db_session, batch, name="Bad Row")
+
+    decisions = [
+        DecisionInput(staging_id=row_a.id, action=MatchAction.CREATE),
+        DecisionInput(staging_id=row_b.id, action=MatchAction.LINK, program_id=uuid4()),
+    ]
+    result = await apply_decisions(db_session, batch, decisions, user_id=None)
+
+    # Row A must have been persisted despite row B failing.
+    good_prog = (
+        await db_session.execute(select(ProgramDB).where(ProgramDB.name == "Good One"))
+    ).scalar_one_or_none()
+    assert good_prog is not None, "Row A's program was discarded — savepoint not applied"
+    assert result.created_programs == 1, "created_programs counter is wrong"
+    assert result.applied == 1, "applied counter is wrong"
