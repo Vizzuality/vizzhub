@@ -18,10 +18,11 @@ from app.core.services.overview_import import (
 )
 from app.modules.portfolio.schemas.import_ import (
     ApplyResult,
-    MatchCandidate,
+    CurrentProgram,
     MatchDecision,
+    ProjectCandidate,
     StagingMatch,
-    SuggestedMatch,
+    SuggestedProject,
     UploadResult,
 )
 
@@ -58,16 +59,15 @@ async def get_matches(
             client_type_raw=m.client_type_raw,
             service_raw=m.service_raw,
             impact_area_raw=m.impact_area_raw,
-            suggested=SuggestedMatch(
-                action=m.suggested.action,
-                program_id=m.suggested.program_id,
-                project_id=m.suggested.project_id,
-                score=m.suggested.score,
+            suggested_project=SuggestedProject(
+                project_id=m.suggested_project.project_id, score=m.suggested_project.score
             ),
-            candidates=[
-                MatchCandidate(kind=c.kind, id=c.id, name=c.name, score=c.score)
-                for c in m.candidates
+            project_candidates=[
+                ProjectCandidate(id=c.id, name=c.name, score=c.score) for c in m.project_candidates
             ],
+            current_program=CurrentProgram(
+                program_id=m.current_program.program_id, name=m.current_program.name
+            ),
         )
         for m in data
     ]
@@ -85,9 +85,10 @@ async def apply_matches(
     decisions = [
         DecisionInput(
             staging_id=d.staging_id,
-            action=d.action,
-            program_id=d.program_id,
             project_id=d.project_id,
+            program_action=d.program_action,
+            program_id=d.program_id,
+            new_program_name=d.new_program_name,
         )
         for d in payload
     ]

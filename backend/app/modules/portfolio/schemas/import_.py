@@ -1,10 +1,10 @@
-"""Pydantic schemas for the Portfolio Overview import endpoints."""
+"""Pydantic schemas for the Portfolio Overview import endpoints (project-first)."""
 
 from uuid import UUID
 
 from pydantic import BaseModel
 
-from app.core.models.portfolio_overview import MatchAction
+from app.core.models.portfolio_overview import ProgramAction
 
 
 class UploadResult(BaseModel):
@@ -13,16 +13,18 @@ class UploadResult(BaseModel):
     old_count: int
 
 
-class MatchCandidate(BaseModel):
-    kind: str
+class ProjectCandidate(BaseModel):
     id: UUID
     name: str
     score: float
 
 
-class SuggestedMatch(BaseModel):
-    action: MatchAction
+class CurrentProgram(BaseModel):
     program_id: UUID | None = None
+    name: str | None = None
+
+
+class SuggestedProject(BaseModel):
     project_id: UUID | None = None
     score: float
 
@@ -34,21 +36,23 @@ class StagingMatch(BaseModel):
     client_type_raw: str | None = None
     service_raw: str | None = None
     impact_area_raw: str | None = None
-    suggested: SuggestedMatch
-    candidates: list[MatchCandidate]
+    suggested_project: SuggestedProject
+    project_candidates: list[ProjectCandidate]
+    current_program: CurrentProgram
 
 
 class MatchDecision(BaseModel):
     staging_id: UUID
-    action: MatchAction
-    program_id: UUID | None = None
     project_id: UUID | None = None
+    program_action: ProgramAction
+    program_id: UUID | None = None
+    new_program_name: str | None = None
 
 
 class ApplyResult(BaseModel):
     applied: int
-    created_programs: int
-    linked: int
+    programs_created: int
+    projects_linked_to_program: int
     skipped: int
     unmapped_terms: list[str]
     unresolved_clients: list[str]

@@ -13,12 +13,6 @@ from sqlalchemy.sql import func
 from app.database import Base
 
 
-class MatchAction(StrEnum):
-    LINK = "link"
-    CREATE = "create"
-    SKIP = "skip"
-
-
 class ProgramAction(StrEnum):
     INHERIT = "inherit"
     LINK = "link"

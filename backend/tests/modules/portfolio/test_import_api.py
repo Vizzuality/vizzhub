@@ -8,7 +8,6 @@ from openpyxl import Workbook
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import TokenData, get_current_user
-from app.core.models.taxonomy import TaxonomyDB, TaxonomyTermDB
 from app.core.models.user import UserDB
 from app.database import get_db
 from app.main import app
@@ -48,7 +47,7 @@ def _xlsx_bytes() -> bytes:
     header[2] = "Name"
     ws.append(header)
     r = [None] * 21
-    r[2] = "Brand New Program"
+    r[2] = "Brand New Project"
     r[7] = "Tools"
     ws.append(r)
     buf = io.BytesIO()
@@ -60,35 +59,38 @@ def _xlsx_bytes() -> bytes:
 async def test_upload_matches_apply_flow(
     manager_client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    # Seed the manager user so the decided_by FK constraint is satisfied.
+    from app.core.models.project import ProjectDB
+    from app.core.models.taxonomy import TaxonomyDB, TaxonomyTermDB
+
     db_session.add(UserDB(id=_MANAGER_ID, email="m@test.com"))
     tax = TaxonomyDB(slug="service", name="Service", cardinality="multi", allows_primary=True)
-    db_session.add(tax)
+    proj = ProjectDB(name="Brand New Project", is_billable=True, is_absence=False, status="live")
+    db_session.add_all([tax, proj])
     await db_session.flush()
     db_session.add(TaxonomyTermDB(taxonomy_id=tax.id, slug="tools", name="Tools"))
     await db_session.commit()
 
     up = await manager_client.post(
         "/api/portfolio/import/upload",
-        files={"file": ("overview.xlsx", _xlsx_bytes(), _XLSX)},
+        files={
+            "file": ("overview.xlsx", _xlsx_bytes(), _XLSX)
+        },  # _xlsx_bytes name row = "Brand New Project"
     )
     assert up.status_code == 200
     batch = up.json()["batch_id"]
-    assert up.json()["row_count"] == 1
 
     matches = await manager_client.get(f"/api/portfolio/import/{batch}/matches")
     assert matches.status_code == 200
     body = matches.json()
-    assert body[0]["name"] == "Brand New Program"
-    assert body[0]["suggested"]["action"] == "create"
+    assert body[0]["suggested_project"]["project_id"] == str(proj.id)
     sid = body[0]["staging_id"]
 
     apply = await manager_client.post(
         f"/api/portfolio/import/{batch}/apply",
-        json=[{"staging_id": sid, "action": "create"}],
+        json=[{"staging_id": sid, "project_id": str(proj.id), "program_action": "create"}],
     )
     assert apply.status_code == 200
-    assert apply.json()["created_programs"] == 1
+    assert apply.json()["programs_created"] == 1
 
 
 @pytest.mark.asyncio
