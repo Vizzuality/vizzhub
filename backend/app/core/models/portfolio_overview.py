@@ -1,4 +1,4 @@
-"""Portfolio Overview import: staging rows + per-program profile (core)."""
+"""Portfolio Overview import: staging rows + per-project profile (core)."""
 
 from datetime import datetime
 from enum import StrEnum
@@ -17,6 +17,13 @@ class MatchAction(StrEnum):
     LINK = "link"
     CREATE = "create"
     SKIP = "skip"
+
+
+class ProgramAction(StrEnum):
+    INHERIT = "inherit"
+    LINK = "link"
+    CREATE = "create"
+    NONE = "none"
 
 
 class PortfolioOverviewStagingDB(Base):
@@ -47,10 +54,10 @@ class PortfolioOverviewStagingDB(Base):
     matched_project_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True
     )
-    match_action: Mapped[MatchAction | None] = mapped_column(
+    program_action: Mapped[ProgramAction | None] = mapped_column(
         SAEnum(
-            MatchAction,
-            name="portfolio_match_action",
+            ProgramAction,
+            name="portfolio_program_action",
             create_type=False,
             values_callable=lambda enum_cls: [m.value for m in enum_cls],
         ),
@@ -67,9 +74,9 @@ class PortfolioProfileDB(Base):
     __tablename__ = "portfolio_profile"
 
     id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    program_id: Mapped[UUID] = mapped_column(
+    project_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
-        ForeignKey("programs.id", ondelete="CASCADE"),
+        ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
         unique=True,
     )

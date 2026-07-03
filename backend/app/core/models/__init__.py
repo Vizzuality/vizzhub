@@ -18,6 +18,7 @@ from app.core.models.portfolio_overview import (  # noqa: F401
     MatchAction,
     PortfolioOverviewStagingDB,
     PortfolioProfileDB,
+    ProgramAction,
 )
 from app.core.models.program import Program, ProgramCreate, ProgramDB
 from app.core.models.project import (
@@ -60,6 +61,7 @@ __all__ = [
     "PortfolioOverviewStagingDB",
     "PortfolioProfileDB",
     "Program",
+    "ProgramAction",
     "ProgramCreate",
     "ProgramDB",
     "Project",
