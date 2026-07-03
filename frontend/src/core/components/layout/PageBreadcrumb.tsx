@@ -80,7 +80,12 @@ function useBreadcrumbs(): BreadcrumbSegment[] {
   const hubMatch = pathname.match(/^\/projects\/([^/]+)\/([^/]+)$/);
   const isProjectDetail = pathname.match(/^\/scorecard\/[^/]+$/) && pathname !== '/scorecard/global';
 
-  const breadcrumbProjectId = hubMatch ? hubMatch[1] : (isProjectDetail && id ? id : '');
+  let breadcrumbProjectId = '';
+  if (hubMatch) {
+    breadcrumbProjectId = hubMatch[1];
+  } else if (isProjectDetail && id) {
+    breadcrumbProjectId = id;
+  }
   const { data: project } = useProject(breadcrumbProjectId);
 
   if (hubMatch) {

@@ -41,7 +41,7 @@ function isMetricsStale(
   return ageMs > STALE_METRICS_DAYS * 24 * 60 * 60 * 1000;
 }
 
-function StaleMetricsIcon({ latestPeriod }: { latestPeriod: string | null | undefined }): JSX.Element {
+function StaleMetricsIcon({ latestPeriod }: Readonly<{ latestPeriod: string | null | undefined }>): JSX.Element {
   const label = latestPeriod
     ? `No fresh metrics since ${latestPeriod}. Re-capture from the project page.`
     : 'No metrics captured yet. Re-capture from the project page.';
@@ -87,7 +87,7 @@ function ScoreBadge({ score, thresholds }: { score: number | null | undefined; t
   );
 }
 
-export default function ProjectCard({ project, viewMode = 'list', score, latestPeriod }: ProjectCardProps): JSX.Element {
+export default function ProjectCard({ project, viewMode = 'list', score, latestPeriod }: Readonly<ProjectCardProps>): JSX.Element {
   const thresholds = useScoreThresholds();
   const hasDateRange = project.start_date || project.end_date;
   const isStale = isMetricsStale(project.status, latestPeriod);
