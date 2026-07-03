@@ -66,7 +66,7 @@ function StaleMetricsIcon({ latestPeriod }: Readonly<{ latestPeriod: string | nu
   );
 }
 
-function ScoreBadge({ score, thresholds }: { score: number | null | undefined; thresholds: { green: number; yellow: number } }): JSX.Element | null {
+function ScoreBadge({ score, thresholds }: Readonly<{ score: number | null | undefined; thresholds: { green: number; yellow: number } }>): JSX.Element | null {
   if (score === null || score === undefined) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground">

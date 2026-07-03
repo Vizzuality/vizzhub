@@ -78,7 +78,7 @@ const ICON_CLASS: Record<ModuleCard['iconType'], string> = {
   capacity: 'landing__icon-capacity',
 };
 
-function CardIcon({ type }: { type: ModuleCard['iconType'] }): JSX.Element {
+function CardIcon({ type }: Readonly<{ type: ModuleCard['iconType'] }>): JSX.Element {
   return <span className={`landing__card-icon ${ICON_CLASS[type]}`} />;
 }
 
