@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.models.portfolio_overview import MatchAction, PortfolioOverviewStagingDB
 from app.core.models.program import ProgramDB
 from app.core.models.project import ProjectDB
-from app.core.services.name_matching import rank
+from app.core.services.name_matching import Scored, rank
 
 logger = structlog.get_logger()
 
@@ -189,7 +189,7 @@ class StagingMatchData:
 
 async def _match_targets(
     db: AsyncSession,
-) -> tuple[list[tuple[str, tuple[str, UUID, str]]], ...]:
+) -> tuple[list[tuple[str, tuple[str, UUID, str]]], list[tuple[str, tuple[str, UUID, str]]]]:
     programs = (await db.execute(select(ProgramDB.id, ProgramDB.name))).all()
     projects = (
         await db.execute(
@@ -205,7 +205,7 @@ async def _match_targets(
     return prog_cands, proj_cands
 
 
-def _suggest(is_old: bool, ranked: list) -> SuggestedData:
+def _suggest(is_old: bool, ranked: list[Scored]) -> SuggestedData:
     if is_old:
         return SuggestedData(MatchAction.SKIP, None, None, 0.0)
     best_prog = next((s for s in ranked if s.payload[0] == "program"), None)
