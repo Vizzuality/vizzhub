@@ -6,9 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.client import ClientDB
 from app.core.models.portfolio_overview import (
-    MatchAction,
     PortfolioOverviewStagingDB,
     PortfolioProfileDB,
+    ProgramAction,
 )
 from app.core.models.program import ProgramDB
 from app.core.models.project import ProjectDB
@@ -17,18 +17,14 @@ from app.core.services.overview_import import DecisionInput, apply_decisions
 
 
 async def _seed_taxonomies(db: AsyncSession) -> None:
-    ct = TaxonomyDB(
-        slug="client-type", name="Client type", cardinality="single", allows_primary=False
-    )
     impact = TaxonomyDB(
         slug="impact-area", name="Impact area", cardinality="multi", allows_primary=True
     )
     topics = TaxonomyDB(slug="topics", name="Topics", cardinality="multi", allows_primary=False)
-    db.add_all([ct, impact, topics])
+    db.add_all([impact, topics])
     await db.flush()
     db.add_all(
         [
-            TaxonomyTermDB(taxonomy_id=ct.id, slug="ngo", name="NGO"),
             TaxonomyTermDB(taxonomy_id=impact.id, slug="nature", name="Nature"),
             TaxonomyTermDB(taxonomy_id=impact.id, slug="climate", name="Climate"),
         ]
@@ -36,7 +32,14 @@ async def _seed_taxonomies(db: AsyncSession) -> None:
     await db.flush()
 
 
-async def _stage(db: AsyncSession, batch, **kw) -> PortfolioOverviewStagingDB:
+async def _proj(db, name, **kw) -> ProjectDB:
+    p = ProjectDB(name=name, is_billable=True, is_absence=False, status="live", **kw)
+    db.add(p)
+    await db.flush()
+    return p
+
+
+async def _stage(db, batch, **kw) -> PortfolioOverviewStagingDB:
     row = PortfolioOverviewStagingDB(
         import_batch=batch, row_index=3, name=kw.pop("name", "X"), **kw
     )
@@ -46,161 +49,157 @@ async def _stage(db: AsyncSession, batch, **kw) -> PortfolioOverviewStagingDB:
 
 
 @pytest.mark.asyncio
-async def test_create_new_program_writes_profile_and_terms(db_session: AsyncSession) -> None:
+async def test_create_program_and_project_profile_and_terms(db_session: AsyncSession) -> None:
     await _seed_taxonomies(db_session)
+    proj = await _proj(db_session, "Airqast")
     batch = uuid4()
     row = await _stage(
         db_session,
         batch,
-        name="Brand New Program",
-        client_type_raw="NGO",
+        name="Airqast",
         impact_area_raw="Nature, Climate",
-        topics_raw="Forest",
-        objective="Save forests",
+        topics_raw="Air quality",
+        objective="Clean air",
     )
     result = await apply_decisions(
         db_session,
         batch,
-        [DecisionInput(staging_id=row.id, action=MatchAction.CREATE)],
+        [DecisionInput(staging_id=row.id, project_id=proj.id, program_action=ProgramAction.CREATE)],
         user_id=None,
     )
-    assert result.created_programs == 1
-    prog = (
-        await db_session.execute(select(ProgramDB).where(ProgramDB.name == "Brand New Program"))
-    ).scalar_one()
+    assert result.programs_created == 1
+    await db_session.refresh(proj)
+    assert proj.program_id is not None
     profile = (
         await db_session.execute(
-            select(PortfolioProfileDB).where(PortfolioProfileDB.program_id == prog.id)
+            select(PortfolioProfileDB).where(PortfolioProfileDB.project_id == proj.id)
         )
     ).scalar_one()
-    assert profile.objective == "Save forests"
-    term_count = (
+    assert profile.objective == "Clean air"
+    n = (
         await db_session.execute(
-            select(func.count()).select_from(EntityTermDB).where(EntityTermDB.program_id == prog.id)
+            select(func.count()).select_from(EntityTermDB).where(EntityTermDB.project_id == proj.id)
         )
     ).scalar_one()
-    assert term_count == 4  # NGO + Nature + Climate + Forest(created)
-    forest = (
-        await db_session.execute(select(TaxonomyTermDB).where(TaxonomyTermDB.name == "Forest"))
-    ).scalar_one()
-    assert forest.slug == "forest"
+    assert n == 3  # Nature + Climate + Air quality(created); all on the PROJECT
 
 
 @pytest.mark.asyncio
-async def test_unknown_controlled_term_reported_not_created(db_session: AsyncSession) -> None:
+async def test_inherit_leaves_program(db_session: AsyncSession) -> None:
     await _seed_taxonomies(db_session)
-    batch = uuid4()
-    row = await _stage(db_session, batch, name="P2", impact_area_raw="Nature, Unicorns")
-    result = await apply_decisions(
-        db_session,
-        batch,
-        [DecisionInput(staging_id=row.id, action=MatchAction.CREATE)],
-        user_id=None,
-    )
-    assert any("Unicorns" in u for u in result.unmapped_terms)
-
-
-@pytest.mark.asyncio
-async def test_create_from_project_sets_program_id(db_session: AsyncSession) -> None:
-    await _seed_taxonomies(db_session)
-    proj = ProjectDB(name="Airqast", is_billable=True, is_absence=False, status="live")
-    db_session.add(proj)
+    prog = ProgramDB(name="Aqueduct")
+    db_session.add(prog)
     await db_session.flush()
+    proj = await _proj(db_session, "Aqueduct maintenance", program_id=prog.id)
     batch = uuid4()
-    row = await _stage(db_session, batch, name="Airqast")
+    row = await _stage(db_session, batch, name="Aqueduct maintenance")
     await apply_decisions(
         db_session,
         batch,
-        [DecisionInput(staging_id=row.id, action=MatchAction.CREATE, project_id=proj.id)],
+        [
+            DecisionInput(
+                staging_id=row.id, project_id=proj.id, program_action=ProgramAction.INHERIT
+            )
+        ],
         user_id=None,
     )
     await db_session.refresh(proj)
-    assert proj.program_id is not None
+    assert proj.program_id == prog.id
 
 
 @pytest.mark.asyncio
-async def test_client_cascade_only_fills_null(db_session: AsyncSession) -> None:
+async def test_skip_when_no_project(db_session: AsyncSession) -> None:
+    await _seed_taxonomies(db_session)
+    batch = uuid4()
+    row = await _stage(db_session, batch, name="Ghost")
+    result = await apply_decisions(
+        db_session,
+        batch,
+        [DecisionInput(staging_id=row.id, project_id=None, program_action=ProgramAction.NONE)],
+        user_id=None,
+    )
+    assert result.skipped == 1
+    assert result.applied == 0
+
+
+@pytest.mark.asyncio
+async def test_client_cascade_to_program_siblings_only_null(db_session: AsyncSession) -> None:
     await _seed_taxonomies(db_session)
     client = ClientDB(name="World Resources Institute", slug="world-resources-institute")
-    db_session.add(client)
     prog = ProgramDB(name="GFW")
-    db_session.add(prog)
+    db_session.add_all([client, prog])
     await db_session.flush()
-    filled = ClientDB(name="Existing", slug="existing")
-    db_session.add(filled)
+    filled_client = ClientDB(name="Existing", slug="existing")
+    db_session.add(filled_client)
     await db_session.flush()
-    p1 = ProjectDB(name="p1", is_billable=True, is_absence=False, status="live", program_id=prog.id)
-    p2 = ProjectDB(
-        name="p2",
-        is_billable=True,
-        is_absence=False,
-        status="live",
-        program_id=prog.id,
-        client_id=filled.id,
+    target = await _proj(db_session, "GFW platform", program_id=prog.id)
+    sibling_null = await _proj(db_session, "GFW sib A", program_id=prog.id)
+    sibling_set = await _proj(
+        db_session, "GFW sib B", program_id=prog.id, client_id=filled_client.id
     )
-    db_session.add_all([p1, p2])
-    await db_session.flush()
     batch = uuid4()
-    row = await _stage(db_session, batch, name="GFW", main_partner="World Resources Institute")
+    row = await _stage(
+        db_session, batch, name="GFW platform", main_partner="World Resources Institute"
+    )
     await apply_decisions(
         db_session,
         batch,
-        [DecisionInput(staging_id=row.id, action=MatchAction.LINK, program_id=prog.id)],
+        [
+            DecisionInput(
+                staging_id=row.id, project_id=target.id, program_action=ProgramAction.INHERIT
+            )
+        ],
         user_id=None,
     )
-    await db_session.refresh(p1)
-    await db_session.refresh(p2)
-    assert p1.client_id == client.id  # was NULL -> filled
-    assert p2.client_id == filled.id  # curated link untouched
-
-
-@pytest.mark.asyncio
-async def test_reapply_is_idempotent_on_terms(db_session: AsyncSession) -> None:
-    await _seed_taxonomies(db_session)
-    batch = uuid4()
-    row = await _stage(db_session, batch, name="Idem", impact_area_raw="Nature")
-    d = [DecisionInput(staging_id=row.id, action=MatchAction.CREATE)]
-    await apply_decisions(db_session, batch, d, user_id=None)
-    prog = (
-        await db_session.execute(select(ProgramDB).where(ProgramDB.name == "Idem"))
-    ).scalar_one()
-    # Re-apply as LINK to the same program
-    await apply_decisions(
-        db_session,
-        batch,
-        [DecisionInput(staging_id=row.id, action=MatchAction.LINK, program_id=prog.id)],
-        user_id=None,
-    )
-    count = (
-        await db_session.execute(
-            select(func.count()).select_from(EntityTermDB).where(EntityTermDB.program_id == prog.id)
-        )
-    ).scalar_one()
-    assert count == 1  # not duplicated
+    for p in (target, sibling_null, sibling_set):
+        await db_session.refresh(p)
+    assert target.client_id == client.id
+    assert sibling_null.client_id == client.id  # NULL sibling filled
+    assert sibling_set.client_id == filled_client.id  # curated untouched
 
 
 @pytest.mark.asyncio
 async def test_failing_row_does_not_discard_prior_rows(db_session: AsyncSession) -> None:
-    """A row that raises during apply_decisions must not roll back previously applied rows."""
     await _seed_taxonomies(db_session)
+    good = await _proj(db_session, "Good One")
     batch = uuid4()
-
-    # Row A — a normal CREATE that should succeed.
     row_a = await _stage(db_session, batch, name="Good One")
+    row_b = await _stage(db_session, batch, name="Bad One")
+    result = await apply_decisions(
+        db_session,
+        batch,
+        [
+            DecisionInput(
+                staging_id=row_a.id, project_id=good.id, program_action=ProgramAction.CREATE
+            ),
+            # LINK to a non-existent program → _resolve_program raises inside its savepoint
+            DecisionInput(
+                staging_id=row_b.id,
+                project_id=good.id,
+                program_action=ProgramAction.LINK,
+                program_id=uuid4(),
+            ),
+        ],
+        user_id=None,
+    )
+    await db_session.refresh(good)
+    assert good.program_id is not None  # row A persisted
+    assert result.programs_created == 1
+    assert result.applied == 1
 
-    # Row B — LINK with a program_id that does not exist → scalar_one() raises.
-    row_b = await _stage(db_session, batch, name="Bad Row")
 
-    decisions = [
-        DecisionInput(staging_id=row_a.id, action=MatchAction.CREATE),
-        DecisionInput(staging_id=row_b.id, action=MatchAction.LINK, program_id=uuid4()),
-    ]
-    result = await apply_decisions(db_session, batch, decisions, user_id=None)
-
-    # Row A must have been persisted despite row B failing.
-    good_prog = (
-        await db_session.execute(select(ProgramDB).where(ProgramDB.name == "Good One"))
-    ).scalar_one_or_none()
-    assert good_prog is not None, "Row A's program was discarded — savepoint not applied"
-    assert result.created_programs == 1, "created_programs counter is wrong"
-    assert result.applied == 1, "applied counter is wrong"
+@pytest.mark.asyncio
+async def test_reapply_idempotent_on_terms(db_session: AsyncSession) -> None:
+    await _seed_taxonomies(db_session)
+    proj = await _proj(db_session, "Idem")
+    batch = uuid4()
+    row = await _stage(db_session, batch, name="Idem", impact_area_raw="Nature")
+    d = [DecisionInput(staging_id=row.id, project_id=proj.id, program_action=ProgramAction.NONE)]
+    await apply_decisions(db_session, batch, d, user_id=None)
+    await apply_decisions(db_session, batch, d, user_id=None)
+    n = (
+        await db_session.execute(
+            select(func.count()).select_from(EntityTermDB).where(EntityTermDB.project_id == proj.id)
+        )
+    ).scalar_one()
+    assert n == 1
