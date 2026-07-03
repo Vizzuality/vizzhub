@@ -1,16 +1,19 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-
-const TABS = [
-  { to: '/admin/portfolio', label: 'Clients', end: true },
-  { to: '/admin/portfolio/dashboard', label: 'Dashboard', end: false },
-];
+import { usePermission } from '@/core/permissions/usePermission';
+import { Action } from '@/core/permissions/constants';
 
 export default function PortfolioLayout(): JSX.Element {
+  const canManage = usePermission(Action.PORTFOLIO_MANAGE);
+  const tabs = [
+    { to: '/admin/portfolio', label: 'Clients', end: true },
+    { to: '/admin/portfolio/dashboard', label: 'Dashboard', end: false },
+    ...(canManage ? [{ to: '/admin/portfolio/import', label: 'Import', end: false }] : []),
+  ];
   return (
     <div className="space-y-4">
       <nav className="flex gap-1 border-b">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <NavLink
             key={t.to}
             to={t.to}
