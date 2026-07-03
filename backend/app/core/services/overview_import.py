@@ -2,16 +2,26 @@
 
 import io
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from uuid import UUID
 
 import structlog
 from openpyxl import load_workbook
 from sqlalchemy import delete, select
+from sqlalchemy import delete as sa_delete
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql import func
 
-from app.core.models.portfolio_overview import MatchAction, PortfolioOverviewStagingDB
+from app.core.api.clients import slugify
+from app.core.models.client import ClientDB
+from app.core.models.portfolio_overview import (
+    MatchAction,
+    PortfolioOverviewStagingDB,
+    PortfolioProfileDB,
+)
 from app.core.models.program import ProgramDB
 from app.core.models.project import ProjectDB
+from app.core.models.taxonomy import EntityTermDB, TaxonomyDB, TaxonomyTermDB
 from app.core.services.name_matching import Scored, rank
 
 logger = structlog.get_logger()
@@ -251,3 +261,224 @@ async def build_matches(db: AsyncSession, batch_id: UUID) -> list[StagingMatchDa
             )
         )
     return result
+
+
+_TAXONOMY_FIELD = {
+    "client-type": "client_type_raw",
+    "service": "service_raw",
+    "impact-area": "impact_area_raw",
+    "topics": "topics_raw",
+}
+_OPEN_TAXONOMIES = {"topics"}
+
+
+@dataclass
+class DecisionInput:
+    staging_id: UUID
+    action: MatchAction
+    program_id: UUID | None = None
+    project_id: UUID | None = None
+
+
+@dataclass
+class ApplyResult:
+    applied: int
+    created_programs: int
+    linked: int
+    skipped: int
+    unmapped_terms: list[str]
+    unresolved_clients: list[str]
+
+
+async def _unique_program_name(db: AsyncSession, base: str) -> str:
+    name = base.strip()[:255]
+    suffix = 2
+    while (
+        await db.execute(select(ProgramDB.id).where(ProgramDB.name == name))
+    ).first() is not None:
+        name = f"{base.strip()[:248]} ({suffix})"
+        suffix += 1
+    return name
+
+
+async def _resolve_program(
+    db: AsyncSession, row: PortfolioOverviewStagingDB, d: DecisionInput
+) -> ProgramDB:
+    if d.action == MatchAction.LINK:
+        return (
+            await db.execute(select(ProgramDB).where(ProgramDB.id == d.program_id))
+        ).scalar_one()
+    if d.project_id is not None:
+        proj = (
+            await db.execute(select(ProjectDB).where(ProjectDB.id == d.project_id))
+        ).scalar_one()
+        prog = ProgramDB(name=await _unique_program_name(db, proj.name))
+        db.add(prog)
+        await db.flush()
+        proj.program_id = prog.id
+        await db.flush()
+        return prog
+    prog = ProgramDB(name=await _unique_program_name(db, row.name))
+    db.add(prog)
+    await db.flush()
+    return prog
+
+
+async def _upsert_profile(
+    db: AsyncSession, row: PortfolioOverviewStagingDB, program_id: UUID
+) -> None:
+    profile = (
+        await db.execute(
+            select(PortfolioProfileDB).where(PortfolioProfileDB.program_id == program_id)
+        )
+    ).scalar_one_or_none()
+    if profile is None:
+        profile = PortfolioProfileDB(program_id=program_id)
+        db.add(profile)
+    profile.objective = row.objective
+    profile.short_description = row.short_description
+    profile.web_copy = row.web_copy
+    profile.impact_story = row.impact_story
+    profile.stage = row.stage
+    profile.main_partner = row.main_partner
+    profile.on_website = bool(row.on_website)
+    profile.source_batch = row.import_batch
+    await db.flush()
+
+
+async def _apply_terms(
+    db: AsyncSession, row: PortfolioOverviewStagingDB, program_id: UUID, user_id: str | None
+) -> list[str]:
+    unmapped: list[str] = []
+    taxonomies = (await db.execute(select(TaxonomyDB))).scalars().all()
+    by_slug = {t.slug: t for t in taxonomies}
+    for slug, field in _TAXONOMY_FIELD.items():
+        tax = by_slug.get(slug)
+        raw = getattr(row, field)
+        if tax is None or not raw:
+            continue
+        # Replace this program's terms for this taxonomy (idempotent).
+        await db.execute(
+            sa_delete(EntityTermDB).where(
+                EntityTermDB.program_id == program_id, EntityTermDB.taxonomy_id == tax.id
+            )
+        )
+        values = [v.strip() for v in raw.split(",") if v.strip()]
+        if tax.cardinality == "single":
+            values = values[:1]
+        first = True
+        for value in values:
+            term = (
+                await db.execute(
+                    select(TaxonomyTermDB).where(
+                        TaxonomyTermDB.taxonomy_id == tax.id,
+                        func.lower(TaxonomyTermDB.name) == value.lower(),
+                    )
+                )
+            ).scalar_one_or_none()
+            if term is None:
+                if slug in _OPEN_TAXONOMIES:
+                    term = TaxonomyTermDB(taxonomy_id=tax.id, slug=slugify(value), name=value)
+                    db.add(term)
+                    await db.flush()
+                else:
+                    unmapped.append(f"{slug}: {value}")
+                    continue
+            db.add(
+                EntityTermDB(
+                    term_id=term.id,
+                    taxonomy_id=tax.id,
+                    program_id=program_id,
+                    is_primary=first and tax.allows_primary,
+                    assigned_by=UUID(user_id) if user_id else None,
+                )
+            )
+            first = False
+        await db.flush()
+    return unmapped
+
+
+async def _cascade_client(
+    db: AsyncSession, row: PortfolioOverviewStagingDB, program_id: UUID
+) -> str | None:
+    if not row.main_partner:
+        return None
+    clients = (await db.execute(select(ClientDB.id, ClientDB.name))).all()
+    ranked = rank(row.main_partner, [(c.name, c.id) for c in clients], limit=1, threshold=0.9)
+    if not ranked:
+        return row.main_partner
+    client_id = ranked[0].payload
+    await db.execute(
+        ProjectDB.__table__.update()
+        .where(ProjectDB.program_id == program_id, ProjectDB.client_id.is_(None))
+        .values(client_id=client_id)
+    )
+    if row.client_contact:
+        client = (await db.execute(select(ClientDB).where(ClientDB.id == client_id))).scalar_one()
+        if not client.primary_contact:
+            client.primary_contact = row.client_contact[:255]
+    await db.flush()
+    return None
+
+
+async def apply_decisions(
+    db: AsyncSession, batch_id: UUID, decisions: list[DecisionInput], user_id: str | None
+) -> ApplyResult:
+    applied = created = linked = skipped = 0
+    unmapped: list[str] = []
+    unresolved: list[str] = []
+    for d in decisions:
+        row = (
+            await db.execute(
+                select(PortfolioOverviewStagingDB).where(
+                    PortfolioOverviewStagingDB.id == d.staging_id,
+                    PortfolioOverviewStagingDB.import_batch == batch_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if row is None:
+            continue
+        try:
+            if d.action == MatchAction.SKIP:
+                row.match_action = MatchAction.SKIP
+                row.decided_by = UUID(user_id) if user_id else None
+                row.decided_at = datetime.now(UTC)
+                await db.flush()
+                skipped += 1
+                continue
+            program = await _resolve_program(db, row, d)
+            await _upsert_profile(db, row, program.id)
+            unmapped.extend(await _apply_terms(db, row, program.id, user_id))
+            unresolved_client = await _cascade_client(db, row, program.id)
+            if unresolved_client:
+                unresolved.append(unresolved_client)
+            row.match_action = d.action
+            row.matched_program_id = program.id
+            row.matched_project_id = d.project_id
+            row.decided_by = UUID(user_id) if user_id else None
+            row.decided_at = datetime.now(UTC)
+            await db.flush()
+            applied += 1
+            if d.action == MatchAction.LINK:
+                linked += 1
+            else:
+                created += 1
+        except Exception:
+            await db.rollback()
+            logger.warning("portfolio_overview_row_failed", staging_id=str(d.staging_id))
+    logger.info(
+        "portfolio_overview_applied",
+        batch_id=str(batch_id),
+        applied=applied,
+        created=created,
+        linked=linked,
+        skipped=skipped,
+    )
+    return ApplyResult(
+        applied=applied,
+        created_programs=created,
+        linked=linked,
+        skipped=skipped,
+        unmapped_terms=unmapped,
+        unresolved_clients=unresolved,
+    )
