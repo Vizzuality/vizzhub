@@ -4,46 +4,63 @@ import { usePermission } from '@/core/permissions/usePermission';
 import { Action } from '@/core/permissions/constants';
 import { Button } from '@/shared/components/ui/button';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/shared/components/ui/alert-dialog';
 import { usePrograms } from '@/core/hooks/usePrograms';
 import {
   useApplyOverview,
+  useCurrentImportBatch,
   useImportProjects,
   useOverviewMatches,
+  useSaveDecision,
   useUploadOverview,
 } from '../hooks/useOverviewImport';
 import { ProjectPicker } from '../components/ProjectPicker';
 import { ProgramPicker } from '../components/ProgramPicker';
-import type { OverviewDecision, OverviewProjectCandidate } from '../types/portfolio';
-import {
-  mergePrograms,
-  seedDecisions,
-  type DecisionMap,
-} from '../utils/importDecisions';
+import type {
+  OverviewDecision,
+  OverviewProjectCandidate,
+} from '../types/portfolio';
+import { mergePrograms, seedDecisions, type DecisionMap } from '../utils/importDecisions';
 
 export default function PortfolioImport(): JSX.Element {
   const canManage = usePermission(Action.PORTFOLIO_MANAGE);
   const [batchId, setBatchId] = useState<string | null>(null);
   const [decisions, setDecisions] = useState<DecisionMap>({});
+  const current = useCurrentImportBatch();
   const upload = useUploadOverview();
   const apply = useApplyOverview();
+  const save = useSaveDecision();
   const { data: matches, isLoading } = useOverviewMatches(batchId);
   const { data: programs = [] } = usePrograms();
   const { data: importProjects = [] } = useImportProjects();
-
-  const decisionList = useMemo(() => Object.values(decisions), [decisions]);
 
   const allProjects: OverviewProjectCandidate[] = useMemo(
     () => importProjects.map((p) => ({ id: p.id, name: p.name, score: 0 })),
     [importProjects],
   );
-
-  // Look up a project's real program to derive program context when the reviewer
-  // picks any project (not just the server-suggested one).
   const programByProject = useMemo(
     () => new Map(importProjects.map((p) => [p.id, p.program_id])),
     [importProjects],
   );
 
+  // Resume an in-progress batch on load.
+  useEffect(() => {
+    if (!batchId && current.data) {
+      setBatchId(current.data.batch_id);
+    }
+  }, [batchId, current.data]);
+
+  // Seed the editable map from persisted decisions when matches arrive.
   useEffect(() => {
     if (matches && matches.length > 0) {
       setDecisions((prev) => (Object.keys(prev).length === 0 ? seedDecisions(matches) : prev));
@@ -60,12 +77,31 @@ export default function PortfolioImport(): JSX.Element {
     setBatchId(res.batch_id);
   };
 
-  const patch = (id: string, p: Partial<OverviewDecision>): void =>
-    setDecisions((prev) => ({ ...prev, [id]: { ...prev[id], ...p } }));
+  // Local optimistic update + persist the row's decision. Compute the merged decision from the
+  // current render's state, apply it locally, then fire the PATCH — never call the mutation inside
+  // the setState updater (that side-effects a reducer and double-fires under React StrictMode).
+  const patch = (id: string, p: Partial<OverviewDecision>): void => {
+    const next: OverviewDecision = { ...decisions[id], ...p, staging_id: id };
+    setDecisions((prev) => ({ ...prev, [id]: next }));
+    if (batchId) {
+      save.mutate({
+        batchId,
+        stagingId: id,
+        patch: {
+          project_id: next.project_id ?? null,
+          program_action: next.program_action,
+          program_id: next.program_id ?? null,
+          new_program_name: next.new_program_name ?? null,
+        },
+      });
+    }
+  };
+
+  const showUpload = !batchId;
 
   return (
     <div className="space-y-4">
-      {!batchId && (
+      {showUpload && (
         <div className="rounded-md border border-dashed p-6 text-center">
           <p className="mb-3 text-sm text-muted-foreground">
             Upload the Portfolio Overview spreadsheet (.xlsx).
@@ -88,13 +124,48 @@ export default function PortfolioImport(): JSX.Element {
       {batchId && matches && (
         <>
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">{matches.length} rows staged</span>
-            <Button
-              onClick={() => apply.mutate({ batchId, decisions: decisionList })}
-              disabled={apply.isPending}
-            >
-              Apply {decisionList.length} decisions
-            </Button>
+            <span className="text-sm text-muted-foreground">
+              {matches.length} rows ·{' '}
+              {save.isError ? (
+                <span className="text-aux-yellow">
+                  A change failed to save — reload to see the saved state
+                </span>
+              ) : save.isPending ? (
+                'Saving…'
+              ) : (
+                'changes save automatically'
+              )}
+            </span>
+            <div className="flex items-center gap-2">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline">Start over</Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Discard the review in progress?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Uploading a new spreadsheet discards the current review and its saved
+                      decisions.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => {
+                        setBatchId(null);
+                        setDecisions({});
+                      }}
+                    >
+                      Discard &amp; upload new
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <Button onClick={() => apply.mutate(batchId)} disabled={apply.isPending}>
+                Apply
+              </Button>
+            </div>
           </div>
 
           <ul className="divide-y">
@@ -131,7 +202,8 @@ export default function PortfolioImport(): JSX.Element {
                                 ? 'link'
                                 : 'create',
                             program_id: projectProgram ?? m.suggested_program.program_id ?? null,
-                            new_program_name: allProjects.find((p) => p.id === pid)?.name ?? m.name,
+                            new_program_name:
+                              allProjects.find((p) => p.id === pid)?.name ?? m.name,
                           });
                         } else {
                           patch(m.staging_id, {
@@ -162,9 +234,7 @@ export default function PortfolioImport(): JSX.Element {
                           new_program_name: m.name,
                         })
                       }
-                      onNone={() =>
-                        patch(m.staging_id, { program_action: 'none', program_id: null })
-                      }
+                      onNone={() => patch(m.staging_id, { program_action: 'none', program_id: null })}
                     />
                   </div>
                 </li>

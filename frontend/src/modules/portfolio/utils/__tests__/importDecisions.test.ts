@@ -15,31 +15,46 @@ function makeMatch(overrides: Partial<OverviewMatch>): OverviewMatch {
     current_program: { program_id: null, name: null },
     program_candidates: [],
     suggested_program: { program_id: null, score: 0 },
+    saved_decision: null,
     ...overrides,
   };
 }
 
-describe('seedDecisions (program-first default)', () => {
-  it('links the fuzzy-matched program with no project anchor', () => {
+describe('seedDecisions (re-hydrates from saved_decision)', () => {
+  it('reads the persisted LINK decision', () => {
     const d = seedDecisions([
-      makeMatch({ suggested_program: { program_id: 'prog-1', score: 0.9 } }),
+      makeMatch({
+        saved_decision: {
+          project_id: null,
+          program_action: 'link',
+          program_id: 'prog-1',
+          new_program_name: null,
+        },
+      }),
     ]).s1;
     expect(d.project_id).toBeNull();
     expect(d.program_action).toBe('link');
     expect(d.program_id).toBe('prog-1');
   });
 
-  it('creates a program from the row name when no program matches', () => {
-    const d = seedDecisions([makeMatch({ name: 'Marxan' })]).s1;
-    expect(d.project_id).toBeNull();
+  it('reads the persisted CREATE decision', () => {
+    const d = seedDecisions([
+      makeMatch({
+        saved_decision: {
+          project_id: null,
+          program_action: 'create',
+          program_id: null,
+          new_program_name: 'Marxan',
+        },
+      }),
+    ]).s1;
     expect(d.program_action).toBe('create');
     expect(d.new_program_name).toBe('Marxan');
   });
 
-  it('never pre-selects a project even when a strong project candidate exists', () => {
-    const d = seedDecisions([
-      makeMatch({ project_candidates: [{ id: 'proj-1', name: 'GFW 2023', score: 0.95 }] }),
-    ]).s1;
+  it('falls back to none when saved_decision is null', () => {
+    const d = seedDecisions([makeMatch({ saved_decision: null })]).s1;
+    expect(d.program_action).toBe('none');
     expect(d.project_id).toBeNull();
   });
 });

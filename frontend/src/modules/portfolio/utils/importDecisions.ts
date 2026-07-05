@@ -3,29 +3,20 @@ import type { OverviewDecision, OverviewMatch } from '../types/portfolio';
 export type DecisionMap = Record<string, OverviewDecision>;
 
 /**
- * Program-first default: the Overview sheet is a catalogue of programs/products, so every
- * row anchors on a PROGRAM by default — profile + tags live on the program. Link the fuzzy
- * program match if any, else create a program from the row name. The reviewer switches a row
- * to project-anchor via the picker for the tail of one-off projects.
+ * Seed the editable decision map from each row's persisted `saved_decision` (the backend seeds a
+ * program-first default at upload, so it is normally present). Falls back to a `none` decision.
  */
 export function seedDecisions(matches: OverviewMatch[]): DecisionMap {
   const map: DecisionMap = {};
   for (const m of matches) {
-    if (m.suggested_program.program_id) {
-      map[m.staging_id] = {
-        staging_id: m.staging_id,
-        project_id: null,
-        program_action: 'link',
-        program_id: m.suggested_program.program_id,
-      };
-    } else {
-      map[m.staging_id] = {
-        staging_id: m.staging_id,
-        project_id: null,
-        program_action: 'create',
-        new_program_name: m.name,
-      };
-    }
+    const s = m.saved_decision;
+    map[m.staging_id] = {
+      staging_id: m.staging_id,
+      project_id: s?.project_id ?? null,
+      program_action: s?.program_action ?? 'none',
+      program_id: s?.program_id ?? null,
+      new_program_name: s?.new_program_name ?? null,
+    };
   }
   return map;
 }
