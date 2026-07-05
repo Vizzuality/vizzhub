@@ -61,14 +61,26 @@ describe('portfolioApi.import', () => {
     expect((config as { headers: Record<string, unknown> }).headers['Content-Type']).toBeUndefined();
   });
 
-  it('applies decisions', async () => {
-    vi.mocked(api.post).mockResolvedValue({ data: { applied: 1, programs_created: 1, projects_linked_to_program: 1, skipped: 0, unmapped_terms: [], unresolved_clients: [] } });
-    const result = await portfolioApi.import.apply('b1', [
-      { staging_id: 's1', project_id: 'p1', program_action: 'create' },
-    ]);
+  it('applies persisted decisions with no body', async () => {
+    vi.mocked(api.post).mockResolvedValue({ data: { applied: 1, programs_created: 1, projects_linked_to_program: 1, programs_annotated: 0, skipped: 0, unmapped_terms: [], unresolved_clients: [] } });
+    const result = await portfolioApi.import.apply('b1');
     expect(result.programs_created).toBe(1);
-    expect(api.post).toHaveBeenCalledWith('/portfolio/import/b1/apply', [
-      { staging_id: 's1', project_id: 'p1', program_action: 'create' },
-    ]);
+    expect(api.post).toHaveBeenCalledWith('/portfolio/import/b1/apply');
+  });
+
+  it('saves a single decision via PATCH', async () => {
+    vi.mocked(api.patch).mockResolvedValue({ data: undefined });
+    await portfolioApi.import.saveDecision('b1', 's1', {
+      project_id: null,
+      program_action: 'create',
+      program_id: null,
+      new_program_name: 'Aqueduct',
+    });
+    expect(api.patch).toHaveBeenCalledWith('/portfolio/import/b1/decisions/s1', {
+      project_id: null,
+      program_action: 'create',
+      program_id: null,
+      new_program_name: 'Aqueduct',
+    });
   });
 });
