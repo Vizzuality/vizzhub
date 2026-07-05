@@ -69,15 +69,16 @@ async def current_batch(
 async def list_import_projects(
     request: Request, current_user: PortfolioViewer, db: DBSession
 ) -> list[ImportProject]:
-    """All billable, non-absence projects (any status) for the import project picker.
+    """All non-absence projects (any status, billable or not) for the import project picker.
 
-    Mirrors the build_matches candidate universe so finished projects are pickable too,
-    and carries program_id so the UI can derive program context for any chosen project.
+    Mirrors the build_matches candidate universe so finished and non-billable projects are
+    pickable too, and carries program_id so the UI can derive program context for any chosen
+    project.
     """
     rows = (
         await db.execute(
             select(ProjectDB.id, ProjectDB.name, ProjectDB.program_id)
-            .where(ProjectDB.is_billable.is_(True), ProjectDB.is_absence.is_(False))
+            .where(ProjectDB.is_absence.is_(False))
             .order_by(ProjectDB.name)
         )
     ).all()

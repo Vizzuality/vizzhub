@@ -359,3 +359,31 @@ async def test_apply_persisted_stamps_applied_on_skip(db_session: AsyncSession) 
     assert result.skipped == 1
     await db_session.refresh(row)
     assert row.applied_at is not None  # skipped rows are also closed
+
+
+@pytest.mark.asyncio
+async def test_long_open_taxonomy_value_does_not_abort_row(db_session: AsyncSession) -> None:
+    """A free-text topic longer than the slug/name columns must be truncated, not crash."""
+    await _seed_taxonomies(db_session)
+    proj = await _proj(db_session, "FHWCP project")
+    batch = uuid4()
+    long_topic = "Carbon methodologies and data for forests and harvested wood products across the value chain"
+    assert len(long_topic) > 64
+    row = await _stage(db_session, batch, name="FHWCP", topics_raw=long_topic)
+    result = await apply_decisions(
+        db_session,
+        batch,
+        [
+            DecisionInput(
+                staging_id=row.id, project_id=proj.id, program_action=ProgramAction.INHERIT
+            )
+        ],
+        user_id=None,
+    )
+    assert result.applied == 1  # row survived instead of failing silently
+    term = (
+        await db_session.execute(
+            select(TaxonomyTermDB).where(TaxonomyTermDB.name == long_topic[:128])
+        )
+    ).scalar_one()
+    assert len(term.slug) <= 64

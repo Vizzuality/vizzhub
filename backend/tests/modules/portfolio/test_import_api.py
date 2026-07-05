@@ -55,7 +55,8 @@ async def test_list_import_projects_includes_finished_and_carries_program(
         name="CCLOW finished", is_billable=True, is_absence=False, status="finished"
     )
     non_billable = ProjectDB(name="Internal", is_billable=False, is_absence=False, status="live")
-    db_session.add_all([live, finished, non_billable])
+    absence = ProjectDB(name="Holiday", is_billable=False, is_absence=True, status="live")
+    db_session.add_all([live, finished, non_billable, absence])
     await db_session.commit()
 
     resp = await manager_client.get("/api/portfolio/import/projects")
@@ -63,7 +64,8 @@ async def test_list_import_projects_includes_finished_and_carries_program(
     by_name = {p["name"]: p for p in resp.json()}
     assert "TPI live" in by_name
     assert "CCLOW finished" in by_name  # finished projects ARE pickable
-    assert "Internal" not in by_name  # non-billable excluded
+    assert "Internal" in by_name  # non-billable projects ARE pickable
+    assert "Holiday" not in by_name  # absences excluded
     assert by_name["TPI live"]["program_id"] == str(prog.id)
     assert by_name["CCLOW finished"]["program_id"] is None
 

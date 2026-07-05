@@ -36,6 +36,9 @@ export default function PortfolioImport(): JSX.Element {
   const canManage = usePermission(Action.PORTFOLIO_MANAGE);
   const [batchId, setBatchId] = useState<string | null>(null);
   const [decisions, setDecisions] = useState<DecisionMap>({});
+  // Set when the user explicitly starts over, so we stop auto-resuming the batch
+  // that useCurrentImportBatch still returns and let the upload dropzone appear.
+  const [dismissed, setDismissed] = useState(false);
   const current = useCurrentImportBatch();
   const upload = useUploadOverview();
   const apply = useApplyOverview();
@@ -53,12 +56,13 @@ export default function PortfolioImport(): JSX.Element {
     [importProjects],
   );
 
-  // Resume an in-progress batch on load.
+  // Resume an in-progress batch on load. Skipped once the user starts over — a
+  // page reload remounts with dismissed=false, so resume-on-reload still works.
   useEffect(() => {
-    if (!batchId && current.data) {
+    if (!batchId && current.data && !dismissed) {
       setBatchId(current.data.batch_id);
     }
-  }, [batchId, current.data]);
+  }, [batchId, current.data, dismissed]);
 
   // Seed the editable map from persisted decisions when matches arrive.
   useEffect(() => {
@@ -155,6 +159,7 @@ export default function PortfolioImport(): JSX.Element {
                       onClick={() => {
                         setBatchId(null);
                         setDecisions({});
+                        setDismissed(true);
                       }}
                     >
                       Discard &amp; upload new

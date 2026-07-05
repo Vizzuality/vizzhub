@@ -239,7 +239,7 @@ async def build_matches(db: AsyncSession, batch_id: UUID) -> list[StagingMatchDa
     projects = (
         await db.execute(
             select(ProjectDB.id, ProjectDB.name, ProjectDB.program_id).where(
-                ProjectDB.is_billable.is_(True), ProjectDB.is_absence.is_(False)
+                ProjectDB.is_absence.is_(False)
             )
         )
     ).all()
@@ -517,7 +517,11 @@ async def _apply_terms(
             ).scalar_one_or_none()
             if term is None:
                 if slug in _OPEN_TAXONOMIES:
-                    term = TaxonomyTermDB(taxonomy_id=tax.id, slug=slugify(value), name=value)
+                    # taxonomy_terms.slug is varchar(64), name is varchar(128) — a long
+                    # free-text topic would overflow and abort the whole row.
+                    term = TaxonomyTermDB(
+                        taxonomy_id=tax.id, slug=slugify(value)[:64], name=value[:128]
+                    )
                     db.add(term)
                     await db.flush()
                 else:
