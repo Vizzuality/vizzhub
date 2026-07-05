@@ -200,6 +200,14 @@ class SuggestedProgram:
     score: float
 
 
+@dataclass
+class SavedDecision:
+    project_id: UUID | None
+    program_action: ProgramAction | None
+    program_id: UUID | None
+    new_program_name: str | None
+
+
 def _program_first_default(
     name: str, program_pairs: list[tuple[str, UUID]]
 ) -> tuple[ProgramAction, UUID | None, str | None]:
@@ -224,6 +232,7 @@ class StagingMatchData:
     current_program: CurrentProgram
     program_candidates: list[ProgramCandidate]
     suggested_program: SuggestedProgram
+    saved_decision: SavedDecision | None
 
 
 async def build_matches(db: AsyncSession, batch_id: UUID) -> list[StagingMatchData]:
@@ -274,6 +283,16 @@ async def build_matches(db: AsyncSession, batch_id: UUID) -> list[StagingMatchDa
             if best_prog is not None and best_prog.score >= STRONG
             else SuggestedProgram(program_id=None, score=0.0)
         )
+        saved = (
+            SavedDecision(
+                project_id=row.matched_project_id,
+                program_action=row.program_action,
+                program_id=row.matched_program_id,
+                new_program_name=row.new_program_name,
+            )
+            if row.program_action is not None
+            else None
+        )
         result.append(
             StagingMatchData(
                 staging_id=row.id,
@@ -287,6 +306,7 @@ async def build_matches(db: AsyncSession, batch_id: UUID) -> list[StagingMatchDa
                 current_program=current,
                 program_candidates=program_candidates,
                 suggested_program=suggested_program,
+                saved_decision=saved,
             )
         )
     return result
@@ -314,6 +334,38 @@ async def seed_default_decisions(db: AsyncSession, batch_id: UUID) -> None:
         row.matched_project_id = None
         row.new_program_name = new_name
     await db.flush()
+
+
+async def save_decision(
+    db: AsyncSession,
+    batch_id: UUID,
+    staging_id: UUID,
+    *,
+    project_id: UUID | None,
+    program_action: ProgramAction,
+    program_id: UUID | None,
+    new_program_name: str | None,
+    user_id: str | None,
+) -> bool:
+    """Persist one row's draft decision. No domain writes. False if row not in batch."""
+    row = (
+        await db.execute(
+            select(PortfolioOverviewStagingDB).where(
+                PortfolioOverviewStagingDB.id == staging_id,
+                PortfolioOverviewStagingDB.import_batch == batch_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        return False
+    row.matched_project_id = project_id
+    row.program_action = program_action
+    row.matched_program_id = program_id
+    row.new_program_name = new_program_name
+    row.decided_by = UUID(user_id) if user_id else None
+    row.decided_at = datetime.now(UTC)
+    await db.flush()
+    return True
 
 
 @dataclass
