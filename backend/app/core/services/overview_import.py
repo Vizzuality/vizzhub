@@ -200,6 +200,17 @@ class SuggestedProgram:
     score: float
 
 
+def _program_first_default(
+    name: str, program_pairs: list[tuple[str, UUID]]
+) -> tuple[ProgramAction, UUID | None, str | None]:
+    """Program-first default: link the strong fuzzy program match, else create by name."""
+    ranked = rank(name, program_pairs, limit=1, threshold=CANDIDATE_THRESHOLD)
+    best = ranked[0] if ranked else None
+    if best is not None and best.score >= STRONG:
+        return ProgramAction.LINK, best.payload, None
+    return ProgramAction.CREATE, None, name
+
+
 @dataclass
 class StagingMatchData:
     staging_id: UUID
@@ -279,6 +290,53 @@ async def build_matches(db: AsyncSession, batch_id: UUID) -> list[StagingMatchDa
             )
         )
     return result
+
+
+async def seed_default_decisions(db: AsyncSession, batch_id: UUID) -> None:
+    """Persist a program-first default decision per staged row (project_id NULL)."""
+    prog_names = dict((await db.execute(select(ProgramDB.id, ProgramDB.name))).all())
+    program_pairs = [(name, pid) for pid, name in prog_names.items()]
+    rows = (
+        (
+            await db.execute(
+                select(PortfolioOverviewStagingDB).where(
+                    PortfolioOverviewStagingDB.import_batch == batch_id
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for row in rows:
+        action, program_id, new_name = _program_first_default(row.name, program_pairs)
+        row.program_action = action
+        row.matched_program_id = program_id
+        row.matched_project_id = None
+        row.new_program_name = new_name
+    await db.flush()
+
+
+@dataclass
+class CurrentBatch:
+    batch_id: UUID
+    row_count: int
+
+
+async def get_current_batch(db: AsyncSession) -> CurrentBatch | None:
+    """The batch that still has unapplied rows (single-batch invariant), or None."""
+    row = (
+        await db.execute(
+            select(
+                PortfolioOverviewStagingDB.import_batch,
+                func.count(),
+            )
+            .where(PortfolioOverviewStagingDB.applied_at.is_(None))
+            .group_by(PortfolioOverviewStagingDB.import_batch)
+        )
+    ).first()
+    if row is None:
+        return None
+    return CurrentBatch(batch_id=row[0], row_count=row[1])
 
 
 _TAXONOMY_FIELD = {
