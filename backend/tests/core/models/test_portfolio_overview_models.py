@@ -79,3 +79,37 @@ async def test_profile_rejects_both_null(db_session: AsyncSession) -> None:
     db_session.add(PortfolioProfileDB(objective="orphan"))
     with _pytest.raises(IntegrityError):
         await db_session.flush()
+
+
+@pytest.mark.asyncio
+async def test_staging_draft_columns_roundtrip(db_session: AsyncSession) -> None:
+    from datetime import UTC, datetime
+    from uuid import uuid4
+
+    from app.core.models.portfolio_overview import (
+        PortfolioOverviewStagingDB,
+        ProgramAction,
+    )
+
+    batch = uuid4()
+    now = datetime.now(UTC)
+    db_session.add(
+        PortfolioOverviewStagingDB(
+            import_batch=batch,
+            row_index=1,
+            name="Row A",
+            program_action=ProgramAction.CREATE,
+            new_program_name="Row A",
+            applied_at=now,
+        )
+    )
+    await db_session.flush()
+    got = (
+        await db_session.execute(
+            select(PortfolioOverviewStagingDB).where(
+                PortfolioOverviewStagingDB.import_batch == batch
+            )
+        )
+    ).scalar_one()
+    assert got.new_program_name == "Row A"
+    assert got.applied_at is not None
