@@ -1,11 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/core/hooks/queryKeys';
 import { portfolioApi } from '../services/portfolio';
-import type { OverviewDecision } from '../types/portfolio';
+import type { OverviewDecisionPatch } from '../types/portfolio';
 
 export function useUploadOverview() {
   return useMutation({
     mutationFn: (file: File) => portfolioApi.import.upload(file),
+  });
+}
+
+export function useCurrentImportBatch() {
+  return useQuery({
+    queryKey: queryKeys.portfolio.import.current,
+    queryFn: () => portfolioApi.import.current(),
   });
 }
 
@@ -25,13 +32,27 @@ export function useOverviewMatches(batchId: string | null) {
   });
 }
 
+export function useSaveDecision() {
+  return useMutation({
+    mutationFn: ({
+      batchId,
+      stagingId,
+      patch,
+    }: {
+      batchId: string;
+      stagingId: string;
+      patch: OverviewDecisionPatch;
+    }) => portfolioApi.import.saveDecision(batchId, stagingId, patch),
+  });
+}
+
 export function useApplyOverview() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ batchId, decisions }: { batchId: string; decisions: OverviewDecision[] }) =>
-      portfolioApi.import.apply(batchId, decisions),
+    mutationFn: (batchId: string) => portfolioApi.import.apply(batchId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.portfolio.all });
+      qc.invalidateQueries({ queryKey: queryKeys.portfolio.import.current });
     },
   });
 }

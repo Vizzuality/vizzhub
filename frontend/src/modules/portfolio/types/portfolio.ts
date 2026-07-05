@@ -143,6 +143,25 @@ export interface OverviewCurrentProgram {
   name: string | null;
 }
 
+export interface OverviewSavedDecision {
+  project_id: string | null;
+  program_action: ProgramAction | null;
+  program_id: string | null;
+  new_program_name: string | null;
+}
+
+export interface OverviewCurrentBatch {
+  batch_id: string;
+  row_count: number;
+}
+
+export interface OverviewDecisionPatch {
+  project_id: string | null;
+  program_action: ProgramAction;
+  program_id: string | null;
+  new_program_name: string | null;
+}
+
 export interface OverviewMatch {
   staging_id: string;
   name: string;
@@ -155,6 +174,7 @@ export interface OverviewMatch {
   current_program: OverviewCurrentProgram;
   program_candidates: OverviewProgramCandidate[];
   suggested_program: OverviewSuggestedProgram;
+  saved_decision: OverviewSavedDecision | null;
 }
 
 export interface OverviewDecision {

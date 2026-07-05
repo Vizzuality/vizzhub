@@ -274,6 +274,7 @@ export const queryKeys = {
     },
     import: {
       all: ['portfolio', 'import'] as const,
+      current: ['portfolio', 'import', 'current'] as const,
       projects: ['portfolio', 'import', 'projects'] as const,
       matches: (batchId: string) => ['portfolio', 'import', 'matches', batchId] as const,
     },

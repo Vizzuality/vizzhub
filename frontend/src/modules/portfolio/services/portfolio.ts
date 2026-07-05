@@ -10,7 +10,8 @@ import type {
   MergeRequest,
   MergeResponse,
   OverviewApplyResult,
-  OverviewDecision,
+  OverviewCurrentBatch,
+  OverviewDecisionPatch,
   OverviewImportProject,
   OverviewMatch,
   OverviewUploadResult,
@@ -75,6 +76,10 @@ export const portfolioApi = {
       });
       return response.data;
     },
+    current: async (): Promise<OverviewCurrentBatch | null> => {
+      const response = await api.get<OverviewCurrentBatch | null>('/portfolio/import/current');
+      return response.data;
+    },
     projects: async (): Promise<OverviewImportProject[]> => {
       const response = await api.get<OverviewImportProject[]>('/portfolio/import/projects');
       return response.data;
@@ -83,11 +88,15 @@ export const portfolioApi = {
       const response = await api.get<OverviewMatch[]>(`/portfolio/import/${batchId}/matches`);
       return response.data;
     },
-    apply: async (batchId: string, decisions: OverviewDecision[]): Promise<OverviewApplyResult> => {
-      const response = await api.post<OverviewApplyResult>(
-        `/portfolio/import/${batchId}/apply`,
-        decisions,
-      );
+    saveDecision: async (
+      batchId: string,
+      stagingId: string,
+      patch: OverviewDecisionPatch,
+    ): Promise<void> => {
+      await api.patch(`/portfolio/import/${batchId}/decisions/${stagingId}`, patch);
+    },
+    apply: async (batchId: string): Promise<OverviewApplyResult> => {
+      const response = await api.post<OverviewApplyResult>(`/portfolio/import/${batchId}/apply`);
       return response.data;
     },
   },
