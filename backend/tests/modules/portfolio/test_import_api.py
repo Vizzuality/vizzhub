@@ -124,6 +124,25 @@ async def test_upload_matches_apply_flow(
 
 
 @pytest.mark.asyncio
+async def test_matches_expose_program_candidates(
+    manager_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    from app.core.models.program import ProgramDB
+
+    db_session.add(UserDB(id=_MANAGER_ID, email="m@test.com"))
+    db_session.add(ProgramDB(name="Brand New Project"))  # same name as the xlsx row
+    await db_session.commit()
+    up = await manager_client.post(
+        "/api/portfolio/import/upload",
+        files={"file": ("o.xlsx", _xlsx_bytes(), _XLSX)},
+    )
+    batch = up.json()["batch_id"]
+    body = (await manager_client.get(f"/api/portfolio/import/{batch}/matches")).json()
+    assert "program_candidates" in body[0]
+    assert body[0]["suggested_program"]["program_id"] is not None
+
+
+@pytest.mark.asyncio
 async def test_upload_forbidden_for_viewer(client: AsyncClient) -> None:
     async def _viewer() -> TokenData:
         return TokenData(

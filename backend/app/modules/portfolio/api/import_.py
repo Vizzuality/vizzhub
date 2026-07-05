@@ -23,8 +23,10 @@ from app.modules.portfolio.schemas.import_ import (
     CurrentProgram,
     ImportProject,
     MatchDecision,
+    ProgramCandidate,
     ProjectCandidate,
     StagingMatch,
+    SuggestedProgram,
     SuggestedProject,
     UploadResult,
 )
@@ -90,6 +92,12 @@ async def get_matches(
             ],
             current_program=CurrentProgram(
                 program_id=m.current_program.program_id, name=m.current_program.name
+            ),
+            program_candidates=[
+                ProgramCandidate(id=c.id, name=c.name, score=c.score) for c in m.program_candidates
+            ],
+            suggested_program=SuggestedProgram(
+                program_id=m.suggested_program.program_id, score=m.suggested_program.score
             ),
         )
         for m in data

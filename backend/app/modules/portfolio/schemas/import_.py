@@ -29,6 +29,17 @@ class SuggestedProject(BaseModel):
     score: float
 
 
+class ProgramCandidate(BaseModel):
+    id: UUID
+    name: str
+    score: float
+
+
+class SuggestedProgram(BaseModel):
+    program_id: UUID | None = None
+    score: float
+
+
 class StagingMatch(BaseModel):
     staging_id: UUID
     name: str
@@ -39,6 +50,8 @@ class StagingMatch(BaseModel):
     suggested_project: SuggestedProject
     project_candidates: list[ProjectCandidate]
     current_program: CurrentProgram
+    program_candidates: list[ProgramCandidate]
+    suggested_program: SuggestedProgram
 
 
 class ImportProject(BaseModel):
@@ -59,6 +72,7 @@ class ApplyResult(BaseModel):
     applied: int
     programs_created: int
     projects_linked_to_program: int
+    programs_annotated: int
     skipped: int
     unmapped_terms: list[str]
     unresolved_clients: list[str]
