@@ -51,3 +51,31 @@ async def test_staging_and_profile_roundtrip(db_session: AsyncSession) -> None:
         )
     ).scalar_one()
     assert got_profile.objective == "Monitor forests"
+
+
+@pytest.mark.asyncio
+async def test_profile_program_anchor_roundtrip(db_session: AsyncSession) -> None:
+    from app.core.models.program import ProgramDB
+
+    prog = ProgramDB(name="Anchor Program")
+    db_session.add(prog)
+    await db_session.flush()
+    db_session.add(PortfolioProfileDB(program_id=prog.id, objective="Prog-level"))
+    await db_session.flush()
+    got = (
+        await db_session.execute(
+            select(PortfolioProfileDB).where(PortfolioProfileDB.program_id == prog.id)
+        )
+    ).scalar_one()
+    assert got.project_id is None
+    assert got.objective == "Prog-level"
+
+
+@pytest.mark.asyncio
+async def test_profile_rejects_both_null(db_session: AsyncSession) -> None:
+    import pytest as _pytest
+    from sqlalchemy.exc import IntegrityError
+
+    db_session.add(PortfolioProfileDB(objective="orphan"))
+    with _pytest.raises(IntegrityError):
+        await db_session.flush()

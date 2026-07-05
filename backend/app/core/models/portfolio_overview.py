@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -67,12 +67,22 @@ class PortfolioOverviewStagingDB(Base):
 class PortfolioProfileDB(Base):
     __tablename__ = "portfolio_profile"
 
+    __table_args__ = (
+        CheckConstraint(
+            "num_nonnulls(project_id, program_id) = 1", name="ck_portfolio_profile_one_anchor"
+        ),
+    )
+
     id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    project_id: Mapped[UUID] = mapped_column(
+    project_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("projects.id", ondelete="CASCADE"),
-        nullable=False,
-        unique=True,
+        nullable=True,
+    )
+    program_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("programs.id", ondelete="CASCADE"),
+        nullable=True,
     )
     objective: Mapped[str | None] = mapped_column(Text, nullable=True)
     short_description: Mapped[str | None] = mapped_column(Text, nullable=True)
