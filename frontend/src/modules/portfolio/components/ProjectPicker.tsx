@@ -35,7 +35,7 @@ export function ProjectPicker({
       <PopoverTrigger asChild>
         <Button variant="outline" role="combobox" className="w-64 justify-between">
           <span className="truncate">
-            {value === null ? 'Skip this row' : (selected?.name ?? 'Select project')}
+            {value === null ? 'No project — this row is a program' : (selected?.name ?? 'Select project')}
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -54,7 +54,7 @@ export function ProjectPicker({
                 }}
               >
                 <Check className={cn('mr-2 h-4 w-4', value === null ? 'opacity-100' : 'opacity-0')} />
-                Skip this row
+                No project — this row is a program
               </CommandItem>
               {options.map((o) => (
                 <CommandItem

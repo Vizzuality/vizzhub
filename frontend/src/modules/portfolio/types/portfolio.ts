@@ -116,6 +116,17 @@ export interface OverviewProjectCandidate {
   score: number;
 }
 
+export interface OverviewProgramCandidate {
+  id: string;
+  name: string;
+  score: number;
+}
+
+export interface OverviewSuggestedProgram {
+  program_id: string | null;
+  score: number;
+}
+
 export interface OverviewImportProject {
   id: string;
   name: string;
@@ -142,6 +153,8 @@ export interface OverviewMatch {
   suggested_project: OverviewSuggestedProject;
   project_candidates: OverviewProjectCandidate[];
   current_program: OverviewCurrentProgram;
+  program_candidates: OverviewProgramCandidate[];
+  suggested_program: OverviewSuggestedProgram;
 }
 
 export interface OverviewDecision {
@@ -155,6 +168,7 @@ export interface OverviewDecision {
 export interface OverviewApplyResult {
   applied: number;
   programs_created: number;
+  programs_annotated: number;
   projects_linked_to_program: number;
   skipped: number;
   unmapped_terms: string[];
