@@ -26,7 +26,10 @@ function mergePrograms(
   all: readonly { id: string; name: string }[],
 ): { id: string; name: string }[] {
   const seen = new Set(candidates.map((c) => c.id));
-  return [...candidates.map((c) => ({ id: c.id, name: c.name })), ...all.filter((p) => !seen.has(p.id))];
+  return [
+    ...candidates.map((c) => ({ id: c.id, name: c.name })),
+    ...all.filter((p) => !seen.has(p.id)),
+  ];
 }
 
 function seed(matches: OverviewMatch[]): DecisionMap {
