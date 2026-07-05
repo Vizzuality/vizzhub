@@ -13,59 +13,12 @@ import {
 } from '../hooks/useOverviewImport';
 import { ProjectPicker } from '../components/ProjectPicker';
 import { ProgramPicker } from '../components/ProgramPicker';
-import type {
-  OverviewDecision,
-  OverviewMatch,
-  OverviewProjectCandidate,
-} from '../types/portfolio';
-
-type DecisionMap = Record<string, OverviewDecision>;
-
-function mergePrograms(
-  candidates: readonly { id: string; name: string }[],
-  all: readonly { id: string; name: string }[],
-): { id: string; name: string }[] {
-  const seen = new Set(candidates.map((c) => c.id));
-  return [
-    ...candidates.map((c) => ({ id: c.id, name: c.name })),
-    ...all.filter((p) => !seen.has(p.id)),
-  ];
-}
-
-function seed(matches: OverviewMatch[]): DecisionMap {
-  const map: DecisionMap = {};
-  for (const m of matches) {
-    const topProject = m.project_candidates[0]?.id ?? null;
-    if (topProject) {
-      if (m.current_program.program_id) {
-        map[m.staging_id] = {
-          staging_id: m.staging_id, project_id: topProject,
-          program_action: 'inherit', program_id: m.current_program.program_id,
-        };
-      } else if (m.suggested_program.program_id) {
-        map[m.staging_id] = {
-          staging_id: m.staging_id, project_id: topProject,
-          program_action: 'link', program_id: m.suggested_program.program_id,
-        };
-      } else {
-        map[m.staging_id] = {
-          staging_id: m.staging_id, project_id: topProject,
-          program_action: 'create',
-          new_program_name: m.project_candidates[0]?.name ?? m.name,
-        };
-      }
-    } else if (m.suggested_program.program_id) {
-      // no project match → treat the row as a program (program-anchor)
-      map[m.staging_id] = {
-        staging_id: m.staging_id, project_id: null,
-        program_action: 'link', program_id: m.suggested_program.program_id,
-      };
-    } else {
-      map[m.staging_id] = { staging_id: m.staging_id, project_id: null, program_action: 'none' };
-    }
-  }
-  return map;
-}
+import type { OverviewDecision, OverviewProjectCandidate } from '../types/portfolio';
+import {
+  mergePrograms,
+  seedDecisions,
+  type DecisionMap,
+} from '../utils/importDecisions';
 
 export default function PortfolioImport(): JSX.Element {
   const canManage = usePermission(Action.PORTFOLIO_MANAGE);
@@ -93,7 +46,7 @@ export default function PortfolioImport(): JSX.Element {
 
   useEffect(() => {
     if (matches && matches.length > 0) {
-      setDecisions((prev) => (Object.keys(prev).length === 0 ? seed(matches) : prev));
+      setDecisions((prev) => (Object.keys(prev).length === 0 ? seedDecisions(matches) : prev));
     }
   }, [matches]);
 
