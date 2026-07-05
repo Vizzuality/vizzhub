@@ -80,14 +80,6 @@ class ImportProject(BaseModel):
     program_id: UUID | None = None
 
 
-class MatchDecision(BaseModel):
-    staging_id: UUID
-    project_id: UUID | None = None
-    program_action: ProgramAction
-    program_id: UUID | None = None
-    new_program_name: str | None = None
-
-
 class ApplyResult(BaseModel):
     applied: int
     programs_created: int
