@@ -292,3 +292,70 @@ async def test_program_anchor_none_is_skip(db_session: AsyncSession) -> None:
     assert result.skipped == 1
     assert result.applied == 0
     assert result.programs_annotated == 0
+
+
+@pytest.mark.asyncio
+async def test_apply_persisted_applies_saved_and_is_idempotent(
+    db_session: AsyncSession,
+) -> None:
+    from app.core.services.overview_import import (
+        apply_persisted,
+        save_decision,
+        seed_default_decisions,
+    )
+
+    await _seed_taxonomies(db_session)
+    batch = uuid4()
+    row = await _stage(db_session, batch, name="Aqueduct", objective="Water")
+    await seed_default_decisions(db_session, batch)  # defaults to CREATE "Aqueduct"
+    await save_decision(
+        db_session,
+        batch,
+        row.id,
+        project_id=None,
+        program_action=ProgramAction.CREATE,
+        program_id=None,
+        new_program_name="Aqueduct",
+        user_id=None,
+    )
+    r1 = await apply_persisted(db_session, batch, user_id=None)
+    assert r1.programs_created == 1
+    await db_session.refresh(row)
+    assert row.applied_at is not None
+    # second apply: row already applied → skipped, no duplicate program
+    r2 = await apply_persisted(db_session, batch, user_id=None)
+    assert r2.applied == 0 and r2.programs_created == 0
+    n = (
+        await db_session.execute(
+            select(func.count()).select_from(ProgramDB).where(ProgramDB.name == "Aqueduct")
+        )
+    ).scalar_one()
+    assert n == 1
+
+
+@pytest.mark.asyncio
+async def test_apply_persisted_stamps_applied_on_skip(db_session: AsyncSession) -> None:
+    from app.core.services.overview_import import (
+        apply_persisted,
+        save_decision,
+        seed_default_decisions,
+    )
+
+    await _seed_taxonomies(db_session)
+    batch = uuid4()
+    row = await _stage(db_session, batch, name="Nothing")
+    await seed_default_decisions(db_session, batch)
+    await save_decision(
+        db_session,
+        batch,
+        row.id,
+        project_id=None,
+        program_action=ProgramAction.NONE,
+        program_id=None,
+        new_program_name=None,
+        user_id=None,
+    )
+    result = await apply_persisted(db_session, batch, user_id=None)
+    assert result.skipped == 1
+    await db_session.refresh(row)
+    assert row.applied_at is not None  # skipped rows are also closed

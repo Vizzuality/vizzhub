@@ -612,6 +612,8 @@ async def apply_decisions(
         ).scalar_one_or_none()
         if row is None:
             continue
+        if row.applied_at is not None:
+            continue
         if d.project_id is None and d.program_action not in (
             ProgramAction.LINK,
             ProgramAction.CREATE,
@@ -619,6 +621,7 @@ async def apply_decisions(
             row.program_action = ProgramAction.NONE
             row.decided_by = UUID(user_id) if user_id else None
             row.decided_at = now
+            row.applied_at = now
             await db.flush()
             skipped += 1
             continue
@@ -658,6 +661,7 @@ async def apply_decisions(
                 row.program_action = d.program_action
                 row.decided_by = UUID(user_id) if user_id else None
                 row.decided_at = now
+                row.applied_at = now
         except Exception:
             logger.warning("portfolio_overview_row_failed", staging_id=staging_id_str)
             continue
@@ -686,3 +690,29 @@ async def apply_decisions(
         unmapped_terms=unmapped,
         unresolved_clients=unresolved,
     )
+
+
+async def apply_persisted(db: AsyncSession, batch_id: UUID, user_id: str | None) -> ApplyResult:
+    """Apply the decisions already persisted on the batch's staging rows."""
+    rows = (
+        (
+            await db.execute(
+                select(PortfolioOverviewStagingDB)
+                .where(PortfolioOverviewStagingDB.import_batch == batch_id)
+                .order_by(PortfolioOverviewStagingDB.row_index)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    decisions = [
+        DecisionInput(
+            staging_id=r.id,
+            project_id=r.matched_project_id,
+            program_action=r.program_action or ProgramAction.NONE,
+            program_id=r.matched_program_id,
+            new_program_name=r.new_program_name,
+        )
+        for r in rows
+    ]
+    return await apply_decisions(db, batch_id, decisions, user_id)
