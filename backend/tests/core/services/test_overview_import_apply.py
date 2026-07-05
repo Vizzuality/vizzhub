@@ -203,3 +203,92 @@ async def test_reapply_idempotent_on_terms(db_session: AsyncSession) -> None:
         )
     ).scalar_one()
     assert n == 1
+
+
+@pytest.mark.asyncio
+async def test_program_anchor_create_writes_program_profile_and_terms(
+    db_session: AsyncSession,
+) -> None:
+    await _seed_taxonomies(db_session)
+    batch = uuid4()
+    row = await _stage(
+        db_session, batch, name="Aqueduct", impact_area_raw="Nature", objective="Water risk"
+    )
+    result = await apply_decisions(
+        db_session,
+        batch,
+        [
+            DecisionInput(
+                staging_id=row.id,
+                project_id=None,
+                program_action=ProgramAction.CREATE,
+                new_program_name="Aqueduct",
+            )
+        ],
+        user_id=None,
+    )
+    assert result.programs_created == 1
+    assert result.programs_annotated == 1
+    prog = (
+        await db_session.execute(select(ProgramDB).where(ProgramDB.name == "Aqueduct"))
+    ).scalar_one()
+    profile = (
+        await db_session.execute(
+            select(PortfolioProfileDB).where(PortfolioProfileDB.program_id == prog.id)
+        )
+    ).scalar_one()
+    assert profile.objective == "Water risk"
+    assert profile.project_id is None
+    n = (
+        await db_session.execute(
+            select(func.count()).select_from(EntityTermDB).where(EntityTermDB.program_id == prog.id)
+        )
+    ).scalar_one()
+    assert n == 1  # Nature, on the PROGRAM
+
+
+@pytest.mark.asyncio
+async def test_program_anchor_link_existing(db_session: AsyncSession) -> None:
+    await _seed_taxonomies(db_session)
+    prog = ProgramDB(name="Existing Prog")
+    db_session.add(prog)
+    await db_session.flush()
+    batch = uuid4()
+    row = await _stage(db_session, batch, name="Existing Prog", objective="x")
+    result = await apply_decisions(
+        db_session,
+        batch,
+        [
+            DecisionInput(
+                staging_id=row.id,
+                project_id=None,
+                program_action=ProgramAction.LINK,
+                program_id=prog.id,
+            )
+        ],
+        user_id=None,
+    )
+    assert result.programs_annotated == 1
+    assert result.programs_created == 0
+    profile = (
+        await db_session.execute(
+            select(PortfolioProfileDB).where(PortfolioProfileDB.program_id == prog.id)
+        )
+    ).scalar_one()
+    assert profile.objective == "x"
+
+
+@pytest.mark.asyncio
+async def test_program_anchor_none_is_skip(db_session: AsyncSession) -> None:
+    await _seed_taxonomies(db_session)
+    batch = uuid4()
+    row = await _stage(db_session, batch, name="Nothing")
+    result = await apply_decisions(
+        db_session,
+        batch,
+        [DecisionInput(staging_id=row.id, project_id=None, program_action=ProgramAction.NONE)],
+        user_id=None,
+    )
+    assert result.skipped == 1
+    assert result.applied == 0
+    assert result.programs_annotated == 0

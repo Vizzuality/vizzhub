@@ -304,6 +304,7 @@ class ApplyResult:
     applied: int
     programs_created: int
     projects_linked_to_program: int
+    programs_annotated: int
     skipped: int
     unmapped_terms: list[str]
     unresolved_clients: list[str]
@@ -344,15 +345,19 @@ async def _resolve_program(
 
 
 async def _upsert_profile(
-    db: AsyncSession, row: PortfolioOverviewStagingDB, project_id: UUID
+    db: AsyncSession,
+    row: PortfolioOverviewStagingDB,
+    *,
+    project_id: UUID | None = None,
+    program_id: UUID | None = None,
 ) -> None:
-    profile = (
-        await db.execute(
-            select(PortfolioProfileDB).where(PortfolioProfileDB.project_id == project_id)
-        )
-    ).scalar_one_or_none()
+    if project_id is not None:
+        stmt = select(PortfolioProfileDB).where(PortfolioProfileDB.project_id == project_id)
+    else:
+        stmt = select(PortfolioProfileDB).where(PortfolioProfileDB.program_id == program_id)
+    profile = (await db.execute(stmt)).scalar_one_or_none()
     if profile is None:
-        profile = PortfolioProfileDB(project_id=project_id)
+        profile = PortfolioProfileDB(project_id=project_id, program_id=program_id)
         db.add(profile)
     profile.objective = row.objective
     profile.short_description = row.short_description
@@ -366,7 +371,12 @@ async def _upsert_profile(
 
 
 async def _apply_terms(
-    db: AsyncSession, row: PortfolioOverviewStagingDB, project_id: UUID, user_id: str | None
+    db: AsyncSession,
+    row: PortfolioOverviewStagingDB,
+    user_id: str | None,
+    *,
+    project_id: UUID | None = None,
+    program_id: UUID | None = None,
 ) -> list[str]:
     unmapped: list[str] = []
     taxonomies = (await db.execute(select(TaxonomyDB))).scalars().all()
@@ -376,11 +386,12 @@ async def _apply_terms(
         raw = getattr(row, field)
         if tax is None or not raw:
             continue
-        await db.execute(
-            delete(EntityTermDB).where(
-                EntityTermDB.project_id == project_id, EntityTermDB.taxonomy_id == tax.id
-            )
+        del_cond = (
+            EntityTermDB.project_id == project_id
+            if project_id is not None
+            else EntityTermDB.program_id == program_id
         )
+        await db.execute(delete(EntityTermDB).where(del_cond, EntityTermDB.taxonomy_id == tax.id))
         values = [v.strip() for v in raw.split(",") if v.strip()]
         if tax.cardinality == "single":
             values = values[:1]
@@ -407,6 +418,7 @@ async def _apply_terms(
                     term_id=term.id,
                     taxonomy_id=tax.id,
                     project_id=project_id,
+                    program_id=program_id,
                     is_primary=first and tax.allows_primary,
                     assigned_by=UUID(user_id) if user_id else None,
                 )
@@ -448,10 +460,33 @@ async def _cascade_client(
     return None
 
 
+async def _cascade_client_to_program(
+    db: AsyncSession, row: PortfolioOverviewStagingDB, program_id: UUID
+) -> str | None:
+    if not row.main_partner:
+        return None
+    clients = (await db.execute(select(ClientDB.id, ClientDB.name))).all()
+    ranked = rank(row.main_partner, [(c.name, c.id) for c in clients], limit=1, threshold=0.9)
+    if not ranked:
+        return row.main_partner
+    client_id = ranked[0].payload
+    await db.execute(
+        ProjectDB.__table__.update()
+        .where(ProjectDB.program_id == program_id, ProjectDB.client_id.is_(None))
+        .values(client_id=client_id)
+    )
+    if row.client_contact:
+        client = (await db.execute(select(ClientDB).where(ClientDB.id == client_id))).scalar_one()
+        if not client.primary_contact:
+            client.primary_contact = row.client_contact[:255]
+    await db.flush()
+    return None
+
+
 async def apply_decisions(
     db: AsyncSession, batch_id: UUID, decisions: list[DecisionInput], user_id: str | None
 ) -> ApplyResult:
-    applied = created = linked = skipped = 0
+    applied = created = linked = annotated = skipped = 0
     unmapped: list[str] = []
     unresolved: list[str] = []
     now = datetime.now(UTC)
@@ -467,7 +502,10 @@ async def apply_decisions(
         ).scalar_one_or_none()
         if row is None:
             continue
-        if d.project_id is None:
+        if d.project_id is None and d.program_action not in (
+            ProgramAction.LINK,
+            ProgramAction.CREATE,
+        ):
             row.program_action = ProgramAction.NONE
             row.decided_by = UUID(user_id) if user_id else None
             row.decided_at = now
@@ -476,19 +514,38 @@ async def apply_decisions(
             continue
         row_unmapped: list[str] = []
         row_unresolved: str | None = None
-        did_create = did_link = False
+        did_create = did_link = is_program_anchor = False
         try:
             async with db.begin_nested():
-                proj = (
-                    await db.execute(select(ProjectDB).where(ProjectDB.id == d.project_id))
-                ).scalar_one()
-                did_create, did_link = await _resolve_program(db, proj, d)
-                await _upsert_profile(db, row, proj.id)
-                row_unmapped = await _apply_terms(db, row, proj.id, user_id)
-                row_unresolved = await _cascade_client(db, row, proj)
-                row.matched_project_id = proj.id
+                if d.project_id is not None:
+                    proj = (
+                        await db.execute(select(ProjectDB).where(ProjectDB.id == d.project_id))
+                    ).scalar_one()
+                    did_create, did_link = await _resolve_program(db, proj, d)
+                    await _upsert_profile(db, row, project_id=proj.id)
+                    row_unmapped = await _apply_terms(db, row, user_id, project_id=proj.id)
+                    row_unresolved = await _cascade_client(db, row, proj)
+                    row.matched_project_id = proj.id
+                    row.matched_program_id = proj.program_id
+                else:
+                    is_program_anchor = True
+                    if d.program_action == ProgramAction.CREATE:
+                        prog = ProgramDB(
+                            name=await _unique_program_name(db, d.new_program_name or row.name)
+                        )
+                        db.add(prog)
+                        await db.flush()
+                        did_create = True
+                    else:  # LINK
+                        prog = (
+                            await db.execute(select(ProgramDB).where(ProgramDB.id == d.program_id))
+                        ).scalar_one()
+                    await _upsert_profile(db, row, program_id=prog.id)
+                    row_unmapped = await _apply_terms(db, row, user_id, program_id=prog.id)
+                    row_unresolved = await _cascade_client_to_program(db, row, prog.id)
+                    row.matched_project_id = None
+                    row.matched_program_id = prog.id
                 row.program_action = d.program_action
-                row.matched_program_id = proj.program_id
                 row.decided_by = UUID(user_id) if user_id else None
                 row.decided_at = now
         except Exception:
@@ -500,18 +557,21 @@ async def apply_decisions(
         applied += 1
         created += 1 if did_create else 0
         linked += 1 if did_link else 0
+        annotated += 1 if is_program_anchor else 0
     logger.info(
         "portfolio_overview_applied",
         batch_id=str(batch_id),
         applied=applied,
         created=created,
         linked=linked,
+        annotated=annotated,
         skipped=skipped,
     )
     return ApplyResult(
         applied=applied,
         programs_created=created,
         projects_linked_to_program=linked,
+        programs_annotated=annotated,
         skipped=skipped,
         unmapped_terms=unmapped,
         unresolved_clients=unresolved,
