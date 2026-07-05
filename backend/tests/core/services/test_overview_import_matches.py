@@ -64,3 +64,23 @@ async def test_no_project_match_suggests_none(db_session: AsyncSession) -> None:
     await _stage(db_session, batch, "Totally Unrelated XYZ")
     matches = await build_matches(db_session, batch)
     assert matches[0].suggested_project.project_id is None
+
+
+@pytest.mark.asyncio
+async def test_program_candidates_and_suggested_program(db_session: AsyncSession) -> None:
+    prog, _, _ = await _seed(db_session)  # _seed creates program "Global Forest Watch (GFW)"
+    batch = uuid4()
+    await _stage(db_session, batch, "Global Forest Watch")
+    matches = await build_matches(db_session, batch)
+    m = matches[0]
+    assert any(c.id == prog.id for c in m.program_candidates)
+    assert m.suggested_program.program_id == prog.id
+
+
+@pytest.mark.asyncio
+async def test_no_program_match_suggests_none(db_session: AsyncSession) -> None:
+    await _seed(db_session)
+    batch = uuid4()
+    await _stage(db_session, batch, "Totally Unrelated XYZ")
+    matches = await build_matches(db_session, batch)
+    assert matches[0].suggested_program.program_id is None

@@ -188,6 +188,19 @@ class SuggestedProject:
 
 
 @dataclass
+class ProgramCandidate:
+    id: UUID
+    name: str
+    score: float
+
+
+@dataclass
+class SuggestedProgram:
+    program_id: UUID | None
+    score: float
+
+
+@dataclass
 class StagingMatchData:
     staging_id: UUID
     name: str
@@ -198,6 +211,8 @@ class StagingMatchData:
     suggested_project: SuggestedProject
     project_candidates: list[ProjectCandidate]
     current_program: CurrentProgram
+    program_candidates: list[ProgramCandidate]
+    suggested_program: SuggestedProgram
 
 
 async def build_matches(db: AsyncSession, batch_id: UUID) -> list[StagingMatchData]:
@@ -211,6 +226,7 @@ async def build_matches(db: AsyncSession, batch_id: UUID) -> list[StagingMatchDa
     prog_names = dict((await db.execute(select(ProgramDB.id, ProgramDB.name))).all())
     prog_of = {p.id: p.program_id for p in projects}
     candidates = [(p.name, (p.id, p.name)) for p in projects]
+    program_pairs = [(name, pid) for pid, name in prog_names.items()]
     staging = (
         (
             await db.execute(
@@ -236,6 +252,17 @@ async def build_matches(db: AsyncSession, batch_id: UUID) -> list[StagingMatchDa
         else:
             suggested = SuggestedProject(project_id=None, score=0.0)
             current = CurrentProgram(program_id=None, name=None)
+        prog_ranked = rank(row.name, program_pairs, limit=5, threshold=CANDIDATE_THRESHOLD)
+        program_candidates = [
+            ProgramCandidate(id=s.payload, name=prog_names[s.payload], score=s.score)
+            for s in prog_ranked
+        ]
+        best_prog = prog_ranked[0] if prog_ranked else None
+        suggested_program = (
+            SuggestedProgram(program_id=best_prog.payload, score=best_prog.score)
+            if best_prog is not None and best_prog.score >= STRONG
+            else SuggestedProgram(program_id=None, score=0.0)
+        )
         result.append(
             StagingMatchData(
                 staging_id=row.id,
@@ -247,6 +274,8 @@ async def build_matches(db: AsyncSession, batch_id: UUID) -> list[StagingMatchDa
                 suggested_project=suggested,
                 project_candidates=proj_cands,
                 current_program=current,
+                program_candidates=program_candidates,
+                suggested_program=suggested_program,
             )
         )
     return result
