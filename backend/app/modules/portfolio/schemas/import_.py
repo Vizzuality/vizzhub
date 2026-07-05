@@ -13,6 +13,25 @@ class UploadResult(BaseModel):
     old_count: int
 
 
+class SavedDecision(BaseModel):
+    project_id: UUID | None = None
+    program_action: ProgramAction | None = None
+    program_id: UUID | None = None
+    new_program_name: str | None = None
+
+
+class CurrentBatch(BaseModel):
+    batch_id: UUID
+    row_count: int
+
+
+class DecisionPatch(BaseModel):
+    project_id: UUID | None = None
+    program_action: ProgramAction
+    program_id: UUID | None = None
+    new_program_name: str | None = None
+
+
 class ProjectCandidate(BaseModel):
     id: UUID
     name: str
@@ -52,6 +71,7 @@ class StagingMatch(BaseModel):
     current_program: CurrentProgram
     program_candidates: list[ProgramCandidate]
     suggested_program: SuggestedProgram
+    saved_decision: SavedDecision | None = None
 
 
 class ImportProject(BaseModel):

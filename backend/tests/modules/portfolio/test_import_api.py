@@ -161,3 +161,73 @@ async def test_upload_forbidden_for_viewer(client: AsyncClient) -> None:
         assert resp.status_code == 403
     finally:
         app.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest.mark.asyncio
+async def test_current_and_resume_roundtrip(
+    manager_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    db_session.add(UserDB(id=_MANAGER_ID, email="m@test.com"))
+    await db_session.commit()
+    # no batch yet
+    assert (await manager_client.get("/api/portfolio/import/current")).json() is None
+    up = await manager_client.post(
+        "/api/portfolio/import/upload",
+        files={"file": ("o.xlsx", _xlsx_bytes(), _XLSX)},
+    )
+    batch = up.json()["batch_id"]
+    cur = (await manager_client.get("/api/portfolio/import/current")).json()
+    assert cur is not None and cur["batch_id"] == batch
+    # matches carry a seeded saved_decision
+    body = (await manager_client.get(f"/api/portfolio/import/{batch}/matches")).json()
+    assert body[0]["saved_decision"] is not None
+    assert body[0]["saved_decision"]["program_action"] in {"link", "create"}
+
+
+@pytest.mark.asyncio
+async def test_patch_decision_then_apply_no_body(
+    manager_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    db_session.add(UserDB(id=_MANAGER_ID, email="m@test.com"))
+    await db_session.commit()
+    up = await manager_client.post(
+        "/api/portfolio/import/upload",
+        files={"file": ("o.xlsx", _xlsx_bytes(), _XLSX)},
+    )
+    batch = up.json()["batch_id"]
+    staging_id = (await manager_client.get(f"/api/portfolio/import/{batch}/matches")).json()[0][
+        "staging_id"
+    ]
+    patch = await manager_client.patch(
+        f"/api/portfolio/import/{batch}/decisions/{staging_id}",
+        json={
+            "project_id": None,
+            "program_action": "create",
+            "program_id": None,
+            "new_program_name": "Edited Name",
+        },
+    )
+    assert patch.status_code == 200
+    applied = await manager_client.post(f"/api/portfolio/import/{batch}/apply")
+    assert applied.status_code == 200
+    assert applied.json()["applied"] >= 1
+    # batch closed after apply
+    assert (await manager_client.get("/api/portfolio/import/current")).json() is None
+
+
+@pytest.mark.asyncio
+async def test_patch_unknown_row_404(manager_client: AsyncClient, db_session: AsyncSession) -> None:
+    from uuid import uuid4
+
+    db_session.add(UserDB(id=_MANAGER_ID, email="m@test.com"))
+    await db_session.commit()
+    r = await manager_client.patch(
+        f"/api/portfolio/import/{uuid4()}/decisions/{uuid4()}",
+        json={
+            "project_id": None,
+            "program_action": "none",
+            "program_id": None,
+            "new_program_name": None,
+        },
+    )
+    assert r.status_code == 404
