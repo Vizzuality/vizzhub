@@ -1,6 +1,8 @@
 """Taxonomies read endpoints (core, portfolio:view)."""
 
+from collections import defaultdict
 from typing import Annotated
+from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, Depends, Request
@@ -28,14 +30,24 @@ async def list_taxonomies(
         .order_by(TaxonomyDB.sort_order, TaxonomyDB.name)
     )
     taxonomies = result.scalars().all()
+    if not taxonomies:
+        return []
+
+    terms_result = await db.execute(
+        select(TaxonomyTermDB)
+        .where(
+            TaxonomyTermDB.taxonomy_id.in_([tax.id for tax in taxonomies]),
+            TaxonomyTermDB.is_active.is_(True),
+        )
+        .order_by(TaxonomyTermDB.sort_order, TaxonomyTermDB.name)
+    )
+    terms_by_taxonomy: dict[UUID, list[TaxonomyTerm]] = defaultdict(list)
+    for term in terms_result.scalars().all():
+        terms_by_taxonomy[term.taxonomy_id].append(TaxonomyTerm.model_validate(term))
+
     out: list[Taxonomy] = []
     for tax in taxonomies:
-        terms_result = await db.execute(
-            select(TaxonomyTermDB)
-            .where(TaxonomyTermDB.taxonomy_id == tax.id, TaxonomyTermDB.is_active.is_(True))
-            .order_by(TaxonomyTermDB.sort_order, TaxonomyTermDB.name)
-        )
         model = Taxonomy.model_validate(tax)
-        model.terms = [TaxonomyTerm.model_validate(t) for t in terms_result.scalars().all()]
+        model.terms = terms_by_taxonomy[tax.id]
         out.append(model)
     return out

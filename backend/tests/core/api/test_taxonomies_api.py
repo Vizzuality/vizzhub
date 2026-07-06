@@ -79,6 +79,31 @@ async def test_list_taxonomies_forbidden_without_permission(client: AsyncClient)
 
 
 @pytest.mark.asyncio
+async def test_list_taxonomies_groups_terms_by_taxonomy(
+    portfolio_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Batched term fetch must map each term to its own taxonomy, not leak across them."""
+    service = TaxonomyDB(slug="service", name="Service", cardinality=Cardinality.MULTI)
+    region = TaxonomyDB(slug="region", name="Region", cardinality=Cardinality.SINGLE)
+    db_session.add_all([service, region])
+    await db_session.flush()
+    db_session.add_all(
+        [
+            TaxonomyTermDB(taxonomy_id=service.id, slug="tools", name="Tools", sort_order=2),
+            TaxonomyTermDB(taxonomy_id=service.id, slug="data", name="Data", sort_order=1),
+            TaxonomyTermDB(taxonomy_id=region.id, slug="latam", name="LATAM", sort_order=1),
+        ]
+    )
+    await db_session.commit()
+
+    resp = await portfolio_client.get("/api/taxonomies")
+    assert resp.status_code == 200
+    body = {t["slug"]: t for t in resp.json()}
+    assert [term["name"] for term in body["service"]["terms"]] == ["Data", "Tools"]
+    assert [term["name"] for term in body["region"]["terms"]] == ["LATAM"]
+
+
+@pytest.mark.asyncio
 async def test_list_taxonomies_excludes_inactive(
     portfolio_client: AsyncClient, db_session: AsyncSession
 ) -> None:
