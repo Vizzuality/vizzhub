@@ -57,6 +57,7 @@ import PortfolioClients from './modules/portfolio/pages/PortfolioClients';
 import PortfolioLayout from './modules/portfolio/pages/PortfolioLayout';
 import PortfolioDashboard from './modules/portfolio/pages/PortfolioDashboard';
 import PortfolioPrograms from './modules/portfolio/pages/PortfolioPrograms';
+import ProgramDetail from './modules/portfolio/pages/ProgramDetail';
 import NotFound from './core/pages/NotFound';
 import ProjectHubLayout from './core/pages/ProjectHub';
 import ProjectOverview from './core/pages/ProjectOverview';
@@ -157,6 +158,7 @@ function AppRoutes(): JSX.Element {
               <Route index element={<PortfolioPrograms />} />
               <Route path="clients" element={<PortfolioClients />} />
               <Route path="dashboard" element={<PortfolioDashboard />} />
+              <Route path="programs/:programId" element={<ProgramDetail />} />
             </Route>
           </Route>
           <Route path="/iso" element={<ISO />}>
@@ -244,6 +246,7 @@ function AppRoutes(): JSX.Element {
               <Route index element={<PortfolioPrograms />} />
               <Route path="clients" element={<PortfolioClients />} />
               <Route path="dashboard" element={<PortfolioDashboard />} />
+              <Route path="programs/:programId" element={<ProgramDetail />} />
             </Route>
           </Route>
           <Route path="/iso/docs" element={<IsoDocs />} />
