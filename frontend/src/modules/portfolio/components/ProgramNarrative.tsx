@@ -20,6 +20,21 @@ const FIELDS: { key: NarrativeKey; label: string; multiline: boolean }[] = [
   { key: 'main_partner', label: 'Main partner', multiline: false },
 ];
 
+function NarrativeFieldInput({
+  multiline,
+  value,
+  onChange,
+}: {
+  readonly multiline: boolean;
+  readonly value: string;
+  readonly onChange: (next: string) => void;
+}): JSX.Element {
+  if (multiline) {
+    return <Textarea value={value} onChange={(e) => onChange(e.target.value)} rows={3} />;
+  }
+  return <Input value={value} onChange={(e) => onChange(e.target.value)} />;
+}
+
 export function ProgramNarrative({
   profile,
   canManage,
@@ -77,18 +92,11 @@ export function ProgramNarrative({
           <div key={f.key} className="space-y-1">
             <Label className="text-xs text-muted-foreground">{f.label}</Label>
             {editing ? (
-              f.multiline ? (
-                <Textarea
-                  value={draft[f.key]}
-                  onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))}
-                  rows={3}
-                />
-              ) : (
-                <Input
-                  value={draft[f.key]}
-                  onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))}
-                />
-              )
+              <NarrativeFieldInput
+                multiline={f.multiline}
+                value={draft[f.key]}
+                onChange={(next) => setDraft((d) => ({ ...d, [f.key]: next }))}
+              />
             ) : (
               <p className="whitespace-pre-wrap text-sm">
                 {value(f.key) || <span className="text-muted-foreground">—</span>}
