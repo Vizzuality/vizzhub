@@ -44,6 +44,14 @@ async def _code_taken(db: DBSession, code: str, exclude_id: UUID | None = None) 
     return (await db.execute(stmt)).first() is not None
 
 
+async def _slug_taken(db: DBSession, slug: str, exclude_id: UUID | None = None) -> bool:
+    """Whether another client already uses this slug."""
+    stmt = select(ClientDB.id).where(ClientDB.slug == slug)
+    if exclude_id is not None:
+        stmt = stmt.where(ClientDB.id != exclude_id)
+    return (await db.execute(stmt)).first() is not None
+
+
 class ClientListResponse(BaseModel):
     items: list[Client]
     total: int
@@ -64,8 +72,8 @@ async def list_clients(
     current_user: PortfolioViewer,
     db: DBSession,
     search: str = "",
-    page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> ClientListResponse:
     count_subq = (
         select(ProjectDB.client_id, func.count().label("n"))
@@ -112,8 +120,7 @@ async def create_client(
     request: Request, current_user: PortfolioManager, db: DBSession, payload: ClientCreate
 ) -> Client:
     slug = slugify(payload.name)
-    existing = await db.execute(select(ClientDB).where(ClientDB.slug == slug))
-    if existing.scalar_one_or_none() is not None:
+    if await _slug_taken(db, slug):
         raise HTTPException(status_code=409, detail="A client with this name already exists")
     code = _clean(payload.code)
     if code is not None and await _code_taken(db, code):
@@ -150,12 +157,7 @@ async def update_client(
         raise HTTPException(status_code=404, detail="Client not found")
     if payload.name is not None:
         new_slug = slugify(payload.name)
-        collision = (
-            await db.execute(
-                select(ClientDB).where(ClientDB.slug == new_slug, ClientDB.id != client_id)
-            )
-        ).scalar_one_or_none()
-        if collision is not None:
+        if await _slug_taken(db, new_slug, exclude_id=client_id):
             raise HTTPException(status_code=409, detail="A client with this name already exists")
         obj.name = payload.name.strip()
         obj.slug = new_slug

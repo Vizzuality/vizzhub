@@ -1,7 +1,8 @@
 import type { ClientRow, ProjectRow } from '../types/portfolio';
+import { formatFullEur } from '../utils/chart';
 
 function fmtEur(v: number | null): string {
-  return v === null ? '—' : `€${Math.round(v).toLocaleString()}`;
+  return v === null ? '—' : formatFullEur(v);
 }
 function fmtPct(v: number | null): string {
   return v === null ? '—' : `${v.toFixed(1)}%`;

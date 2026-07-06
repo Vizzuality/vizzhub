@@ -15,11 +15,12 @@ export function formatAxisEur(value: number): string {
 }
 
 // Full euro value for tooltips (e.g. €1,234,567).
-function formatFullEur(value: number): string {
+export function formatFullEur(value: number): string {
   return `€${Math.round(value).toLocaleString()}`;
 }
 
-function formatMonths(value: number): string {
+// Rounded month delay with an explicit + sign for late (e.g. +3mo, -1mo).
+export function formatMonths(value: number): string {
   const rounded = Math.round(value);
   const sign = rounded > 0 ? '+' : '';
   return `${sign}${rounded}mo`;
@@ -56,7 +57,7 @@ export const METRIC_CONFIG: Record<Metric, MetricConfig> = {
   delay_months: {
     key: 'delay_months',
     label: 'Delay',
-    axisFormat: (v) => `${v > 0 ? '+' : ''}${Math.round(v)}mo`,
+    axisFormat: formatMonths,
     valueFormat: formatMonths,
     // On time or early is good; running late is not.
     isGood: (v) => v <= 0,
