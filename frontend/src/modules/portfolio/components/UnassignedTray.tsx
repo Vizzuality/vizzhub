@@ -1,4 +1,6 @@
 import type { ProjectIteration } from '../types/portfolio';
+import { useSetProjectProgram } from '../hooks/usePrograms';
+import { ProgramCombobox } from './ProgramCombobox';
 
 export function UnassignedTray({
   projects,
@@ -7,6 +9,7 @@ export function UnassignedTray({
   readonly projects: ProjectIteration[];
   readonly canManage: boolean;
 }): JSX.Element | null {
+  const setProjectProgram = useSetProjectProgram();
   if (projects.length === 0) return null;
   return (
     <section className="space-y-2">
@@ -22,7 +25,13 @@ export function UnassignedTray({
               <span className="text-xs text-muted-foreground">{p.client_name}</span>
             )}
             <span className="text-xs text-muted-foreground">{p.status}</span>
-            {canManage && <span data-testid="assign-slot" className="hidden" />}
+            {canManage && (
+              <ProgramCombobox
+                onSelect={(programId) =>
+                  void setProjectProgram.mutateAsync({ projectId: p.id, programId })
+                }
+              />
+            )}
           </div>
         ))}
       </div>

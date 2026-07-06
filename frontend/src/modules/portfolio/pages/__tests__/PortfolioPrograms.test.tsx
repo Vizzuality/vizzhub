@@ -86,4 +86,11 @@ describe('PortfolioPrograms', () => {
     expect(screen.queryByRole('button', { name: /new program/i })).not.toBeInTheDocument();
     mockUsePermission.mockReturnValue(true);
   });
+
+  it('shows an enabled New program button and assign controls with manage permission', () => {
+    mockUsePermission.mockReturnValue(true);
+    renderPage();
+    expect(screen.getByRole('button', { name: /new program/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /assign/i })).toBeInTheDocument();
+  });
 });
