@@ -20,20 +20,10 @@ function renderAt(path: string) {
 }
 
 describe('PageBreadcrumb', () => {
-  it('renders Projects crumb for /projects', () => {
+  it('shows Projects › All Projects for /projects', () => {
     renderAt('/projects');
-    expect(screen.getByText('Projects')).toBeInTheDocument();
-  });
-
-  it('shows All Projects as current page for /projects', () => {
-    renderAt('/projects');
+    expect(screen.getByRole('link', { name: 'Projects' })).toHaveAttribute('href', '/projects');
     expect(screen.getByText('All Projects')).toBeInTheDocument();
-  });
-
-  it('links Projects to /projects for /projects', () => {
-    renderAt('/projects');
-    const link = screen.getByRole('link', { name: 'Projects' });
-    expect(link).toHaveAttribute('href', '/projects');
   });
 
   it('shows Projects › Scorecard for /scorecard', () => {
@@ -64,6 +54,8 @@ describe('PageBreadcrumb', () => {
 
   it('shows Projects › Portfolio › Dashboard for /admin/portfolio/dashboard', () => {
     renderAt('/admin/portfolio/dashboard');
+    expect(screen.getByRole('link', { name: 'Projects' })).toHaveAttribute('href', '/projects');
+    expect(screen.getByRole('link', { name: 'Portfolio' })).toHaveAttribute('href', '/admin/portfolio');
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
   });
 
