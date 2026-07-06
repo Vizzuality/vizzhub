@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { activeSubItemTo } from '../sidebarNav';
 
 const PORTFOLIO = [
-  { to: '/admin/portfolio', label: 'Clients' },
+  { to: '/admin/portfolio', label: 'Programs' },
+  { to: '/admin/portfolio/clients', label: 'Clients' },
   { to: '/admin/portfolio/dashboard', label: 'Dashboard' },
 ] as const;
 

@@ -112,7 +112,8 @@ const EVENTS_TABS = [
 ] as const;
 
 const PORTFOLIO_TABS = [
-  { to: '/admin/portfolio', label: 'Clients' },
+  { to: '/admin/portfolio', label: 'Programs' },
+  { to: '/admin/portfolio/clients', label: 'Clients' },
   { to: '/admin/portfolio/dashboard', label: 'Dashboard' },
 ] as const;
 

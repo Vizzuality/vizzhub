@@ -3,7 +3,8 @@ import { cn } from '@/lib/utils';
 
 export default function PortfolioLayout(): JSX.Element {
   const tabs = [
-    { to: '/admin/portfolio', label: 'Clients', end: true },
+    { to: '/admin/portfolio', label: 'Programs', end: true },
+    { to: '/admin/portfolio/clients', label: 'Clients', end: false },
     { to: '/admin/portfolio/dashboard', label: 'Dashboard', end: false },
   ];
   return (

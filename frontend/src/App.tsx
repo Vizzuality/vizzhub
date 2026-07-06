@@ -56,6 +56,7 @@ import { AccrualDashboard } from './modules/accrual/pages/Dashboard';
 import PortfolioClients from './modules/portfolio/pages/PortfolioClients';
 import PortfolioLayout from './modules/portfolio/pages/PortfolioLayout';
 import PortfolioDashboard from './modules/portfolio/pages/PortfolioDashboard';
+import PortfolioPrograms from './modules/portfolio/pages/PortfolioPrograms';
 import NotFound from './core/pages/NotFound';
 import ProjectHubLayout from './core/pages/ProjectHub';
 import ProjectOverview from './core/pages/ProjectOverview';
@@ -153,7 +154,8 @@ function AppRoutes(): JSX.Element {
             {AdminCoreRoutes()}
             {AdminTrackerRoutes()}
             <Route path="portfolio" element={<PortfolioLayout />}>
-              <Route index element={<PortfolioClients />} />
+              <Route index element={<PortfolioPrograms />} />
+              <Route path="clients" element={<PortfolioClients />} />
               <Route path="dashboard" element={<PortfolioDashboard />} />
             </Route>
           </Route>
@@ -239,7 +241,8 @@ function AppRoutes(): JSX.Element {
           </Route>
           <Route element={<PermissionRoute require={Action.PORTFOLIO_VIEW} />}>
             <Route path="/admin/portfolio" element={<PortfolioLayout />}>
-              <Route index element={<PortfolioClients />} />
+              <Route index element={<PortfolioPrograms />} />
+              <Route path="clients" element={<PortfolioClients />} />
               <Route path="dashboard" element={<PortfolioDashboard />} />
             </Route>
           </Route>
