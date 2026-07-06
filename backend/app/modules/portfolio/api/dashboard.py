@@ -27,7 +27,7 @@ async def project_leaderboard(
     request: Request,
     current_user: PortfolioViewer,
     db: DBSession,
-    year: int | None = Query(None, ge=2000, le=2100),
+    year: Annotated[int | None, Query(ge=2000, le=2100)] = None,
 ) -> ProjectLeaderboard:
     return await build_project_leaderboard(db, year=year)
 
@@ -38,6 +38,6 @@ async def client_leaderboard(
     request: Request,
     current_user: PortfolioViewer,
     db: DBSession,
-    year: int | None = Query(None, ge=2000, le=2100),
+    year: Annotated[int | None, Query(ge=2000, le=2100)] = None,
 ) -> ClientLeaderboard:
     return await build_client_leaderboard(db, year=year)
