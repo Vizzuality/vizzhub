@@ -39,7 +39,18 @@ vi.mock('../../hooks/usePrograms', () => ({
   useProgramOptions: () => ({ data: [] }),
 }));
 vi.mock('../../hooks/useTaxonomies', () => ({
-  useTaxonomies: () => ({ data: [], isLoading: false }),
+  useTaxonomies: () => ({
+    data: [
+      {
+        id: 'x1', slug: 'service', name: 'Service', description: null,
+        cardinality: 'multi', allows_primary: false, is_active: true, sort_order: 0,
+        terms: [
+          { id: 't1', taxonomy_id: 'x1', slug: 'tools', name: 'Tools', description: null, sort_order: 0, is_active: true },
+        ],
+      },
+    ],
+    isLoading: false,
+  }),
 }));
 vi.mock('@/core/permissions/usePermission', () => ({
   usePermission: (...args: Parameters<typeof mockUsePermission>) => mockUsePermission(...args),
