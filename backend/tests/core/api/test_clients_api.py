@@ -236,6 +236,35 @@ async def test_merge_endpoint_400_on_target_in_sources(
     assert resp.status_code == 400
 
 
+@pytest.mark.asyncio
+async def test_merge_endpoint_forbidden_without_manage_permission(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """A viewer (portfolio:view only) must be denied the merge write op with 403."""
+    target = ClientDB(name="View Only Target", slug="view-only-target")
+    source = ClientDB(name="View Only Source", slug="view-only-source")
+    db_session.add_all([target, source])
+    await db_session.commit()
+
+    async def _viewer_only() -> TokenData:
+        return TokenData(
+            user_id="00000000-0000-0000-0000-000000000010",
+            email="viewer@test.com",
+            roles=["user"],
+            permissions=["portfolio:view"],
+        )
+
+    app.dependency_overrides[get_current_user] = _viewer_only
+    try:
+        resp = await client.post(
+            f"/api/clients/{target.id}/merge",
+            json={"source_ids": [str(source.id)]},
+        )
+        assert resp.status_code == 403
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+
 def _pm_only_token() -> TokenData:
     """projects:manage but NOT portfolio:view — must still read /options."""
     return TokenData(

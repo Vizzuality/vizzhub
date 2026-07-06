@@ -31,6 +31,7 @@ import {
 import { useTheme } from 'next-themes';
 import { useAnyPermission, usePermission, Action } from '@/core/permissions';
 import { VizzualityLogo } from './VizzualityLogo';
+import { activeSubItemTo, type SubItem } from './sidebarNav';
 import {
   Sidebar,
   SidebarContent,
@@ -139,11 +140,6 @@ function GuardedLink({
   );
 }
 
-interface SubItem {
-  readonly to: string;
-  readonly label: string;
-}
-
 function CollapsibleMenuItem({
   icon: Icon,
   label,
@@ -157,6 +153,7 @@ function CollapsibleMenuItem({
 }): JSX.Element {
   const { state, isMobile } = useSidebar();
   const location = useLocation();
+  const activeTo = activeSubItemTo(location.pathname, items);
 
   if (!isMobile && state === 'collapsed') {
     return (
@@ -198,7 +195,7 @@ function CollapsibleMenuItem({
           <SidebarMenuSub>
             {items.map(({ to, label: itemLabel }) => (
               <SidebarMenuSubItem key={to}>
-                <SidebarMenuSubButton asChild isActive={location.pathname === to || location.pathname.startsWith(to)}>
+                <SidebarMenuSubButton asChild isActive={to === activeTo}>
                   <GuardedLink to={to}>{itemLabel}</GuardedLink>
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
