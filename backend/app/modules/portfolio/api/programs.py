@@ -9,8 +9,17 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from app.core.api.deps import DBSession, limiter
 from app.core.auth import TokenData
 from app.core.permissions import Action, require_permission
-from app.core.services.program_catalog import build_program_detail, build_program_index
-from app.modules.portfolio.schemas.programs import ProgramIndexResponse, ProgramSummary
+from app.core.services.program_catalog import (
+    build_program_detail,
+    build_program_index,
+    upsert_program_profile,
+)
+from app.modules.portfolio.schemas.programs import (
+    ProfileFields,
+    ProgramIndexResponse,
+    ProgramProfileUpdate,
+    ProgramSummary,
+)
 
 PortfolioViewer = Annotated[TokenData, Depends(require_permission(Action.PORTFOLIO_VIEW))]
 PortfolioManager = Annotated[TokenData, Depends(require_permission(Action.PORTFOLIO_MANAGE))]
@@ -50,3 +59,31 @@ async def program_detail(
     if detail is None:
         raise HTTPException(status_code=404, detail="Program not found")
     return detail
+
+
+@router.patch(
+    "/{program_id}/profile",
+    responses={
+        403: {"description": "Missing portfolio:manage permission"},
+        404: {"description": "Program not found"},
+    },
+)
+@limiter.limit("30/minute")
+async def update_program_profile(
+    request: Request,
+    current_user: PortfolioManager,
+    db: DBSession,
+    program_id: UUID,
+    payload: ProgramProfileUpdate,
+) -> ProfileFields:
+    try:
+        result = await upsert_program_profile(db, program_id, payload)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    logger.info(
+        "portfolio_profile_updated",
+        program_id=str(program_id),
+        fields=sorted(payload.model_fields_set),
+        user_id=current_user.user_id,
+    )
+    return result

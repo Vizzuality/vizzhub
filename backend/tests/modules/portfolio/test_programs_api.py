@@ -3,6 +3,7 @@
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import TokenData, get_current_user
@@ -168,4 +169,58 @@ async def test_detail_404_for_unknown_program(
     viewer: AsyncClient, db_session: AsyncSession
 ) -> None:
     resp = await viewer.get("/api/portfolio/programs/00000000-0000-0000-0000-000000000001")
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_profile_patch_creates_row_when_absent(
+    manager: AsyncClient, db_session: AsyncSession
+) -> None:
+    seed = await _seed_catalogue(db_session)
+    resp = await manager.patch(
+        f"/api/portfolio/programs/{seed['bare'].id}/profile",
+        json={"objective": "new obj", "on_website": True},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["objective"] == "new obj"
+    assert body["on_website"] is True
+    row = (
+        await db_session.execute(
+            select(PortfolioProfileDB).where(PortfolioProfileDB.program_id == seed["bare"].id)
+        )
+    ).scalar_one()
+    assert row.project_id is None
+
+
+@pytest.mark.asyncio
+async def test_profile_patch_partial_update_preserves_unsent_fields(
+    manager: AsyncClient, db_session: AsyncSession
+) -> None:
+    seed = await _seed_catalogue(db_session)
+    resp = await manager.patch(
+        f"/api/portfolio/programs/{seed['prog'].id}/profile", json={"stage": "closing"}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["stage"] == "closing"
+    assert resp.json()["short_description"] == "desc"  # untouched
+
+
+@pytest.mark.asyncio
+async def test_profile_patch_403_without_manage(
+    viewer: AsyncClient, db_session: AsyncSession
+) -> None:
+    seed = await _seed_catalogue(db_session)
+    resp = await viewer.patch(
+        f"/api/portfolio/programs/{seed['prog'].id}/profile", json={"stage": "x"}
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_profile_patch_404_unknown_program(manager: AsyncClient) -> None:
+    resp = await manager.patch(
+        "/api/portfolio/programs/00000000-0000-0000-0000-000000000001/profile",
+        json={"stage": "x"},
+    )
     assert resp.status_code == 404

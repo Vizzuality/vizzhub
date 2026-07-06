@@ -23,6 +23,7 @@ from app.modules.portfolio.schemas.programs import (
     ClientRef,
     ProfileFields,
     ProgramIndexResponse,
+    ProgramProfileUpdate,
     ProgramSummary,
     ProjectIteration,
     TermChip,
@@ -165,3 +166,29 @@ async def build_program_index(
         programs=summaries,
         unassigned_projects=[_iteration(p, cn) for p, cn in unassigned_rows],
     )
+
+
+async def upsert_program_profile(
+    db: AsyncSession, program_id: UUID, update: ProgramProfileUpdate
+) -> ProfileFields:
+    program = (
+        await db.execute(select(ProgramDB).where(ProgramDB.id == program_id))
+    ).scalar_one_or_none()
+    if program is None:
+        raise LookupError("Program not found")
+    profile = (
+        await db.execute(
+            select(PortfolioProfileDB).where(PortfolioProfileDB.program_id == program_id)
+        )
+    ).scalar_one_or_none()
+    if profile is None:
+        profile = PortfolioProfileDB(program_id=program_id)
+        db.add(profile)
+    for field in update.model_fields_set:
+        value = getattr(update, field)
+        if field == "on_website" and value is None:
+            continue  # boolean column is NOT NULL; explicit null means "leave as is"
+        setattr(profile, field, value)
+    await db.flush()
+    await db.refresh(profile)
+    return ProfileFields.model_validate(profile)
