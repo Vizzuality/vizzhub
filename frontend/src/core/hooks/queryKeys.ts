@@ -272,11 +272,12 @@ export const queryKeys = {
       clients: (filters: Record<string, unknown>) =>
         ['portfolio', 'dashboard', 'clients', filters] as const,
     },
-    import: {
-      all: ['portfolio', 'import'] as const,
-      current: ['portfolio', 'import', 'current'] as const,
-      projects: ['portfolio', 'import', 'projects'] as const,
-      matches: (batchId: string) => ['portfolio', 'import', 'matches', batchId] as const,
+    programs: {
+      all: ['portfolio', 'programs'] as const,
+      index: (filters: Record<string, unknown>) =>
+        ['portfolio', 'programs', 'index', filters] as const,
+      detail: (id: string) => ['portfolio', 'programs', 'detail', id] as const,
+      options: () => ['portfolio', 'programs', 'options'] as const,
     },
   },
   devstack: {

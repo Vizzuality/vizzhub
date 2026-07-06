@@ -101,3 +101,80 @@ export interface ClientLeaderboard {
   available_years: number[];
   rows: ClientRow[];
 }
+
+export interface TermChip {
+  term_id: string;
+  taxonomy_id: string;
+  taxonomy_slug: string;
+  name: string;
+  is_primary: boolean;
+}
+
+export interface ClientRef {
+  id: string;
+  name: string;
+}
+
+export interface ProjectIteration {
+  id: string;
+  name: string;
+  status: string;
+  start_year: number | null;
+  end_year: number | null;
+  has_scorecard: boolean;
+  is_billable: boolean;
+  is_absence: boolean;
+  client_id: string | null;
+  client_name: string | null;
+}
+
+export interface ProgramProfile {
+  objective: string | null;
+  short_description: string | null;
+  web_copy: string | null;
+  impact_story: string | null;
+  main_partner: string | null;
+  stage: string | null;
+  on_website: boolean;
+}
+
+export interface ProgramSummary {
+  id: string;
+  name: string;
+  profile: ProgramProfile | null;
+  terms: TermChip[];
+  clients: ClientRef[];
+  projects: ProjectIteration[];
+}
+
+export interface ProgramIndexResponse {
+  programs: ProgramSummary[];
+  unassigned_projects: ProjectIteration[];
+}
+
+export interface ProgramIndexFilters {
+  search?: string;
+  term_ids?: string[];
+  client_id?: string;
+}
+
+export interface ProgramProfileUpdate {
+  objective?: string | null;
+  short_description?: string | null;
+  web_copy?: string | null;
+  impact_story?: string | null;
+  main_partner?: string | null;
+  stage?: string | null;
+  on_website?: boolean;
+}
+
+export interface ProgramTermsUpdate {
+  taxonomy_id: string;
+  term_ids: string[];
+  primary_term_id: string | null;
+}
+
+export interface ProgramOption {
+  id: string;
+  name: string;
+}
