@@ -93,4 +93,12 @@ describe('ProgramDetail', () => {
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
     mockUsePermission.mockReturnValue(true);
   });
+
+  it('shows move/remove per iteration with manage permission', () => {
+    mockUsePermission.mockReturnValue(true);
+    renderPage();
+    // /^move/i anchored so "Remove" (which contains "move") doesn't match
+    expect(screen.getAllByRole('button', { name: /^move/i })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: /remove/i })).toHaveLength(2);
+  });
 });

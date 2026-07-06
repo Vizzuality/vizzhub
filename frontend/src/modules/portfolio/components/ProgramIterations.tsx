@@ -1,16 +1,20 @@
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { Button } from '@/shared/components/ui/button';
+import { useSetProjectProgram } from '../hooks/usePrograms';
+import { ProgramCombobox } from './ProgramCombobox';
 import type { ProjectIteration } from '../types/portfolio';
 
 export function ProgramIterations({
   projects,
   canManage,
-  programId: _programId,
+  programId,
 }: {
   readonly projects: ProjectIteration[];
   readonly canManage: boolean;
   readonly programId: string;
 }): JSX.Element {
+  const setProjectProgram = useSetProjectProgram();
   return (
     <section className="space-y-2">
       <h2 className="text-sm font-medium">Iterations</h2>
@@ -49,7 +53,26 @@ export function ProgramIterations({
                 Tracker
               </Link>
             )}
-            {canManage && <span data-testid={`iteration-actions-${p.id}`} className="hidden" />}
+            {canManage && (
+              <>
+                <ProgramCombobox
+                  triggerLabel="Move…"
+                  value={programId}
+                  onSelect={(target) => {
+                    if (target !== programId) {
+                      void setProjectProgram.mutateAsync({ projectId: p.id, programId: target });
+                    }
+                  }}
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void setProjectProgram.mutateAsync({ projectId: p.id, programId: null })}
+                >
+                  Remove
+                </Button>
+              </>
+            )}
           </div>
         ))}
         {projects.length === 0 && (
