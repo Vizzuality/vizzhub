@@ -108,10 +108,9 @@ async def replace_terms(
     program_id: UUID,
     payload: ProgramTermsUpdate,
 ) -> list[TermChip]:
+    assigned_by = UUID(current_user.user_id)
     try:
-        chips = await replace_program_terms(
-            db, program_id, payload, assigned_by=UUID(current_user.user_id)
-        )
+        chips = await replace_program_terms(db, program_id, payload, assigned_by=assigned_by)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:

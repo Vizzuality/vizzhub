@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
-import { isAxiosError } from 'axios';
+import { getApiErrorMessage } from '@/utils/apiErrors';
 import { Button } from '@/shared/components/ui/button';
 import {
   Dialog,
@@ -29,11 +29,12 @@ export function CreateProgramDialog(): JSX.Element {
       setOpen(false);
       navigate(`/admin/portfolio/programs/${created.id}`);
     } catch (err) {
-      if (isAxiosError(err) && err.response?.status === 409) {
-        setError('A program with this name already exists');
-      } else {
-        setError('Could not create the program');
-      }
+      setError(
+        getApiErrorMessage(err as Error, {
+          conflict: 'A program with this name already exists',
+          fallback: 'Could not create the program',
+        }),
+      );
     }
   };
 

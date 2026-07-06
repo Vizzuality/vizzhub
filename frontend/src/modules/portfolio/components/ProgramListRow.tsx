@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ChevronRight, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TermChips } from './TermChips';
+import { ProjectStatusDot } from './ProjectStatusDot';
 import { iterationSummary } from '../utils/programs';
 import type { ProgramSummary } from '../types/portfolio';
 
@@ -42,12 +43,7 @@ export function ProgramListRow({ program }: { readonly program: ProgramSummary }
         <div className="space-y-1 px-10 pb-2">
           {program.projects.map((p) => (
             <div key={p.id} className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span
-                className={cn(
-                  'inline-block h-2 w-2 shrink-0 rounded-full',
-                  p.status === 'finished' ? 'bg-muted-foreground/50' : 'bg-emerald-500',
-                )}
-              />
+              <ProjectStatusDot status={p.status} />
               <span className="text-foreground">{p.name}</span>
               {p.start_year && (
                 <span>

@@ -138,3 +138,51 @@ async def test_second_primary_demoted_on_rollup(db_session: AsyncSession) -> Non
     primaries = [r for r in rows if r.is_primary]
     assert len(primaries) == 1
     assert primaries[0].term_id == t1.id  # program's pre-existing primary kept
+
+
+@pytest.mark.asyncio
+async def test_sibling_project_primaries_earliest_wins(db_session: AsyncSession) -> None:
+    """Two projects in the same program each carry a primary (no program primary): stmt 5."""
+    prog, proj_a = await _program_with_project(db_session, prog_name="P5", proj_name="P5 iter A")
+    proj_b = ProjectDB(
+        name="P5 iter B", is_billable=True, is_absence=False, status="live", program_id=prog.id
+    )
+    db_session.add(proj_b)
+    await db_session.flush()
+    tax = TaxonomyDB(
+        slug="impact-area", name="Impact Area", cardinality=Cardinality.MULTI, allows_primary=True
+    )
+    db_session.add(tax)
+    await db_session.flush()
+    t1 = TaxonomyTermDB(taxonomy_id=tax.id, slug="nature", name="Nature")
+    t2 = TaxonomyTermDB(taxonomy_id=tax.id, slug="climate", name="Climate")
+    db_session.add_all([t1, t2])
+    await db_session.flush()
+    early = datetime(2026, 1, 1, tzinfo=UTC)
+    db_session.add(
+        EntityTermDB(
+            term_id=t1.id,
+            taxonomy_id=tax.id,
+            project_id=proj_a.id,
+            is_primary=True,
+            assigned_at=early,
+        )
+    )
+    db_session.add(
+        EntityTermDB(
+            term_id=t2.id,
+            taxonomy_id=tax.id,
+            project_id=proj_b.id,
+            is_primary=True,
+            assigned_at=early + timedelta(days=1),
+        )
+    )
+    await db_session.flush()
+
+    await _run_rollup(db_session)
+
+    rows = (await db_session.execute(select(EntityTermDB))).scalars().all()
+    assert all(r.program_id == prog.id and r.project_id is None for r in rows)
+    primaries = [r for r in rows if r.is_primary]
+    assert len(primaries) == 1
+    assert primaries[0].term_id == t1.id  # earliest assigned_at kept primary

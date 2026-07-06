@@ -169,14 +169,19 @@ async def build_program_index(
     )
 
 
-async def upsert_program_profile(
-    db: AsyncSession, program_id: UUID, update: ProgramProfileUpdate
-) -> ProfileFields:
+async def _require_program(db: AsyncSession, program_id: UUID) -> ProgramDB:
     program = (
         await db.execute(select(ProgramDB).where(ProgramDB.id == program_id))
     ).scalar_one_or_none()
     if program is None:
         raise LookupError("Program not found")
+    return program
+
+
+async def upsert_program_profile(
+    db: AsyncSession, program_id: UUID, update: ProgramProfileUpdate
+) -> ProfileFields:
+    await _require_program(db, program_id)
     profile = (
         await db.execute(
             select(PortfolioProfileDB).where(PortfolioProfileDB.program_id == program_id)
@@ -201,11 +206,7 @@ async def replace_program_terms(
     payload: ProgramTermsUpdate,
     assigned_by: UUID | None,
 ) -> list[TermChip]:
-    program = (
-        await db.execute(select(ProgramDB).where(ProgramDB.id == program_id))
-    ).scalar_one_or_none()
-    if program is None:
-        raise LookupError("Program not found")
+    await _require_program(db, program_id)
     taxonomy = (
         await db.execute(select(TaxonomyDB).where(TaxonomyDB.id == payload.taxonomy_id))
     ).scalar_one_or_none()

@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
-import { cn } from '@/lib/utils';
 import { Button } from '@/shared/components/ui/button';
 import { useSetProjectProgram } from '../hooks/usePrograms';
 import { ProgramCombobox } from './ProgramCombobox';
+import { ProjectStatusDot } from './ProjectStatusDot';
 import type { ProjectIteration } from '../types/portfolio';
 
 export function ProgramIterations({
@@ -24,12 +24,7 @@ export function ProgramIterations({
             key={p.id}
             className="flex items-center gap-3 border-b px-3 py-2 text-sm last:border-b-0"
           >
-            <span
-              className={cn(
-                'inline-block h-2 w-2 shrink-0 rounded-full',
-                p.status === 'finished' ? 'bg-muted-foreground/50' : 'bg-emerald-500',
-              )}
-            />
+            <ProjectStatusDot status={p.status} />
             <span className="min-w-0 flex-1 truncate">{p.name}</span>
             {p.start_year && (
               <span className="text-xs text-muted-foreground">

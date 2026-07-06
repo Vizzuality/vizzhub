@@ -5,7 +5,14 @@ import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import type { ProgramProfile, ProgramProfileUpdate } from '../types/portfolio';
 
-const FIELDS: { key: keyof ProgramProfileUpdate & string; label: string; multiline: boolean }[] = [
+type NarrativeKey =
+  | 'objective'
+  | 'short_description'
+  | 'web_copy'
+  | 'impact_story'
+  | 'main_partner';
+
+const FIELDS: { key: NarrativeKey; label: string; multiline: boolean }[] = [
   { key: 'objective', label: 'Objective', multiline: true },
   { key: 'short_description', label: 'Short description', multiline: true },
   { key: 'web_copy', label: 'Web copy', multiline: true },
@@ -27,18 +34,17 @@ export function ProgramNarrative({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>({});
 
+  const value = (key: NarrativeKey): string => profile?.[key] ?? '';
+
   const startEdit = (): void => {
-    const initial: Record<string, string> = {};
-    for (const f of FIELDS) initial[f.key] = (profile?.[f.key as keyof ProgramProfile] as string | null) ?? '';
-    setDraft(initial);
+    setDraft(Object.fromEntries(FIELDS.map((f) => [f.key, value(f.key)])));
     setEditing(true);
   };
 
   const save = async (): Promise<void> => {
     const diff: ProgramProfileUpdate = {};
     for (const f of FIELDS) {
-      const original = (profile?.[f.key as keyof ProgramProfile] as string | null) ?? '';
-      if (draft[f.key] !== original) {
+      if (draft[f.key] !== value(f.key)) {
         (diff as Record<string, string | null>)[f.key] = draft[f.key].trim() || null;
       }
     }
@@ -85,9 +91,7 @@ export function ProgramNarrative({
               )
             ) : (
               <p className="whitespace-pre-wrap text-sm">
-                {(profile?.[f.key as keyof ProgramProfile] as string | null) || (
-                  <span className="text-muted-foreground">—</span>
-                )}
+                {value(f.key) || <span className="text-muted-foreground">—</span>}
               </p>
             )}
           </div>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { isAxiosError } from 'axios';
 import { Star } from 'lucide-react';
+import { getApiErrorMessage } from '@/utils/apiErrors';
 import { cn } from '@/lib/utils';
 import { Button } from '@/shared/components/ui/button';
 import { Checkbox } from '@/shared/components/ui/checkbox';
@@ -53,11 +53,12 @@ function TaxonomyEditor({
       });
       setOpen(false);
     } catch (err) {
-      if (isAxiosError(err) && err.response?.status === 400) {
-        setError(String(err.response.data?.detail ?? 'Invalid selection'));
-      } else {
-        setError('Could not save tags');
-      }
+      setError(
+        getApiErrorMessage(err as Error, {
+          badRequest: 'Invalid selection',
+          fallback: 'Could not save tags',
+        }),
+      );
     }
   };
 

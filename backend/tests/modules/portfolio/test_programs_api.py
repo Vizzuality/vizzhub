@@ -154,6 +154,17 @@ async def test_index_term_filter_or_within_and_across_taxonomies(
         params=[("term_ids", str(seed["tools"].id)), ("term_ids", str(seed["europe"].id))],
     )
     assert [p["name"] for p in resp.json()["programs"]] == ["Alpha Program"]
+    # OR within a taxonomy: Alpha has Tools but NOT Strategic — asking for either still matches.
+    strategic = TaxonomyTermDB(
+        taxonomy_id=seed["tools"].taxonomy_id, slug="strategic", name="Strategic"
+    )
+    db_session.add(strategic)
+    await db_session.commit()
+    resp = await viewer.get(
+        "/api/portfolio/programs",
+        params=[("term_ids", str(seed["tools"].id)), ("term_ids", str(strategic.id))],
+    )
+    assert [p["name"] for p in resp.json()["programs"]] == ["Alpha Program"]
 
 
 @pytest.mark.asyncio
