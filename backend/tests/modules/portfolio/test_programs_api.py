@@ -1,5 +1,7 @@
 """Integration tests for /api/portfolio/programs (F2 catalogue)."""
 
+from uuid import UUID
+
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
@@ -12,6 +14,7 @@ from app.core.models.portfolio_profile import PortfolioProfileDB
 from app.core.models.program import ProgramDB
 from app.core.models.project import ProjectDB
 from app.core.models.taxonomy import Cardinality, EntityTermDB, TaxonomyDB, TaxonomyTermDB
+from app.core.models.user import UserDB
 from app.database import get_db
 from app.main import app
 
@@ -54,6 +57,14 @@ async def manager(db_session: AsyncSession):
 
 async def _seed_catalogue(db: AsyncSession) -> dict:
     """One program (profile + 2 tags + 1 project w/ client) + one bare program + 1 orphan."""
+    # Ensure the test user exists so assigned_by FK is satisfied
+    existing = (
+        await db.execute(select(UserDB).where(UserDB.id == UUID(USER_ID)))
+    ).scalar_one_or_none()
+    if existing is None:
+        db.add(UserDB(id=UUID(USER_ID), email="t@test.com"))
+        await db.flush()
+
     tax = TaxonomyDB(slug="service", name="Service", cardinality=Cardinality.MULTI)
     tax2 = TaxonomyDB(slug="geography", name="Geography", cardinality=Cardinality.MULTI)
     db.add_all([tax, tax2])
@@ -224,3 +235,109 @@ async def test_profile_patch_404_unknown_program(manager: AsyncClient) -> None:
         json={"stage": "x"},
     )
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_terms_put_replaces_taxonomy_set(
+    manager: AsyncClient, db_session: AsyncSession
+) -> None:
+    seed = await _seed_catalogue(db_session)
+    strategic = TaxonomyTermDB(
+        taxonomy_id=seed["tools"].taxonomy_id, slug="strategic", name="Strategic"
+    )
+    db_session.add(strategic)
+    await db_session.commit()
+    resp = await manager.put(
+        f"/api/portfolio/programs/{seed['prog'].id}/terms",
+        json={
+            "taxonomy_id": str(seed["tools"].taxonomy_id),
+            "term_ids": [str(strategic.id)],
+            "primary_term_id": None,
+        },
+    )
+    assert resp.status_code == 200
+    assert [c["name"] for c in resp.json()] == ["Strategic"]
+    rows = (
+        (
+            await db_session.execute(
+                select(EntityTermDB).where(
+                    EntityTermDB.program_id == seed["prog"].id,
+                    EntityTermDB.taxonomy_id == seed["tools"].taxonomy_id,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(rows) == 1  # Tools replaced, not appended
+    assert rows[0].assigned_by is not None
+
+
+@pytest.mark.asyncio
+async def test_terms_put_single_cardinality_rejects_two_terms(
+    manager: AsyncClient, db_session: AsyncSession
+) -> None:
+    seed = await _seed_catalogue(db_session)
+    single = TaxonomyDB(slug="client-type", name="Client Type", cardinality=Cardinality.SINGLE)
+    db_session.add(single)
+    await db_session.flush()
+    ngo = TaxonomyTermDB(taxonomy_id=single.id, slug="ngo", name="NGO")
+    gov = TaxonomyTermDB(taxonomy_id=single.id, slug="government", name="Government")
+    db_session.add_all([ngo, gov])
+    await db_session.commit()
+    resp = await manager.put(
+        f"/api/portfolio/programs/{seed['prog'].id}/terms",
+        json={
+            "taxonomy_id": str(single.id),
+            "term_ids": [str(ngo.id), str(gov.id)],
+            "primary_term_id": None,
+        },
+    )
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_terms_put_primary_requires_allows_primary_and_membership(
+    manager: AsyncClient, db_session: AsyncSession
+) -> None:
+    seed = await _seed_catalogue(db_session)
+    # service taxonomy has allows_primary=False (default)
+    resp = await manager.put(
+        f"/api/portfolio/programs/{seed['prog'].id}/terms",
+        json={
+            "taxonomy_id": str(seed["tools"].taxonomy_id),
+            "term_ids": [str(seed["tools"].id)],
+            "primary_term_id": str(seed["tools"].id),
+        },
+    )
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_terms_put_rejects_term_from_other_taxonomy(
+    manager: AsyncClient, db_session: AsyncSession
+) -> None:
+    seed = await _seed_catalogue(db_session)
+    resp = await manager.put(
+        f"/api/portfolio/programs/{seed['prog'].id}/terms",
+        json={
+            "taxonomy_id": str(seed["tools"].taxonomy_id),
+            "term_ids": [str(seed["europe"].id)],  # geography term
+            "primary_term_id": None,
+        },
+    )
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_terms_put_403_without_manage(viewer: AsyncClient, db_session: AsyncSession) -> None:
+    seed = await _seed_catalogue(db_session)
+    resp = await viewer.put(
+        f"/api/portfolio/programs/{seed['prog'].id}/terms",
+        json={
+            "taxonomy_id": str(seed["tools"].taxonomy_id),
+            "term_ids": [],
+            "primary_term_id": None,
+        },
+    )
+    assert resp.status_code == 403

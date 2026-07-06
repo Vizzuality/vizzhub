@@ -11,20 +11,21 @@ from collections import defaultdict
 from uuid import UUID
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.client import ClientDB
 from app.core.models.portfolio_profile import PortfolioProfileDB
 from app.core.models.program import ProgramDB
 from app.core.models.project import ProjectDB
-from app.core.models.taxonomy import EntityTermDB, TaxonomyDB, TaxonomyTermDB
+from app.core.models.taxonomy import Cardinality, EntityTermDB, TaxonomyDB, TaxonomyTermDB
 from app.modules.portfolio.schemas.programs import (
     ClientRef,
     ProfileFields,
     ProgramIndexResponse,
     ProgramProfileUpdate,
     ProgramSummary,
+    ProgramTermsUpdate,
     ProjectIteration,
     TermChip,
 )
@@ -192,3 +193,71 @@ async def upsert_program_profile(
     await db.flush()
     await db.refresh(profile)
     return ProfileFields.model_validate(profile)
+
+
+async def replace_program_terms(
+    db: AsyncSession,
+    program_id: UUID,
+    payload: ProgramTermsUpdate,
+    assigned_by: UUID | None,
+) -> list[TermChip]:
+    program = (
+        await db.execute(select(ProgramDB).where(ProgramDB.id == program_id))
+    ).scalar_one_or_none()
+    if program is None:
+        raise LookupError("Program not found")
+    taxonomy = (
+        await db.execute(select(TaxonomyDB).where(TaxonomyDB.id == payload.taxonomy_id))
+    ).scalar_one_or_none()
+    if taxonomy is None:
+        raise LookupError("Taxonomy not found")
+
+    unique_ids = list(dict.fromkeys(payload.term_ids))
+    if taxonomy.cardinality == Cardinality.SINGLE and len(unique_ids) > 1:
+        raise ValueError("This taxonomy accepts at most one term")
+    if payload.primary_term_id is not None:
+        if not taxonomy.allows_primary:
+            raise ValueError("This taxonomy does not allow a primary term")
+        if payload.primary_term_id not in unique_ids:
+            raise ValueError("Primary term must be among the assigned terms")
+
+    term_rows = (
+        (await db.execute(select(TaxonomyTermDB).where(TaxonomyTermDB.id.in_(unique_ids))))
+        .scalars()
+        .all()
+        if unique_ids
+        else []
+    )
+    found = {t.id: t for t in term_rows}
+    for term_id in unique_ids:
+        term = found.get(term_id)
+        if term is None or term.taxonomy_id != taxonomy.id or not term.is_active:
+            raise ValueError("Terms must be active members of the taxonomy")
+
+    await db.execute(
+        delete(EntityTermDB).where(
+            EntityTermDB.program_id == program_id,
+            EntityTermDB.taxonomy_id == taxonomy.id,
+        )
+    )
+    for term_id in unique_ids:
+        db.add(
+            EntityTermDB(
+                term_id=term_id,
+                taxonomy_id=taxonomy.id,
+                program_id=program_id,
+                is_primary=term_id == payload.primary_term_id,
+                assigned_by=assigned_by,
+            )
+        )
+    await db.flush()
+    return [
+        TermChip(
+            term_id=term_id,
+            taxonomy_id=taxonomy.id,
+            taxonomy_slug=taxonomy.slug,
+            name=found[term_id].name,
+            is_primary=term_id == payload.primary_term_id,
+        )
+        for term_id in unique_ids
+    ]

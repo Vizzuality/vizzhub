@@ -12,6 +12,7 @@ from app.core.permissions import Action, require_permission
 from app.core.services.program_catalog import (
     build_program_detail,
     build_program_index,
+    replace_program_terms,
     upsert_program_profile,
 )
 from app.modules.portfolio.schemas.programs import (
@@ -19,6 +20,8 @@ from app.modules.portfolio.schemas.programs import (
     ProgramIndexResponse,
     ProgramProfileUpdate,
     ProgramSummary,
+    ProgramTermsUpdate,
+    TermChip,
 )
 
 PortfolioViewer = Annotated[TokenData, Depends(require_permission(Action.PORTFOLIO_VIEW))]
@@ -87,3 +90,37 @@ async def update_program_profile(
         user_id=current_user.user_id,
     )
     return result
+
+
+@router.put(
+    "/{program_id}/terms",
+    responses={
+        400: {"description": "Cardinality/primary/term validation failed"},
+        403: {"description": "Missing portfolio:manage permission"},
+        404: {"description": "Program or taxonomy not found"},
+    },
+)
+@limiter.limit("30/minute")
+async def replace_terms(
+    request: Request,
+    current_user: PortfolioManager,
+    db: DBSession,
+    program_id: UUID,
+    payload: ProgramTermsUpdate,
+) -> list[TermChip]:
+    try:
+        chips = await replace_program_terms(
+            db, program_id, payload, assigned_by=UUID(current_user.user_id)
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    logger.info(
+        "portfolio_terms_updated",
+        program_id=str(program_id),
+        taxonomy_id=str(payload.taxonomy_id),
+        count=len(chips),
+        user_id=current_user.user_id,
+    )
+    return chips
