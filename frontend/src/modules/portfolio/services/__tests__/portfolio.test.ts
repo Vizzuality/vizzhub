@@ -48,39 +48,3 @@ describe('portfolioApi', () => {
     expect(result).toEqual(data);
   });
 });
-
-describe('portfolioApi.import', () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it('uploads with multipart headers override', async () => {
-    vi.mocked(api.post).mockResolvedValue({ data: { batch_id: 'b1', row_count: 3, old_count: 1 } });
-    const file = new File(['x'], 'overview.xlsx');
-    const result = await portfolioApi.import.upload(file);
-    expect(result.batch_id).toBe('b1');
-    const [, , config] = vi.mocked(api.post).mock.calls[0];
-    expect((config as { headers: Record<string, unknown> }).headers['Content-Type']).toBeUndefined();
-  });
-
-  it('applies persisted decisions with no body', async () => {
-    vi.mocked(api.post).mockResolvedValue({ data: { applied: 1, programs_created: 1, projects_linked_to_program: 1, programs_annotated: 0, skipped: 0, unmapped_terms: [], unresolved_clients: [] } });
-    const result = await portfolioApi.import.apply('b1');
-    expect(result.programs_created).toBe(1);
-    expect(api.post).toHaveBeenCalledWith('/portfolio/import/b1/apply');
-  });
-
-  it('saves a single decision via PATCH', async () => {
-    vi.mocked(api.patch).mockResolvedValue({ data: undefined });
-    await portfolioApi.import.saveDecision('b1', 's1', {
-      project_id: null,
-      program_action: 'create',
-      program_id: null,
-      new_program_name: 'Aqueduct',
-    });
-    expect(api.patch).toHaveBeenCalledWith('/portfolio/import/b1/decisions/s1', {
-      project_id: null,
-      program_action: 'create',
-      program_id: null,
-      new_program_name: 'Aqueduct',
-    });
-  });
-});

@@ -2,8 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.modules.portfolio.api import dashboard, import_
+from app.modules.portfolio.api import dashboard
 
 router = APIRouter()
 router.include_router(dashboard.router, prefix="/dashboard", tags=["portfolio"])
-router.include_router(import_.router, prefix="/import", tags=["portfolio"])

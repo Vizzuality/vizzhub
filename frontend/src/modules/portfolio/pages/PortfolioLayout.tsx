@@ -1,14 +1,10 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { usePermission } from '@/core/permissions/usePermission';
-import { Action } from '@/core/permissions/constants';
 
 export default function PortfolioLayout(): JSX.Element {
-  const canManage = usePermission(Action.PORTFOLIO_MANAGE);
   const tabs = [
     { to: '/admin/portfolio', label: 'Clients', end: true },
     { to: '/admin/portfolio/dashboard', label: 'Dashboard', end: false },
-    ...(canManage ? [{ to: '/admin/portfolio/import', label: 'Import', end: false }] : []),
   ];
   return (
     <div className="space-y-4">

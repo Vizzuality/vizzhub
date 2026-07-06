@@ -9,12 +9,6 @@ import type {
   ClientUpdate,
   MergeRequest,
   MergeResponse,
-  OverviewApplyResult,
-  OverviewCurrentBatch,
-  OverviewDecisionPatch,
-  OverviewImportProject,
-  OverviewMatch,
-  OverviewUploadResult,
   ProjectLeaderboard,
   Taxonomy,
 } from '../types/portfolio';
@@ -61,42 +55,6 @@ export const portfolioApi = {
       const response = await api.get<ClientLeaderboard>('/portfolio/dashboard/clients', {
         params: year ? { year } : {},
       });
-      return response.data;
-    },
-  },
-
-  import: {
-    upload: async (file: File): Promise<OverviewUploadResult> => {
-      const form = new FormData();
-      form.append('file', file);
-      // axios sets a global application/json Content-Type; undefined lets the
-      // browser attach the multipart boundary. (Codebase gotcha.)
-      const response = await api.post<OverviewUploadResult>('/portfolio/import/upload', form, {
-        headers: { 'Content-Type': undefined },
-      });
-      return response.data;
-    },
-    current: async (): Promise<OverviewCurrentBatch | null> => {
-      const response = await api.get<OverviewCurrentBatch | null>('/portfolio/import/current');
-      return response.data;
-    },
-    projects: async (): Promise<OverviewImportProject[]> => {
-      const response = await api.get<OverviewImportProject[]>('/portfolio/import/projects');
-      return response.data;
-    },
-    matches: async (batchId: string): Promise<OverviewMatch[]> => {
-      const response = await api.get<OverviewMatch[]>(`/portfolio/import/${batchId}/matches`);
-      return response.data;
-    },
-    saveDecision: async (
-      batchId: string,
-      stagingId: string,
-      patch: OverviewDecisionPatch,
-    ): Promise<void> => {
-      await api.patch(`/portfolio/import/${batchId}/decisions/${stagingId}`, patch);
-    },
-    apply: async (batchId: string): Promise<OverviewApplyResult> => {
-      const response = await api.post<OverviewApplyResult>(`/portfolio/import/${batchId}/apply`);
       return response.data;
     },
   },

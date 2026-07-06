@@ -56,7 +56,6 @@ import { AccrualDashboard } from './modules/accrual/pages/Dashboard';
 import PortfolioClients from './modules/portfolio/pages/PortfolioClients';
 import PortfolioLayout from './modules/portfolio/pages/PortfolioLayout';
 import PortfolioDashboard from './modules/portfolio/pages/PortfolioDashboard';
-import PortfolioImport from './modules/portfolio/pages/PortfolioImport';
 import NotFound from './core/pages/NotFound';
 import ProjectHubLayout from './core/pages/ProjectHub';
 import ProjectOverview from './core/pages/ProjectOverview';
@@ -156,7 +155,6 @@ function AppRoutes(): JSX.Element {
             <Route path="portfolio" element={<PortfolioLayout />}>
               <Route index element={<PortfolioClients />} />
               <Route path="dashboard" element={<PortfolioDashboard />} />
-              <Route path="import" element={<PortfolioImport />} />
             </Route>
           </Route>
           <Route path="/iso" element={<ISO />}>
@@ -243,7 +241,6 @@ function AppRoutes(): JSX.Element {
             <Route path="/admin/portfolio" element={<PortfolioLayout />}>
               <Route index element={<PortfolioClients />} />
               <Route path="dashboard" element={<PortfolioDashboard />} />
-              <Route path="import" element={<PortfolioImport />} />
             </Route>
           </Route>
           <Route path="/iso/docs" element={<IsoDocs />} />
