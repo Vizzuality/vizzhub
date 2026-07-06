@@ -25,6 +25,54 @@ describe('PageBreadcrumb', () => {
     expect(screen.getByText('Projects')).toBeInTheDocument();
   });
 
+  it('shows All Projects as current page for /projects', () => {
+    renderAt('/projects');
+    expect(screen.getByText('All Projects')).toBeInTheDocument();
+  });
+
+  it('links Projects to /projects for /projects', () => {
+    renderAt('/projects');
+    const link = screen.getByRole('link', { name: 'Projects' });
+    expect(link).toHaveAttribute('href', '/projects');
+  });
+
+  it('shows Projects › Scorecard for /scorecard', () => {
+    renderAt('/scorecard');
+    expect(screen.getByRole('link', { name: 'Projects' })).toHaveAttribute('href', '/projects');
+    expect(screen.getByText('Scorecard')).toBeInTheDocument();
+  });
+
+  it('shows Projects › Global Scores for /scorecard/global', () => {
+    renderAt('/scorecard/global');
+    expect(screen.getByRole('link', { name: 'Projects' })).toHaveAttribute('href', '/projects');
+    expect(screen.getByText('Global Scores')).toBeInTheDocument();
+  });
+
+  it('shows Projects › Portfolio › Programs for /admin/portfolio', () => {
+    renderAt('/admin/portfolio');
+    expect(screen.getByRole('link', { name: 'Projects' })).toHaveAttribute('href', '/projects');
+    expect(screen.getByRole('link', { name: 'Portfolio' })).toHaveAttribute('href', '/admin/portfolio');
+    expect(screen.getByText('Programs')).toBeInTheDocument();
+  });
+
+  it('shows Projects › Portfolio › Clients for /admin/portfolio/clients', () => {
+    renderAt('/admin/portfolio/clients');
+    expect(screen.getByRole('link', { name: 'Projects' })).toHaveAttribute('href', '/projects');
+    expect(screen.getByRole('link', { name: 'Portfolio' })).toHaveAttribute('href', '/admin/portfolio');
+    expect(screen.getByText('Clients')).toBeInTheDocument();
+  });
+
+  it('shows Projects › Portfolio › Dashboard for /admin/portfolio/dashboard', () => {
+    renderAt('/admin/portfolio/dashboard');
+    expect(screen.getByText('Dashboard')).toBeInTheDocument();
+  });
+
+  it('shows Projects › Portfolio › Program for /admin/portfolio/programs/abc', () => {
+    renderAt('/admin/portfolio/programs/abc');
+    expect(screen.getByRole('link', { name: 'Projects' })).toHaveAttribute('href', '/projects');
+    expect(screen.getByText('Program')).toBeInTheDocument();
+  });
+
   it('renders project-aware crumbs for /projects/:id/:facet', () => {
     renderAt('/projects/p1/tracker');
     expect(screen.getByText('Projects')).toBeInTheDocument();
@@ -57,6 +105,12 @@ describe('PageBreadcrumb', () => {
   it('shows raw facet segment when unlisted', () => {
     renderAt('/projects/p1/unknown-facet');
     expect(screen.getByText('unknown-facet')).toBeInTheDocument();
+  });
+
+  it('links Projects to /projects in legacy scorecard project detail', () => {
+    renderAt('/scorecard/p1');
+    const link = screen.getByRole('link', { name: 'Projects' });
+    expect(link).toHaveAttribute('href', '/projects');
   });
 
   it('falls back to Dashboard for unrecognised paths', () => {

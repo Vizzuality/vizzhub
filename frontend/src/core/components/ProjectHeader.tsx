@@ -16,6 +16,8 @@ const STATUS_DOT: Record<string, string> = {
 export function ProjectHeader(): JSX.Element {
   const { project } = useProjectContext();
   const canManage = usePermission(Action.PROJECTS_MANAGE);
+  const canPortfolio =
+    usePermission(Action.PORTFOLIO_VIEW) || import.meta.env.VITE_BYPASS_AUTH === 'true';
   const hasDateRange = project.start_date || project.end_date;
   const clientName = project.client_name;
 
@@ -48,10 +50,20 @@ export function ProjectHeader(): JSX.Element {
             </span>
           )}
           {project.program_name && (
-            <span className="flex items-center gap-1.5 min-w-0">
-              <Layers className="w-4 h-4 shrink-0" />
-              <span className="truncate">{project.program_name}</span>
-            </span>
+            canPortfolio && project.program_id ? (
+              <Link
+                to={`/admin/portfolio/programs/${project.program_id}`}
+                className="flex items-center gap-1.5 min-w-0 underline-offset-2 hover:text-foreground hover:underline"
+              >
+                <Layers className="w-4 h-4 shrink-0" />
+                <span className="truncate">{project.program_name}</span>
+              </Link>
+            ) : (
+              <span className="flex items-center gap-1.5 min-w-0">
+                <Layers className="w-4 h-4 shrink-0" />
+                <span className="truncate">{project.program_name}</span>
+              </span>
+            )
           )}
           {hasDateRange && (
             <span className="flex items-center gap-1.5">

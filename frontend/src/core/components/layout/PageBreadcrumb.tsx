@@ -14,6 +14,11 @@ const ADMIN_LABELS: Record<string, string> = {
   users: 'Users',
 };
 
+const PORTFOLIO_LABELS: Record<string, string> = {
+  clients: 'Clients',
+  dashboard: 'Dashboard',
+};
+
 const NOTIFICATION_LABELS: Record<string, string> = {
   log: 'Alert Log',
   silences: 'Active Silences',
@@ -27,9 +32,9 @@ interface RouteRule {
 }
 
 const ROUTE_RULES: RouteRule[] = [
-  { match: '/scorecard/global', crumbs: [{ label: 'Projects', to: '/scorecard' }, { label: 'Global Scores' }] },
-  { match: '/scorecard', crumbs: [{ label: 'Projects' }] },
-  { match: '/projects', crumbs: [{ label: 'Projects' }] },
+  { match: '/scorecard/global', crumbs: [{ label: 'Projects', to: '/projects' }, { label: 'Global Scores' }] },
+  { match: '/scorecard', crumbs: [{ label: 'Projects', to: '/projects' }, { label: 'Scorecard' }] },
+  { match: '/projects', crumbs: [{ label: 'Projects', to: '/projects' }, { label: 'All Projects' }] },
   { match: '/tracker/how-to-report', crumbs: [{ label: 'My Report', to: '/tracker/my-report' }, { label: 'How to Report' }] },
   { match: /^\/iso\/snapshots\//, crumbs: [{ label: 'Access Control', to: '/iso/snapshots' }, { label: 'Snapshot Detail' }] },
   { match: /^\/iso/, crumbs: [{ label: 'Access Control' }] },
@@ -44,6 +49,20 @@ const ROUTE_RULES: RouteRule[] = [
   { match: /^\/admin\/tracker/, crumbs: [{ label: 'Tracker' }] },
   { match: /^\/playbook/, crumbs: [{ label: 'Playbook' }] },
   { match: /^\/iso\/docs/, crumbs: [{ label: 'ISO', to: '/iso/docs' }, { label: 'Documentation' }] },
+  { match: /^\/admin\/portfolio/, crumbs: (p) => {
+    const sub = p.split('/admin/portfolio/')[1];
+    let label = 'Programs';
+    if (sub?.startsWith('programs/')) {
+      label = 'Program';
+    } else if (sub) {
+      label = PORTFOLIO_LABELS[sub] ?? sub;
+    }
+    return [
+      { label: 'Projects', to: '/projects' },
+      { label: 'Portfolio', to: '/admin/portfolio' },
+      { label },
+    ];
+  }},
   { match: /^\/admin/, crumbs: (p) => {
     const sub = p.split('/admin/')[1];
     return [{ label: ADMIN_LABELS[sub] ?? 'Admin' }];
@@ -98,7 +117,7 @@ function useBreadcrumbs(): BreadcrumbSegment[] {
 
   if (isProjectDetail) {
     return [
-      { label: 'Projects', to: '/scorecard' },
+      { label: 'Projects', to: '/projects' },
       { label: project?.name ?? 'Project' },
     ];
   }

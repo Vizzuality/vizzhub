@@ -18,7 +18,6 @@ export function ProjectTabNav(): JSX.Element {
     { key: 'overview', label: 'Overview', show: true },
     { key: 'scorecard', label: 'Scorecard', show: canScorecard && project.has_scorecard },
     { key: 'tracker', label: 'Tracker', show: canTracker },
-    // Portfolio facet tab reserved for F2 (route not registered yet).
   ];
 
   return (
