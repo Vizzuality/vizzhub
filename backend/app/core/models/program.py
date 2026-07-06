@@ -40,3 +40,9 @@ class ProgramCreate(BaseModel):
     """Schema for creating a program."""
 
     name: str = Field(..., min_length=1, max_length=255)
+
+
+class ProgramUpdate(BaseModel):
+    """Schema for renaming a program."""
+
+    name: str = Field(..., min_length=1, max_length=255)
