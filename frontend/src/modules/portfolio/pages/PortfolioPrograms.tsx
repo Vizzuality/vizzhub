@@ -100,13 +100,14 @@ export default function PortfolioPrograms(): JSX.Element {
               <div key={tax.id} className="mb-3 last:mb-0">
                 <p className="mb-1 text-xs font-medium text-muted-foreground">{tax.name}</p>
                 {tax.terms.filter((t) => t.is_active).map((term) => (
-                  <label key={term.id} className="flex items-center gap-2 py-0.5 text-sm">
+                  <div key={term.id} className="flex items-center gap-2 py-0.5 text-sm">
                     <Checkbox
+                      id={`filter-term-${term.id}`}
                       checked={termIds.includes(term.id)}
                       onCheckedChange={() => toggleTerm(term.id)}
                     />
-                    {term.name}
-                  </label>
+                    <label htmlFor={`filter-term-${term.id}`}>{term.name}</label>
+                  </div>
                 ))}
               </div>
             ))}

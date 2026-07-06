@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { isAxiosError } from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Check, Globe, Pencil, X } from 'lucide-react';
 import { usePermission, Action } from '@/core/permissions';
@@ -25,6 +26,7 @@ export default function ProgramDetail(): JSX.Element {
   const updateProfile = useUpdateProgramProfile(programId);
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
+  const [renameError, setRenameError] = useState('');
 
   if (isLoading) return <LoadingSpinner />;
   if (isError || !program) {
@@ -56,15 +58,33 @@ export default function ProgramDetail(): JSX.Element {
               size="icon"
               variant="ghost"
               onClick={() => {
-                void rename.mutateAsync(nameDraft.trim()).then(() => setRenaming(false));
+                setRenameError('');
+                rename
+                  .mutateAsync(nameDraft.trim())
+                  .then(() => setRenaming(false))
+                  .catch((err: unknown) => {
+                    setRenameError(
+                      isAxiosError(err) && err.response?.status === 409
+                        ? 'A program with this name already exists'
+                        : 'Could not rename the program',
+                    );
+                  });
               }}
               disabled={!nameDraft.trim() || rename.isPending}
             >
               <Check className="h-4 w-4" />
             </Button>
-            <Button size="icon" variant="ghost" onClick={() => setRenaming(false)}>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => {
+                setRenaming(false);
+                setRenameError('');
+              }}
+            >
               <X className="h-4 w-4" />
             </Button>
+            {renameError && <span className="text-sm text-destructive">{renameError}</span>}
           </div>
         ) : (
           <h1 className="flex items-center gap-2 text-lg font-semibold">
