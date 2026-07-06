@@ -19,3 +19,17 @@ export function activeSubItemTo(pathname: string, items: readonly SubItem[]): st
   }
   return best;
 }
+
+export const PROJECTS_HUB_ITEMS: readonly SubItem[] = [
+  { to: '/projects', label: 'All Projects' },
+  { to: '/scorecard', label: 'Scorecard' },
+  { to: '/admin/portfolio', label: 'Portfolio' },
+  { to: '/scorecard/global', label: 'Global Scores' },
+];
+
+/** Portfolio is permission-gated; sidebar and hub tab bar share this filter. */
+export function projectsHubItems(showPortfolio: boolean): readonly SubItem[] {
+  return showPortfolio
+    ? PROJECTS_HUB_ITEMS
+    : PROJECTS_HUB_ITEMS.filter((item) => item.to !== '/admin/portfolio');
+}
