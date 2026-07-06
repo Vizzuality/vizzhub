@@ -15,9 +15,9 @@ const STATUS_DOT: Record<string, string> = {
 
 export function ProjectHeader(): JSX.Element {
   const { project } = useProjectContext();
+  const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
   const canManage = usePermission(Action.PROJECTS_MANAGE);
-  const canPortfolio =
-    usePermission(Action.PORTFOLIO_VIEW) || import.meta.env.VITE_BYPASS_AUTH === 'true';
+  const canPortfolio = usePermission(Action.PORTFOLIO_VIEW) || bypassAuth;
   const hasDateRange = project.start_date || project.end_date;
   const clientName = project.client_name;
 
