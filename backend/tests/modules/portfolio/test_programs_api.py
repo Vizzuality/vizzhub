@@ -149,3 +149,23 @@ async def test_index_client_filter(viewer: AsyncClient, db_session: AsyncSession
     seed = await _seed_catalogue(db_session)
     resp = await viewer.get("/api/portfolio/programs", params={"client_id": str(seed["acme"].id)})
     assert [p["name"] for p in resp.json()["programs"]] == ["Alpha Program"]
+
+
+@pytest.mark.asyncio
+async def test_detail_returns_full_program(viewer: AsyncClient, db_session: AsyncSession) -> None:
+    seed = await _seed_catalogue(db_session)
+    resp = await viewer.get(f"/api/portfolio/programs/{seed['prog'].id}")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["name"] == "Alpha Program"
+    assert body["profile"]["short_description"] == "desc"
+    assert len(body["terms"]) == 2
+    assert body["projects"][0]["client_name"] == "Acme"
+
+
+@pytest.mark.asyncio
+async def test_detail_404_for_unknown_program(
+    viewer: AsyncClient, db_session: AsyncSession
+) -> None:
+    resp = await viewer.get("/api/portfolio/programs/00000000-0000-0000-0000-000000000001")
+    assert resp.status_code == 404

@@ -112,6 +112,15 @@ async def _assemble(db: AsyncSession, programs: list[ProgramDB]) -> list[Program
     ]
 
 
+async def build_program_detail(db: AsyncSession, program_id: UUID) -> ProgramSummary | None:
+    program = (
+        await db.execute(select(ProgramDB).where(ProgramDB.id == program_id))
+    ).scalar_one_or_none()
+    if program is None:
+        return None
+    return (await _assemble(db, [program]))[0]
+
+
 def _passes_term_filter(chips: list[TermChip], groups: dict[UUID, set[UUID]]) -> bool:
     """OR within a taxonomy group, AND across groups."""
     have = {c.term_id for c in chips}
