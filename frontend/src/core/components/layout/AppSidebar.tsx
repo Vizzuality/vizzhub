@@ -2,17 +2,14 @@ import { Link, useLocation } from 'react-router-dom';
 import type { To } from 'react-router-dom';
 import { useNavigationGuard } from '@/core/contexts/NavigationGuardContext';
 import {
-  BarChart3,
   Blocks,
   BookOpen,
-  Briefcase,
   CalendarDays,
   ClipboardList,
   Coins,
   FolderKanban,
   ListTodo,
   Shield,
-  Globe,
   SlidersHorizontal,
   Plug,
   Bell,
@@ -31,7 +28,7 @@ import {
 import { useTheme } from 'next-themes';
 import { useAnyPermission, usePermission, Action } from '@/core/permissions';
 import { VizzualityLogo } from './VizzualityLogo';
-import { activeSubItemTo, type SubItem } from './sidebarNav';
+import { activeSubItemTo, projectsHubItems, type SubItem } from './sidebarNav';
 import {
   Sidebar,
   SidebarContent,
@@ -109,12 +106,6 @@ const CAPACITY_TABS = [
 const EVENTS_TABS = [
   { to: '/events', label: 'List' },
   { to: '/events/dashboard', label: 'Dashboard' },
-] as const;
-
-const PORTFOLIO_TABS = [
-  { to: '/admin/portfolio', label: 'Programs' },
-  { to: '/admin/portfolio/clients', label: 'Clients' },
-  { to: '/admin/portfolio/dashboard', label: 'Dashboard' },
 ] as const;
 
 function GuardedLink({
@@ -223,7 +214,7 @@ export function AppSidebar(): JSX.Element {
   const isAdmin = bypassAuth || canAdmin;
   const showTrackerAdmin = bypassAuth || canTrackerAdmin;
   const showPortfolio = bypassAuth || canPortfolio;
-  const showAdminSection = isAdmin || showTrackerAdmin || showPortfolio;
+  const showAdminSection = isAdmin || showTrackerAdmin;
 
   const isActive = (path: string): boolean => {
     if (path === '/scorecard') {
@@ -250,31 +241,14 @@ export function AppSidebar(): JSX.Element {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive('/projects')}
-                  tooltip="Projects"
-                >
-                  <GuardedLink to="/projects">
-                    <FolderKanban />
-                    <span>Projects</span>
-                  </GuardedLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive('/scorecard')}
-                  tooltip="Scorecard"
-                >
-                  <GuardedLink to="/scorecard">
-                    <BarChart3 />
-                    <span>Scorecard</span>
-                  </GuardedLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              <CollapsibleMenuItem
+                icon={FolderKanban}
+                label="Projects"
+                isActive={
+                  isActive('/projects') || isActive('/scorecard') || isActive('/admin/portfolio')
+                }
+                items={projectsHubItems(showPortfolio)}
+              />
 
               <SidebarMenuItem>
                 <SidebarMenuButton
@@ -325,19 +299,6 @@ export function AppSidebar(): JSX.Element {
                   <GuardedLink to="/devstack">
                     <Blocks />
                     <span>DevStack</span>
-                  </GuardedLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive('/scorecard/global')}
-                  tooltip="Global Scores"
-                >
-                  <GuardedLink to="/scorecard/global">
-                    <Globe />
-                    <span>Global Scores</span>
                   </GuardedLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -423,15 +384,6 @@ export function AppSidebar(): JSX.Element {
                       label="Accrual"
                       isActive={location.pathname.startsWith('/admin/accrual')}
                       items={ACCRUAL_TABS}
-                    />
-                  )}
-
-                  {showPortfolio && (
-                    <CollapsibleMenuItem
-                      icon={Briefcase}
-                      label="Portfolio"
-                      isActive={location.pathname.startsWith('/admin/portfolio')}
-                      items={PORTFOLIO_TABS}
                     />
                   )}
                 </SidebarMenu>
