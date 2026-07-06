@@ -4,6 +4,7 @@ import { AuthProvider } from './core/contexts/AuthContext';
 import { ProtectedRoute } from './core/components/ProtectedRoute';
 import { PermissionRoute, Action } from './core/permissions';
 import { AppLayout } from './core/components/layout/AppLayout';
+import ProjectsHubLayout from './core/components/layout/ProjectsHubLayout';
 import CoreProjects from './core/pages/Projects';
 import ProjectFormPage from './core/pages/ProjectForm';
 import ScorecardProjects from './modules/scorecard/pages/Projects';
@@ -135,7 +136,17 @@ function AppRoutes(): JSX.Element {
       <SentryRoutes>
         <Route element={<AppLayout />}>
           <Route path="/" element={<Landing />} />
-          <Route path="/projects" element={<CoreProjects />} />
+          <Route element={<ProjectsHubLayout />}>
+            <Route path="/projects" element={<CoreProjects />} />
+            <Route path="/scorecard" element={<ScorecardProjects />} />
+            <Route path="/scorecard/global" element={<GlobalDashboard />} />
+            <Route path="/admin/portfolio" element={<PortfolioLayout />}>
+              <Route index element={<PortfolioPrograms />} />
+              <Route path="clients" element={<PortfolioClients />} />
+              <Route path="dashboard" element={<PortfolioDashboard />} />
+              <Route path="programs/:programId" element={<ProgramDetail />} />
+            </Route>
+          </Route>
           <Route path="/projects/new" element={<ProjectFormPage />} />
           <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
           <Route path="/projects/:id" element={<ProjectHubLayout />}>
@@ -148,18 +159,10 @@ function AppRoutes(): JSX.Element {
               <Route path="tracker" element={<ProjectTrackerDetail />} />
             </Route>
           </Route>
-          <Route path="/scorecard" element={<ScorecardProjects />} />
-          <Route path="/scorecard/global" element={<GlobalDashboard />} />
           <Route path="/scorecard/:id" element={<LegacyScorecardRedirect />} />
           <Route path="/admin" element={<Admin />}>
             {AdminCoreRoutes()}
             {AdminTrackerRoutes()}
-            <Route path="portfolio" element={<PortfolioLayout />}>
-              <Route index element={<PortfolioPrograms />} />
-              <Route path="clients" element={<PortfolioClients />} />
-              <Route path="dashboard" element={<PortfolioDashboard />} />
-              <Route path="programs/:programId" element={<ProgramDetail />} />
-            </Route>
           </Route>
           <Route path="/iso" element={<ISO />}>
             <Route path="snapshots" element={<ISOSnapshots />} />
@@ -194,7 +197,19 @@ function AppRoutes(): JSX.Element {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route path="/" element={<Landing />} />
-          <Route path="/projects" element={<CoreProjects />} />
+          <Route element={<ProjectsHubLayout />}>
+            <Route path="/projects" element={<CoreProjects />} />
+            <Route path="/scorecard" element={<ScorecardProjects />} />
+            <Route path="/scorecard/global" element={<GlobalDashboard />} />
+            <Route element={<PermissionRoute require={Action.PORTFOLIO_VIEW} />}>
+              <Route path="/admin/portfolio" element={<PortfolioLayout />}>
+                <Route index element={<PortfolioPrograms />} />
+                <Route path="clients" element={<PortfolioClients />} />
+                <Route path="dashboard" element={<PortfolioDashboard />} />
+                <Route path="programs/:programId" element={<ProgramDetail />} />
+              </Route>
+            </Route>
+          </Route>
           <Route path="/projects/new" element={<ProjectFormPage />} />
           <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
           <Route path="/projects/:id" element={<ProjectHubLayout />}>
@@ -207,8 +222,6 @@ function AppRoutes(): JSX.Element {
               <Route path="tracker" element={<ProjectTrackerDetail />} />
             </Route>
           </Route>
-          <Route path="/scorecard" element={<ScorecardProjects />} />
-          <Route path="/scorecard/global" element={<GlobalDashboard />} />
           <Route path="/scorecard/:id" element={<LegacyScorecardRedirect />} />
           <Route path="/tracker/my-report" element={<MyReport />} />
           <Route path="/tracker/my-report/:periodId" element={<MyReport />} />
@@ -239,14 +252,6 @@ function AppRoutes(): JSX.Element {
                 {AdminCoreRoutes()}
               </Route>
               {AdminTrackerRoutes()}
-            </Route>
-          </Route>
-          <Route element={<PermissionRoute require={Action.PORTFOLIO_VIEW} />}>
-            <Route path="/admin/portfolio" element={<PortfolioLayout />}>
-              <Route index element={<PortfolioPrograms />} />
-              <Route path="clients" element={<PortfolioClients />} />
-              <Route path="dashboard" element={<PortfolioDashboard />} />
-              <Route path="programs/:programId" element={<ProgramDetail />} />
             </Route>
           </Route>
           <Route path="/iso/docs" element={<IsoDocs />} />
