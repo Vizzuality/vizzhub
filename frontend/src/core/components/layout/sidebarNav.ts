@@ -21,7 +21,7 @@ export function activeSubItemTo(pathname: string, items: readonly SubItem[]): st
 }
 
 export const PROJECTS_HUB_ITEMS: readonly SubItem[] = [
-  { to: '/projects', label: 'All Projects' },
+  { to: '/projects', label: 'Tracker' },
   { to: '/scorecard', label: 'Scorecard' },
   { to: '/admin/portfolio', label: 'Portfolio' },
   { to: '/scorecard/global', label: 'Global Scores' },

@@ -28,7 +28,7 @@ describe('ProjectsHubTabs', () => {
 
   it('renders three tabs without portfolio permission', () => {
     renderAt('/projects');
-    expect(screen.getByRole('link', { name: 'All Projects' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Tracker' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Scorecard' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Global Scores' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Portfolio' })).not.toBeInTheDocument();

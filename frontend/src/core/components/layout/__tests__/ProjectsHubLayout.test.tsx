@@ -14,7 +14,7 @@ describe('ProjectsHubLayout', () => {
         </Routes>
       </MemoryRouter>,
     );
-    expect(screen.getByRole('link', { name: 'All Projects' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Tracker' })).toBeInTheDocument();
     expect(screen.getByText('page-content')).toBeInTheDocument();
   });
 });

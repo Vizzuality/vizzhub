@@ -18,7 +18,6 @@ import {
   DropdownMenuTrigger,
 } from '@/shared/components/ui/dropdown-menu';
 import { Button } from '@/shared/components/ui/button';
-import { PageBreadcrumb } from './PageBreadcrumb';
 import { useReportingPeriods } from '@/modules/tracker/public';
 import { getFullName, getInitials } from '@/utils/formatters';
 import { usePermission, Action } from '@/core/permissions';
@@ -57,8 +56,6 @@ export function AppLayout(): JSX.Element {
       <AppSidebar />
       <SidebarInset className="min-w-0 overflow-x-hidden">
         <header className="flex h-12 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4">
-          <PageBreadcrumb />
-
           <div className="ml-auto flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

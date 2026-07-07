@@ -55,7 +55,6 @@ import { Periods as AccrualPeriods } from './modules/accrual/pages/Periods';
 import { Accrual } from './modules/accrual/pages/Accrual';
 import { AccrualDashboard } from './modules/accrual/pages/Dashboard';
 import PortfolioClients from './modules/portfolio/pages/PortfolioClients';
-import PortfolioLayout from './modules/portfolio/pages/PortfolioLayout';
 import PortfolioDashboard from './modules/portfolio/pages/PortfolioDashboard';
 import PortfolioPrograms from './modules/portfolio/pages/PortfolioPrograms';
 import ProgramDetail from './modules/portfolio/pages/ProgramDetail';
@@ -140,13 +139,11 @@ function AppRoutes(): JSX.Element {
             <Route path="/projects" element={<CoreProjects />} />
             <Route path="/scorecard" element={<ScorecardProjects />} />
             <Route path="/scorecard/global" element={<GlobalDashboard />} />
-            <Route path="/admin/portfolio" element={<PortfolioLayout />}>
-              <Route index element={<PortfolioPrograms />} />
-              <Route path="clients" element={<PortfolioClients />} />
-              <Route path="dashboard" element={<PortfolioDashboard />} />
-              <Route path="programs/:programId" element={<ProgramDetail />} />
-            </Route>
+            <Route path="/admin/portfolio" element={<PortfolioPrograms />} />
+            <Route path="/admin/portfolio/programs/:programId" element={<ProgramDetail />} />
           </Route>
+          <Route path="/admin/portfolio/clients" element={<PortfolioClients />} />
+          <Route path="/admin/portfolio/dashboard" element={<PortfolioDashboard />} />
           <Route path="/projects/new" element={<ProjectFormPage />} />
           <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
           <Route path="/projects/:id" element={<ProjectHubLayout />}>
@@ -202,13 +199,13 @@ function AppRoutes(): JSX.Element {
             <Route path="/scorecard" element={<ScorecardProjects />} />
             <Route path="/scorecard/global" element={<GlobalDashboard />} />
             <Route element={<PermissionRoute require={Action.PORTFOLIO_VIEW} />}>
-              <Route path="/admin/portfolio" element={<PortfolioLayout />}>
-                <Route index element={<PortfolioPrograms />} />
-                <Route path="clients" element={<PortfolioClients />} />
-                <Route path="dashboard" element={<PortfolioDashboard />} />
-                <Route path="programs/:programId" element={<ProgramDetail />} />
-              </Route>
+              <Route path="/admin/portfolio" element={<PortfolioPrograms />} />
+              <Route path="/admin/portfolio/programs/:programId" element={<ProgramDetail />} />
             </Route>
+          </Route>
+          <Route element={<PermissionRoute require={Action.PORTFOLIO_MANAGE} />}>
+            <Route path="/admin/portfolio/clients" element={<PortfolioClients />} />
+            <Route path="/admin/portfolio/dashboard" element={<PortfolioDashboard />} />
           </Route>
           <Route path="/projects/new" element={<ProjectFormPage />} />
           <Route path="/projects/:id/edit" element={<ProjectFormPage />} />

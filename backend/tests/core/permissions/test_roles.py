@@ -42,6 +42,19 @@ def test_devstack_manager_grants_view_and_manage():
     assert Action.DEVSTACK_MANAGE in perms
 
 
+def test_portfolio_view_for_all_base_roles():
+    assert Action.PORTFOLIO_VIEW in ROLE_PERMISSIONS["user"]
+    assert Action.PORTFOLIO_VIEW in ROLE_PERMISSIONS["manager"]
+
+
+def test_portfolio_manage_only_via_portfolio_manager():
+    perms = ROLE_PERMISSIONS["portfolio_manager"]
+    assert Action.PORTFOLIO_VIEW in perms
+    assert Action.PORTFOLIO_MANAGE in perms
+    assert Action.PORTFOLIO_MANAGE not in ROLE_PERMISSIONS["user"]
+    assert Action.PORTFOLIO_MANAGE not in ROLE_PERMISSIONS["manager"]
+
+
 def test_all_permission_values_are_valid_actions():
     valid_actions = {getattr(Action, attr) for attr in dir(Action) if not attr.startswith("_")}
     for role, perms in ROLE_PERMISSIONS.items():

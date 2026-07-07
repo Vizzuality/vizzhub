@@ -4,6 +4,7 @@ import { useNavigationGuard } from '@/core/contexts/NavigationGuardContext';
 import {
   Blocks,
   BookOpen,
+  Briefcase,
   CalendarDays,
   ClipboardList,
   Coins,
@@ -86,6 +87,11 @@ const TRACKER_TABS = [
   { to: '/admin/tracker/invoices', label: 'Invoices' },
   { to: '/admin/tracker/moods', label: 'Moods' },
   { to: '/admin/tracker/rates', label: 'Rates' },
+] as const;
+
+const PORTFOLIO_ADMIN_TABS = [
+  { to: '/admin/portfolio/clients', label: 'Clients' },
+  { to: '/admin/portfolio/dashboard', label: 'Dashboard' },
 ] as const;
 
 const ISO_ADMIN_TABS = [
@@ -211,10 +217,12 @@ export function AppSidebar(): JSX.Element {
     Action.TRACKER_MANAGE_ALL_REPORTS,
   );
   const canPortfolio = usePermission(Action.PORTFOLIO_VIEW);
+  const canPortfolioManage = usePermission(Action.PORTFOLIO_MANAGE);
   const isAdmin = bypassAuth || canAdmin;
   const showTrackerAdmin = bypassAuth || canTrackerAdmin;
   const showPortfolio = bypassAuth || canPortfolio;
-  const showAdminSection = isAdmin || showTrackerAdmin;
+  const showPortfolioAdmin = bypassAuth || canPortfolioManage;
+  const showAdminSection = isAdmin || showTrackerAdmin || showPortfolioAdmin;
 
   const isActive = (path: string): boolean => {
     if (path === '/scorecard') {
@@ -245,7 +253,10 @@ export function AppSidebar(): JSX.Element {
                 icon={FolderKanban}
                 label="Projects"
                 isActive={
-                  isActive('/projects') || isActive('/scorecard') || isActive('/admin/portfolio')
+                  isActive('/projects')
+                  || isActive('/scorecard')
+                  || location.pathname === '/admin/portfolio'
+                  || location.pathname.startsWith('/admin/portfolio/programs')
                 }
                 items={projectsHubItems(showPortfolio)}
               />
@@ -366,6 +377,18 @@ export function AppSidebar(): JSX.Element {
                       label="Tracker"
                       isActive={location.pathname.startsWith('/admin/tracker')}
                       items={TRACKER_TABS}
+                    />
+                  )}
+
+                  {showPortfolioAdmin && (
+                    <CollapsibleMenuItem
+                      icon={Briefcase}
+                      label="Portfolio"
+                      isActive={
+                        location.pathname.startsWith('/admin/portfolio/clients')
+                        || location.pathname.startsWith('/admin/portfolio/dashboard')
+                      }
+                      items={PORTFOLIO_ADMIN_TABS}
                     />
                   )}
 

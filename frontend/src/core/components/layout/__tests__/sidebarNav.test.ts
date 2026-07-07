@@ -33,7 +33,7 @@ describe('activeSubItemTo', () => {
 describe('projectsHubItems', () => {
   it('returns all four items when portfolio is visible', () => {
     expect(projectsHubItems(true).map((i) => i.label)).toEqual([
-      'All Projects',
+      'Tracker',
       'Scorecard',
       'Portfolio',
       'Global Scores',
@@ -42,7 +42,7 @@ describe('projectsHubItems', () => {
 
   it('excludes Portfolio when not visible', () => {
     const items = projectsHubItems(false);
-    expect(items.map((i) => i.label)).toEqual(['All Projects', 'Scorecard', 'Global Scores']);
+    expect(items.map((i) => i.label)).toEqual(['Tracker', 'Scorecard', 'Global Scores']);
   });
 });
 
