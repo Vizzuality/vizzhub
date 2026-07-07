@@ -47,6 +47,8 @@ ROLE_PERMISSIONS: dict[str, set[str]] = {
     "portfolio_manager": {
         Action.PORTFOLIO_VIEW,
         Action.PORTFOLIO_MANAGE,
+        Action.PROJECTS_VIEW,
+        Action.PROJECTS_MANAGE,
     },
     "admin": {
         Action.ALL,

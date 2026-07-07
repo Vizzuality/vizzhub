@@ -55,6 +55,14 @@ def test_portfolio_manage_only_via_portfolio_manager():
     assert Action.PORTFOLIO_MANAGE not in ROLE_PERMISSIONS["manager"]
 
 
+def test_portfolio_manager_can_fully_edit_projects():
+    # Reorg (move/unassign iterations) goes through PATCH /api/projects/{id},
+    # gated PROJECTS_MANAGE — the role must carry it or the portfolio UI 403s.
+    perms = ROLE_PERMISSIONS["portfolio_manager"]
+    assert Action.PROJECTS_VIEW in perms
+    assert Action.PROJECTS_MANAGE in perms
+
+
 def test_all_permission_values_are_valid_actions():
     valid_actions = {getattr(Action, attr) for attr in dir(Action) if not attr.startswith("_")}
     for role, perms in ROLE_PERMISSIONS.items():
