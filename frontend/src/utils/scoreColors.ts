@@ -23,6 +23,17 @@ export function getScoreDotClass(
 }
 
 /**
+ * Get the dot background class for a budget burn percentage.
+ * Burn semantics invert score: high is bad.
+ */
+export function getBurnDotClass(pct: number | null): string {
+  if (pct == null) return 'bg-aux-dust-grey';
+  if (pct > 100) return 'bg-aux-red';
+  if (pct >= 80) return 'bg-aux-yellow';
+  return 'bg-aux-neon-grass';
+}
+
+/**
  * Get the text color class for a score value based on thresholds.
  * @deprecated Use getScoreDotClass + neutral text instead.
  */

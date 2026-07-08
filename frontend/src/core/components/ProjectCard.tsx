@@ -8,7 +8,7 @@ import type { Project } from '@/core/types/project';
 import type { ProjectCostSummaryLite, ProgressSummary } from '@/modules/tracker/public';
 import { formatDate } from '@/utils/formatters';
 import { formatCurrency } from '@/modules/tracker/public';
-import { getScoreDotClass } from '@/utils/scoreColors';
+import { getBurnDotClass, getScoreDotClass } from '@/utils/scoreColors';
 import { Card, CardTitle } from '@/shared/components/ui/card';
 import { StatusBadge } from '@/shared/components/StatusBadge';
 import { cn } from '@/lib/utils';
@@ -24,13 +24,6 @@ interface ProjectCardProps {
 }
 
 const SCORE_THRESHOLDS = { green: 70, yellow: 40 };
-
-function getBurnDotClass(pct: number | null): string {
-  if (pct == null) return 'bg-aux-dust-grey';
-  if (pct > 100) return 'bg-aux-red';
-  if (pct >= 80) return 'bg-aux-yellow';
-  return 'bg-aux-neon-grass';
-}
 
 function Metric({
   label,

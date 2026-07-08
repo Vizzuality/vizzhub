@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom';
-import { Building2, Calendar, Github, BarChart3, Layers, Pencil } from 'lucide-react';
+import { Building2, Calendar, Github, BarChart3, Layers, Pencil, UserRound } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/utils/formatters';
 import { getStatusLabel } from '@/utils/projectStatus';
 import { usePermission, Action } from '@/core/permissions';
 import { useProjectContext } from '@/core/contexts/ProjectContext';
+import { ProjectHeaderKpis } from '@/core/components/ProjectHeaderKpis';
 
 const STATUS_DOT: Record<string, string> = {
   proposal: 'bg-muted-foreground',
@@ -73,6 +74,12 @@ export function ProjectHeader(): JSX.Element {
               {project.end_date && formatDate(project.end_date)}
             </span>
           )}
+          {project.project_manager_name && (
+            <span className="flex items-center gap-1.5 min-w-0">
+              <UserRound className="w-4 h-4 shrink-0" />
+              <span className="truncate">{project.project_manager_name}</span>
+            </span>
+          )}
           {project.jira_project_key && (
             <span className="flex items-center gap-1.5 min-w-0">
               <BarChart3 className="w-4 h-4 shrink-0" />
@@ -88,13 +95,16 @@ export function ProjectHeader(): JSX.Element {
         </div>
       </div>
 
-      {canManage && (
-        <Link to={`/projects/${project.id}/edit`}>
-          <Button type="button" variant="ghost" size="sm" className="border border-input">
-            <Pencil className="w-4 h-4 mr-2" /> Edit
-          </Button>
-        </Link>
-      )}
+      <div className="flex items-center gap-6 shrink-0">
+        <ProjectHeaderKpis />
+        {canManage && (
+          <Link to={`/projects/${project.id}/edit`}>
+            <Button type="button" variant="ghost" size="sm" className="border border-input">
+              <Pencil className="w-4 h-4 mr-2" /> Edit
+            </Button>
+          </Link>
+        )}
+      </div>
     </div>
   );
 }

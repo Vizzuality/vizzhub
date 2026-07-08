@@ -19,7 +19,7 @@ describe('ProjectTabNav', () => {
         <ProjectProvider project={project}><ProjectTabNav /></ProjectProvider>
       </MemoryRouter>,
     );
-    expect(screen.getByRole('link', { name: /overview/i })).toHaveAttribute('href', '/projects/p1/overview');
+    expect(screen.queryByRole('link', { name: /overview/i })).toBeNull(); // tab removed
     expect(screen.getByRole('link', { name: /scorecard/i })).toHaveAttribute('href', '/projects/p1/scorecard');
     expect(screen.queryByRole('link', { name: /tracker/i })).toBeNull(); // gated out
   });

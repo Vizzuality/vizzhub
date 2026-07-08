@@ -31,6 +31,15 @@ vi.mock('@/core/permissions', () => ({
   },
 }));
 
+vi.mock('@/modules/scorecard/hooks/useProjectScoresMap', () => ({
+  useProjectScoresMap: () => ({ scoresMap: {} }),
+}));
+
+vi.mock('@/modules/tracker/public', () => ({
+  useProjectCostsMap: () => ({ costsMap: {} }),
+  useProjectProgressMap: () => ({ progressMap: {} }),
+}));
+
 // ---------------------------------------------------------------------------
 // Lightweight fake facet panels
 // ---------------------------------------------------------------------------
@@ -47,10 +56,6 @@ function FakeTrackerPanel(): JSX.Element {
 
 function FakeScorecardPanel(): JSX.Element {
   return <div data-testid="scorecard-panel">SCORECARD PANEL</div>;
-}
-
-function FakeOverviewPanel(): JSX.Element {
-  return <div data-testid="overview-panel">OVERVIEW PANEL</div>;
 }
 
 // Reads the current location so each assertion can inspect pathname + search.
@@ -82,8 +87,8 @@ function buildRoutes() {
         </>
       ),
       children: [
-        { index: true, element: <Navigate to="overview" replace /> },
-        { path: 'overview', element: <FakeOverviewPanel /> },
+        { index: true, element: <Navigate to="tracker" replace /> },
+        { path: 'overview', element: <Navigate to="../tracker" replace /> },
         { path: 'scorecard', element: <FakeScorecardPanel /> },
         { path: 'tracker', element: <FakeTrackerPanel /> },
       ],

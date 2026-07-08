@@ -60,7 +60,6 @@ import PortfolioPrograms from './modules/portfolio/pages/PortfolioPrograms';
 import ProgramDetail from './modules/portfolio/pages/ProgramDetail';
 import NotFound from './core/pages/NotFound';
 import ProjectHubLayout from './core/pages/ProjectHub';
-import ProjectOverview from './core/pages/ProjectOverview';
 
 const SentryRoutes = Sentry.withSentryReactRouterV6Routing(Routes);
 
@@ -147,8 +146,8 @@ function AppRoutes(): JSX.Element {
           <Route path="/projects/new" element={<ProjectFormPage />} />
           <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
           <Route path="/projects/:id" element={<ProjectHubLayout />}>
-            <Route index element={<Navigate to="overview" replace />} />
-            <Route path="overview" element={<ProjectOverview />} />
+            <Route index element={<Navigate to="tracker" replace />} />
+            <Route path="overview" element={<Navigate to="../tracker" replace />} />
             <Route element={<PermissionRoute require={Action.SCORECARD_VIEW} />}>
               <Route path="scorecard" element={<ProjectDetail />} />
             </Route>
@@ -210,8 +209,8 @@ function AppRoutes(): JSX.Element {
           <Route path="/projects/new" element={<ProjectFormPage />} />
           <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
           <Route path="/projects/:id" element={<ProjectHubLayout />}>
-            <Route index element={<Navigate to="overview" replace />} />
-            <Route path="overview" element={<ProjectOverview />} />
+            <Route index element={<Navigate to="tracker" replace />} />
+            <Route path="overview" element={<Navigate to="../tracker" replace />} />
             <Route element={<PermissionRoute require={Action.SCORECARD_VIEW} />}>
               <Route path="scorecard" element={<ProjectDetail />} />
             </Route>

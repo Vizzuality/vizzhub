@@ -15,9 +15,8 @@ export function ProjectTabNav(): JSX.Element {
   const canTracker = usePermission(Action.TRACKER_VIEW);
 
   const tabs: FacetTab[] = [
-    { key: 'overview', label: 'Overview', show: true },
-    { key: 'scorecard', label: 'Scorecard', show: canScorecard && project.has_scorecard },
     { key: 'tracker', label: 'Tracker', show: canTracker },
+    { key: 'scorecard', label: 'Scorecard', show: canScorecard && project.has_scorecard },
   ];
 
   return (
