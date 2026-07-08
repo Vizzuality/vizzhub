@@ -3,8 +3,6 @@ import {
   Calendar,
   Folder,
   Pencil,
-  TrendingUp,
-  Wallet,
 } from 'lucide-react';
 import type { Project } from '@/core/types/project';
 import type { ProjectCostSummaryLite, ProgressSummary } from '@/modules/tracker/public';
@@ -154,44 +152,25 @@ function ProjectMeta({ project }: { readonly project: Project }): JSX.Element | 
   );
 }
 
-function ProjectActions({
-  project,
-  isAdmin,
-}: {
-  readonly project: Project;
-  readonly isAdmin: boolean;
-}): JSX.Element {
-  const linkClass =
-    'flex items-center gap-1.5 text-sm font-medium px-2.5 py-1.5 rounded-md transition-colors';
-
+function EditLink({ project }: { readonly project: Project }): JSX.Element {
   return (
-    <div className="flex items-center gap-1">
-      {project.has_scorecard && (
-        <Link
-          to={`/projects/${project.id}/scorecard`}
-          className={cn(linkClass, 'text-primary hover:bg-primary/10')}
-        >
-          <TrendingUp className="w-3.5 h-3.5" />
-          Scorecard
-        </Link>
-      )}
-      <Link
-        to={`/projects/${project.id}/tracker`}
-        className={cn(linkClass, 'text-primary hover:bg-primary/10')}
-      >
-        <Wallet className="w-3.5 h-3.5" />
-        Tracker
-      </Link>
-      {isAdmin && (
-        <Link
-          to={`/projects/${project.id}/edit`}
-          className={cn(linkClass, 'text-foreground/70 hover:bg-muted')}
-        >
-          <Pencil className="w-3.5 h-3.5" />
-          Edit
-        </Link>
-      )}
-    </div>
+    <Link
+      to={`/projects/${project.id}/edit`}
+      aria-label={`Edit ${project.name}`}
+      className="relative z-10 shrink-0 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+    >
+      <Pencil className="w-4 h-4" />
+    </Link>
+  );
+}
+
+function CardLinkOverlay({ project }: { readonly project: Project }): JSX.Element {
+  return (
+    <Link
+      to={`/projects/${project.id}`}
+      aria-label={project.name}
+      className="absolute inset-0 rounded-xl"
+    />
   );
 }
 
@@ -205,13 +184,17 @@ export default function ProjectCard({
 }: ProjectCardProps): JSX.Element {
   if (viewMode === 'grid') {
     return (
-      <Card className="hover:shadow-lg transition-shadow h-full flex flex-col">
+      <Card className="relative hover:shadow-lg transition-shadow h-full flex flex-col">
+        <CardLinkOverlay project={project} />
         <div className="p-5 flex flex-col gap-3 flex-1">
           <div className="flex items-start justify-between gap-2">
             <CardTitle className="text-lg font-semibold line-clamp-2 leading-snug">
               {project.name}
             </CardTitle>
-            <StatusBadge status={project.status} />
+            <div className="flex items-center gap-1 shrink-0">
+              <StatusBadge status={project.status} />
+              {isAdmin && <EditLink project={project} />}
+            </div>
           </div>
 
           <ProjectMeta project={project} />
@@ -219,17 +202,14 @@ export default function ProjectCard({
           <div className="flex-1" />
 
           <ProjectMetrics score={score} costs={costs} progress={progress} />
-
-          <div className="flex items-center justify-end pt-2.5 border-t border-border/50">
-            <ProjectActions project={project} isAdmin={isAdmin} />
-          </div>
         </div>
       </Card>
     );
   }
 
   return (
-    <Card className="hover:shadow-lg transition-shadow">
+    <Card className="relative hover:shadow-lg transition-shadow">
+      <CardLinkOverlay project={project} />
       <div className="p-5 space-y-3">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0 space-y-2">
@@ -242,9 +222,11 @@ export default function ProjectCard({
             <ProjectMeta project={project} />
           </div>
 
-          <div className="shrink-0">
-            <ProjectActions project={project} isAdmin={isAdmin} />
-          </div>
+          {isAdmin && (
+            <div className="shrink-0">
+              <EditLink project={project} />
+            </div>
+          )}
         </div>
 
         <ProjectMetrics score={score} costs={costs} progress={progress} />
