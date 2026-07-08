@@ -11,13 +11,26 @@ export const TAXONOMY_CHIP_CLASSES: Record<string, string> = {
 
 export const TAXONOMY_CHIP_FALLBACK = 'border-border text-muted-foreground';
 
-export function iterationSummary(projects: ProjectIteration[]): string {
+export interface IterationStats {
+  active: number;
+  finished: number;
+  yearRange: string | null;
+}
+
+export function iterationStats(projects: ProjectIteration[]): IterationStats {
   const finished = projects.filter((p) => p.status === 'finished').length;
-  const active = projects.length - finished;
   const years = projects
     .flatMap((p) => [p.start_year, p.end_year])
     .filter((y): y is number => y != null);
+  return {
+    active: projects.length - finished,
+    finished,
+    yearRange: years.length === 0 ? null : `${Math.min(...years)}–${Math.max(...years)}`,
+  };
+}
+
+export function iterationSummary(projects: ProjectIteration[]): string {
+  const { active, finished, yearRange } = iterationStats(projects);
   const counts = `${active} active · ${finished} finished`;
-  if (years.length === 0) return counts;
-  return `${counts} · ${Math.min(...years)}–${Math.max(...years)}`;
+  return yearRange ? `${counts} · ${yearRange}` : counts;
 }
