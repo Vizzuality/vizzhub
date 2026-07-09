@@ -134,7 +134,12 @@ export function ProgramEditForm({
       const diff: ProgramProfileUpdate = {};
       for (const f of PROFILE_TEXT_FIELDS) {
         if (fields[f.key] !== (program.profile?.[f.key] ?? '')) {
-          diff[f.key] = fields[f.key].trim() || null;
+          let value: string | null = fields[f.key].trim() || null;
+          // Backend only accepts http(s) URLs; default bare domains to https.
+          if (f.key === 'website_url' && value && !/^https?:\/\//i.test(value)) {
+            value = `https://${value}`;
+          }
+          diff[f.key] = value;
         }
       }
       if (Object.keys(diff).length > 0) await updateProfile.mutateAsync(diff);

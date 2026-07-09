@@ -217,6 +217,18 @@ async def test_profile_patch_creates_row_when_absent(
 
 
 @pytest.mark.asyncio
+async def test_profile_patch_rejects_non_http_website_url(
+    manager: AsyncClient, db_session: AsyncSession
+) -> None:
+    seed = await _seed_catalogue(db_session)
+    resp = await manager.patch(
+        f"/api/portfolio/programs/{seed['prog'].id}/profile",
+        json={"website_url": "javascript:alert(1)"},
+    )
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
 async def test_profile_patch_partial_update_preserves_unsent_fields(
     manager: AsyncClient, db_session: AsyncSession
 ) -> None:

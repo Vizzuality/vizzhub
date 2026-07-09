@@ -10,7 +10,8 @@ function FieldValue({
   readonly value: string;
 }): JSX.Element {
   if (!value) return <span className="text-sm text-muted-foreground/50">—</span>;
-  if (fieldKey === 'website_url') {
+  // Only link http(s) — anything else (javascript:, data:, …) renders as plain text.
+  if (fieldKey === 'website_url' && /^https?:\/\//i.test(value)) {
     return (
       <a
         href={value}

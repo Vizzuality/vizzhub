@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class TermChip(BaseModel):
@@ -68,6 +68,13 @@ class ProgramProfileUpdate(BaseModel):
     main_partner: str | None = None
     stage: str | None = None
     on_website: bool | None = None
+
+    @field_validator("website_url")
+    @classmethod
+    def _http_scheme_only(cls, v: str | None) -> str | None:
+        if v is not None and not v.lower().startswith(("http://", "https://")):
+            raise ValueError("website_url must start with http:// or https://")
+        return v
 
 
 class ProgramTermsUpdate(BaseModel):

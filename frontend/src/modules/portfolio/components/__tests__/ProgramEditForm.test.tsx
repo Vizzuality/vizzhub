@@ -80,6 +80,13 @@ describe('ProgramEditForm', () => {
     expect(replaceTerms).not.toHaveBeenCalled();
   });
 
+  it('prefixes https:// on bare-domain website values', async () => {
+    renderForm();
+    fireEvent.change(screen.getByLabelText('Website'), { target: { value: 'example.org' } });
+    await save();
+    expect(updateProfile).toHaveBeenCalledWith({ website_url: 'https://example.org' });
+  });
+
   it('renames when the name changes', async () => {
     renderForm();
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Beta' } });
