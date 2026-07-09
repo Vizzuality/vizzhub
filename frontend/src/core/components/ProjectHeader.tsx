@@ -54,7 +54,7 @@ export function ProjectHeader(): JSX.Element {
             canPortfolio && project.program_id ? (
               <Link
                 to={`/admin/portfolio/programs/${project.program_id}`}
-                className="flex items-center gap-1.5 min-w-0 underline-offset-2 hover:text-foreground hover:underline"
+                className="flex items-center gap-1.5 min-w-0 underline decoration-muted-foreground/40 underline-offset-4 transition-colors hover:text-foreground hover:decoration-foreground"
               >
                 <Layers className="w-4 h-4 shrink-0" />
                 <span className="truncate">{project.program_name}</span>
