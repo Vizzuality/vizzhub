@@ -13,10 +13,12 @@ export function ProjectTabNav(): JSX.Element {
   const { project, projectId } = useProjectContext();
   const canScorecard = usePermission(Action.SCORECARD_VIEW);
   const canTracker = usePermission(Action.TRACKER_VIEW);
+  const canPortfolio = usePermission(Action.PORTFOLIO_VIEW);
 
   const tabs: FacetTab[] = [
     { key: 'tracker', label: 'Tracker', show: canTracker },
     { key: 'scorecard', label: 'Scorecard', show: canScorecard && project.has_scorecard },
+    { key: 'portfolio', label: 'Portfolio', show: canPortfolio && Boolean(project.program_id) },
   ];
 
   return (

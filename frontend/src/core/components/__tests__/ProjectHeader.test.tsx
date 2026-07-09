@@ -46,15 +46,8 @@ describe('ProjectHeader', () => {
     expect(screen.getByText('Blue Programs')).toBeInTheDocument();
   });
 
-  it('links the program chip to the program page with portfolio permission', () => {
+  it('renders the program chip as plain text (portfolio lives in its own tab)', () => {
     mockPerms = { 'portfolio:view': true };
-    renderHeader({ program_id: 'prog-1', program_name: 'Alpha Program' });
-    const link = screen.getByRole('link', { name: /Alpha Program/ });
-    expect(link).toHaveAttribute('href', '/admin/portfolio/programs/prog-1');
-  });
-
-  it('renders the program chip as plain text without portfolio permission', () => {
-    mockPerms = {};
     renderHeader({ program_id: 'prog-1', program_name: 'Alpha Program' });
     expect(screen.getByText('Alpha Program')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Alpha Program/ })).not.toBeInTheDocument();

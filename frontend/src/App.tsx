@@ -55,6 +55,7 @@ import { Periods as AccrualPeriods } from './modules/accrual/pages/Periods';
 import { Accrual } from './modules/accrual/pages/Accrual';
 import { AccrualDashboard } from './modules/accrual/pages/Dashboard';
 import PortfolioClients from './modules/portfolio/pages/PortfolioClients';
+import ProjectPortfolio from './modules/portfolio/pages/ProjectPortfolio';
 import PortfolioDashboard from './modules/portfolio/pages/PortfolioDashboard';
 import PortfolioPrograms from './modules/portfolio/pages/PortfolioPrograms';
 import ProgramDetail from './modules/portfolio/pages/ProgramDetail';
@@ -154,6 +155,9 @@ function AppRoutes(): JSX.Element {
             <Route element={<PermissionRoute require={Action.TRACKER_VIEW} />}>
               <Route path="tracker" element={<ProjectTrackerDetail />} />
             </Route>
+            <Route element={<PermissionRoute require={Action.PORTFOLIO_VIEW} />}>
+              <Route path="portfolio" element={<ProjectPortfolio />} />
+            </Route>
           </Route>
           <Route path="/scorecard/:id" element={<LegacyScorecardRedirect />} />
           <Route path="/admin" element={<Admin />}>
@@ -216,6 +220,9 @@ function AppRoutes(): JSX.Element {
             </Route>
             <Route element={<PermissionRoute require={Action.TRACKER_VIEW} />}>
               <Route path="tracker" element={<ProjectTrackerDetail />} />
+            </Route>
+            <Route element={<PermissionRoute require={Action.PORTFOLIO_VIEW} />}>
+              <Route path="portfolio" element={<ProjectPortfolio />} />
             </Route>
           </Route>
           <Route path="/scorecard/:id" element={<LegacyScorecardRedirect />} />
