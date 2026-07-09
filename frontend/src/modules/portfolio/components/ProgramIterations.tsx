@@ -1,9 +1,122 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { MoreHorizontal } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
-import { useSetProjectProgram } from '../hooks/usePrograms';
-import { ProgramCombobox } from './ProgramCombobox';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/components/ui/dialog';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/shared/components/ui/command';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/shared/components/ui/dropdown-menu';
+import { useProgramOptions, useSetProjectProgram } from '../hooks/usePrograms';
 import { ProjectStatusDot } from './ProjectStatusDot';
 import type { ProjectIteration } from '../types/portfolio';
+
+function MoveIterationDialog({
+  open,
+  onOpenChange,
+  currentProgramId,
+  projectName,
+  onMove,
+}: {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly currentProgramId: string;
+  readonly projectName: string;
+  readonly onMove: (programId: string) => void;
+}): JSX.Element {
+  const { data: options } = useProgramOptions();
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm gap-0 p-0">
+        <DialogHeader className="px-4 pb-2 pt-4">
+          <DialogTitle className="text-base">Move “{projectName}” to…</DialogTitle>
+        </DialogHeader>
+        <Command>
+          <CommandInput placeholder="Search programs…" />
+          <CommandList>
+            <CommandEmpty>No program found.</CommandEmpty>
+            <CommandGroup>
+              {(options ?? [])
+                .filter((o) => o.id !== currentProgramId)
+                .map((o) => (
+                  <CommandItem key={o.id} value={o.name} onSelect={() => onMove(o.id)}>
+                    {o.name}
+                  </CommandItem>
+                ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function IterationActions({
+  project,
+  programId,
+}: {
+  readonly project: ProjectIteration;
+  readonly programId: string;
+}): JSX.Element {
+  const [moveOpen, setMoveOpen] = useState(false);
+  const setProjectProgram = useSetProjectProgram();
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            aria-label={`Actions for ${project.name}`}
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => setMoveOpen(true)}>
+            Move to program…
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={() =>
+              void setProjectProgram.mutateAsync({ projectId: project.id, programId: null })
+            }
+          >
+            Remove from program
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {moveOpen && (
+        <MoveIterationDialog
+          open={moveOpen}
+          onOpenChange={setMoveOpen}
+          currentProgramId={programId}
+          projectName={project.name}
+          onMove={(target) => {
+            void setProjectProgram.mutateAsync({ projectId: project.id, programId: target });
+            setMoveOpen(false);
+          }}
+        />
+      )}
+    </>
+  );
+}
 
 export function ProgramIterations({
   projects,
@@ -14,15 +127,14 @@ export function ProgramIterations({
   readonly canManage: boolean;
   readonly programId: string;
 }): JSX.Element {
-  const setProjectProgram = useSetProjectProgram();
   return (
-    <section className="space-y-2">
-      <h2 className="text-sm font-medium">Iterations</h2>
+    <section className="space-y-4">
+      <h2 className="text-base font-semibold">Iterations</h2>
       <div className="rounded-md border">
         {projects.map((p) => (
           <div
             key={p.id}
-            className="flex items-center gap-3 border-b px-3 py-2 text-sm last:border-b-0"
+            className="flex items-center gap-3 border-b px-4 py-2.5 text-sm last:border-b-0"
           >
             <ProjectStatusDot status={p.status} />
             <span className="min-w-0 flex-1 truncate">{p.name}</span>
@@ -48,30 +160,11 @@ export function ProgramIterations({
                 Tracker
               </Link>
             )}
-            {canManage && (
-              <>
-                <ProgramCombobox
-                  triggerLabel="Move…"
-                  value={programId}
-                  onSelect={(target) => {
-                    if (target !== programId) {
-                      void setProjectProgram.mutateAsync({ projectId: p.id, programId: target });
-                    }
-                  }}
-                />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => void setProjectProgram.mutateAsync({ projectId: p.id, programId: null })}
-                >
-                  Remove
-                </Button>
-              </>
-            )}
+            {canManage && <IterationActions project={p} programId={programId} />}
           </div>
         ))}
         {projects.length === 0 && (
-          <p className="px-3 py-4 text-sm text-muted-foreground">No iterations yet.</p>
+          <p className="px-4 py-4 text-sm text-muted-foreground">No iterations yet.</p>
         )}
       </div>
     </section>

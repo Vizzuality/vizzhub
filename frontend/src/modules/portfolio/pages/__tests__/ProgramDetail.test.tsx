@@ -103,14 +103,16 @@ describe('ProgramDetail', () => {
     renderPage();
     expect(screen.queryByRole('button', { name: /edit/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /actions for/i })).not.toBeInTheDocument();
     mockUsePermission.mockReturnValue(true);
   });
 
-  it('shows move/remove per iteration with manage permission', () => {
+  it('shows one actions menu per iteration with manage permission (no inline selector)', () => {
     mockUsePermission.mockReturnValue(true);
     renderPage();
-    // /^move/i anchored so "Remove" (which contains "move") doesn't match
-    expect(screen.getAllByRole('button', { name: /^move/i })).toHaveLength(2);
-    expect(screen.getAllByRole('button', { name: /remove/i })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: /actions for/i })).toHaveLength(2);
+    // The always-visible move combobox is gone.
+    expect(screen.queryByRole('button', { name: /^move/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /remove/i })).not.toBeInTheDocument();
   });
 });
