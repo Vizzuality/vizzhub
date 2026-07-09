@@ -1,5 +1,6 @@
 """Program catalogue response/request schemas (F2)."""
 
+from urllib.parse import urlsplit
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -72,7 +73,7 @@ class ProgramProfileUpdate(BaseModel):
     @field_validator("website_url")
     @classmethod
     def _http_scheme_only(cls, v: str | None) -> str | None:
-        if v is not None and not v.lower().startswith(("http://", "https://")):
+        if v is not None and urlsplit(v).scheme not in ("http", "https"):
             raise ValueError("website_url must start with http:// or https://")
         return v
 
