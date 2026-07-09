@@ -1,13 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
 import { ProgramTagsSection } from '../ProgramTagsSection';
 
-const replaceTerms = vi.fn().mockResolvedValue([]);
-
-vi.mock('../../hooks/usePrograms', () => ({
-  useReplaceProgramTerms: () => ({ mutateAsync: replaceTerms, isPending: false }),
-}));
 vi.mock('../../hooks/useTaxonomies', () => ({
   useTaxonomies: () => ({
     data: [
@@ -16,8 +10,12 @@ vi.mock('../../hooks/useTaxonomies', () => ({
         cardinality: 'single', allows_primary: false, is_active: true, sort_order: 0,
         terms: [
           { id: 'ngo', taxonomy_id: 'tax-single', slug: 'ngo', name: 'NGO', description: null, sort_order: 0, is_active: true },
-          { id: 'gov', taxonomy_id: 'tax-single', slug: 'government', name: 'Government', description: null, sort_order: 1, is_active: true },
         ],
+      },
+      {
+        id: 'tax-geo', slug: 'geography', name: 'Geography', description: null,
+        cardinality: 'multi', allows_primary: false, is_active: true, sort_order: 1,
+        terms: [],
       },
     ],
     isLoading: false,
@@ -31,39 +29,17 @@ const PROGRAM = {
   ],
 };
 
-function renderSection(canManage = true): void {
-  render(
-    <QueryClientProvider client={new QueryClient()}>
-      <ProgramTagsSection program={PROGRAM} canManage={canManage} />
-    </QueryClientProvider>,
-  );
-}
-
 describe('ProgramTagsSection', () => {
-  beforeEach(() => replaceTerms.mockClear());
-
-  it('renders assigned chips grouped by taxonomy', () => {
-    renderSection();
+  it('renders assigned chips grouped by taxonomy and a dash for empty ones', () => {
+    render(<ProgramTagsSection program={PROGRAM} />);
     expect(screen.getByText('Client Type')).toBeInTheDocument();
     expect(screen.getByText('NGO')).toBeInTheDocument();
+    expect(screen.getByText('Geography')).toBeInTheDocument();
+    expect(screen.getByText('—')).toBeInTheDocument();
   });
 
-  it('single cardinality: picking a second term replaces the first', async () => {
-    renderSection();
-    fireEvent.click(screen.getByRole('button', { name: /edit client type/i }));
-    fireEvent.click(screen.getByLabelText('Government'));
-    fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
-    await waitFor(() =>
-      expect(replaceTerms).toHaveBeenCalledWith({
-        taxonomy_id: 'tax-single',
-        term_ids: ['gov'],
-        primary_term_id: null,
-      }),
-    );
-  });
-
-  it('hides edit buttons without manage permission', () => {
-    renderSection(false);
-    expect(screen.queryByRole('button', { name: /edit/i })).not.toBeInTheDocument();
+  it('is read-only: no edit buttons', () => {
+    render(<ProgramTagsSection program={PROGRAM} />);
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 });

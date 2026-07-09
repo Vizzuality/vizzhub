@@ -132,6 +132,7 @@ export interface ProgramProfile {
   objective: string | null;
   short_description: string | null;
   web_copy: string | null;
+  website_url: string | null;
   impact_story: string | null;
   main_partner: string | null;
   stage: string | null;
@@ -162,6 +163,7 @@ export interface ProgramProfileUpdate {
   objective?: string | null;
   short_description?: string | null;
   web_copy?: string | null;
+  website_url?: string | null;
   impact_story?: string | null;
   main_partner?: string | null;
   stage?: string | null;

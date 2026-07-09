@@ -1,32 +1,24 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Check, Globe, Pencil, X } from 'lucide-react';
-import { getApiErrorMessage } from '@/utils/apiErrors';
+import { ArrowLeft, Globe, Pencil } from 'lucide-react';
 import { usePermission, Action } from '@/core/permissions';
 import { Button } from '@/shared/components/ui/button';
-import { Input } from '@/shared/components/ui/input';
 import { Switch } from '@/shared/components/ui/switch';
 import { Separator } from '@/shared/components/ui/separator';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
-import {
-  useProgramDetail,
-  useRenameProgram,
-  useUpdateProgramProfile,
-} from '../hooks/usePrograms';
+import { useProgramDetail, useUpdateProgramProfile } from '../hooks/usePrograms';
 import { ProgramNarrative } from '../components/ProgramNarrative';
 import { ProgramIterations } from '../components/ProgramIterations';
 import { ProgramTagsSection } from '../components/ProgramTagsSection';
+import { ProgramEditForm } from '../components/ProgramEditForm';
 
 export default function ProgramDetail(): JSX.Element {
   const { programId = '' } = useParams();
   const navigate = useNavigate();
   const canManage = usePermission(Action.PORTFOLIO_MANAGE);
   const { data: program, isLoading, isError } = useProgramDetail(programId);
-  const rename = useRenameProgram(programId);
   const updateProfile = useUpdateProgramProfile(programId);
-  const [renaming, setRenaming] = useState(false);
-  const [nameDraft, setNameDraft] = useState('');
-  const [renameError, setRenameError] = useState('');
+  const [editing, setEditing] = useState(false);
 
   if (isLoading) return <LoadingSpinner />;
   if (isError || !program) {
@@ -40,106 +32,67 @@ export default function ProgramDetail(): JSX.Element {
     );
   }
 
-  const handleRename = async (): Promise<void> => {
-    setRenameError('');
-    try {
-      await rename.mutateAsync(nameDraft.trim());
-      setRenaming(false);
-    } catch (err) {
-      setRenameError(
-        getApiErrorMessage(err as Error, {
-          conflict: 'A program with this name already exists',
-          fallback: 'Could not rename the program',
-        }),
-      );
-    }
-  };
+  const subtitle = [
+    program.profile?.stage,
+    program.clients.map((c) => c.name).join(', ') || null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/admin/portfolio')}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        {renaming ? (
-          <div className="flex items-center gap-1">
-            <Input
-              value={nameDraft}
-              onChange={(e) => setNameDraft(e.target.value)}
-              className="h-8 w-64"
-              autoFocus
-            />
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={() => void handleRename()}
-              disabled={!nameDraft.trim() || rename.isPending}
-            >
-              <Check className="h-4 w-4" />
-            </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={() => {
-                setRenaming(false);
-                setRenameError('');
-              }}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-            {renameError && <span className="text-sm text-destructive">{renameError}</span>}
+    <div className="space-y-8">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 items-start gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="mt-0.5 shrink-0"
+            aria-label="Back to programs"
+            onClick={() => navigate('/admin/portfolio')}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-semibold leading-tight">{program.name}</h1>
+            {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
           </div>
-        ) : (
-          <h1 className="flex items-center gap-2 text-lg font-semibold">
-            {program.name}
-            {canManage && (
-              <Button
-                size="icon"
-                variant="ghost"
-                aria-label="Edit name"
-                onClick={() => {
-                  setNameDraft(program.name);
-                  setRenaming(true);
-                }}
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </Button>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Globe className="h-4 w-4" />
+            {canManage ? (
+              <>
+                <span>On website</span>
+                <Switch
+                  checked={program.profile?.on_website ?? false}
+                  onCheckedChange={(checked) =>
+                    void updateProfile.mutateAsync({ on_website: checked })
+                  }
+                />
+              </>
+            ) : (
+              <span>{program.profile?.on_website ? 'On website' : 'Not on website'}</span>
             )}
-          </h1>
-        )}
-        {program.profile?.stage && (
-          <span className="text-sm text-muted-foreground">{program.profile.stage}</span>
-        )}
-        <span className="text-sm text-muted-foreground">
-          {program.clients.map((c) => c.name).join(', ')}
-        </span>
-        <div className="ml-auto flex items-center gap-2 text-sm">
-          <Globe className="h-4 w-4 text-muted-foreground" />
-          {canManage ? (
-            <Switch
-              checked={program.profile?.on_website ?? false}
-              onCheckedChange={(checked) =>
-                void updateProfile.mutateAsync({ on_website: checked })
-              }
-            />
-          ) : (
-            <span className="text-muted-foreground">
-              {program.profile?.on_website ? 'On website' : 'Not on website'}
-            </span>
+          </div>
+          {canManage && !editing && (
+            <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+              <Pencil className="mr-2 h-3.5 w-3.5" /> Edit
+            </Button>
           )}
         </div>
       </div>
 
-      <ProgramTagsSection program={program} canManage={canManage} />
-      <Separator />
-      <ProgramNarrative
-        profile={program.profile}
-        canManage={canManage}
-        isSaving={updateProfile.isPending}
-        onSave={async (diff) => {
-          await updateProfile.mutateAsync(diff);
-        }}
-      />
+      {editing ? (
+        <ProgramEditForm program={program} onDone={() => setEditing(false)} />
+      ) : (
+        <>
+          <ProgramTagsSection program={program} />
+          <Separator />
+          <ProgramNarrative profile={program.profile} />
+        </>
+      )}
+
       <Separator />
       <ProgramIterations
         projects={program.projects}

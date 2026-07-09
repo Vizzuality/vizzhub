@@ -1,107 +1,45 @@
-import { useState } from 'react';
-import { Button } from '@/shared/components/ui/button';
-import { Textarea } from '@/shared/components/ui/textarea';
-import { Input } from '@/shared/components/ui/input';
-import { Label } from '@/shared/components/ui/label';
-import type { ProgramProfile, ProgramProfileUpdate } from '../types/portfolio';
+import { ExternalLink } from 'lucide-react';
+import { PROFILE_TEXT_FIELDS } from '../utils/programs';
+import type { ProgramProfile } from '../types/portfolio';
 
-type NarrativeKey =
-  | 'objective'
-  | 'short_description'
-  | 'web_copy'
-  | 'impact_story'
-  | 'main_partner';
-
-const FIELDS: { key: NarrativeKey; label: string; multiline: boolean }[] = [
-  { key: 'objective', label: 'Objective', multiline: true },
-  { key: 'short_description', label: 'Short description', multiline: true },
-  { key: 'web_copy', label: 'Web copy', multiline: true },
-  { key: 'impact_story', label: 'Impact story', multiline: true },
-  { key: 'main_partner', label: 'Main partner', multiline: false },
-];
-
-function NarrativeFieldInput({
-  multiline,
+function FieldValue({
+  fieldKey,
   value,
-  onChange,
 }: {
-  readonly multiline: boolean;
+  readonly fieldKey: string;
   readonly value: string;
-  readonly onChange: (next: string) => void;
 }): JSX.Element {
-  if (multiline) {
-    return <Textarea value={value} onChange={(e) => onChange(e.target.value)} rows={3} />;
+  if (!value) return <span className="text-sm text-muted-foreground/50">—</span>;
+  if (fieldKey === 'website_url') {
+    return (
+      <a
+        href={value}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center gap-1.5 text-sm text-primary underline-offset-2 hover:underline"
+      >
+        <span className="truncate">{value}</span>
+        <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+      </a>
+    );
   }
-  return <Input value={value} onChange={(e) => onChange(e.target.value)} />;
+  return <p className="whitespace-pre-wrap text-sm leading-relaxed">{value}</p>;
 }
 
+/** Read-only narrative fields; editing lives in ProgramEditForm. */
 export function ProgramNarrative({
   profile,
-  canManage,
-  isSaving,
-  onSave,
 }: {
   readonly profile: ProgramProfile | null;
-  readonly canManage: boolean;
-  readonly isSaving: boolean;
-  readonly onSave: (diff: ProgramProfileUpdate) => Promise<void>;
 }): JSX.Element {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<Record<string, string>>({});
-
-  const value = (key: NarrativeKey): string => profile?.[key] ?? '';
-
-  const startEdit = (): void => {
-    setDraft(Object.fromEntries(FIELDS.map((f) => [f.key, value(f.key)])));
-    setEditing(true);
-  };
-
-  const save = async (): Promise<void> => {
-    const diff: ProgramProfileUpdate = {};
-    for (const f of FIELDS) {
-      if (draft[f.key] !== value(f.key)) {
-        (diff as Record<string, string | null>)[f.key] = draft[f.key].trim() || null;
-      }
-    }
-    if (Object.keys(diff).length > 0) await onSave(diff);
-    setEditing(false);
-  };
-
   return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium">Narrative</h2>
-        {canManage && !editing && (
-          <Button variant="outline" size="sm" onClick={startEdit}>
-            Edit
-          </Button>
-        )}
-        {editing && (
-          <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>
-              Cancel
-            </Button>
-            <Button size="sm" onClick={() => void save()} disabled={isSaving}>
-              Save
-            </Button>
-          </div>
-        )}
-      </div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {FIELDS.map((f) => (
+    <section className="space-y-4">
+      <h2 className="text-base font-semibold">Narrative</h2>
+      <div className="grid grid-cols-1 gap-x-10 gap-y-5 md:grid-cols-2">
+        {PROFILE_TEXT_FIELDS.map((f) => (
           <div key={f.key} className="space-y-1">
-            <Label className="text-xs text-muted-foreground">{f.label}</Label>
-            {editing ? (
-              <NarrativeFieldInput
-                multiline={f.multiline}
-                value={draft[f.key]}
-                onChange={(next) => setDraft((d) => ({ ...d, [f.key]: next }))}
-              />
-            ) : (
-              <p className="whitespace-pre-wrap text-sm">
-                {value(f.key) || <span className="text-muted-foreground">—</span>}
-              </p>
-            )}
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">{f.label}</p>
+            <FieldValue fieldKey={f.key} value={profile?.[f.key] ?? ''} />
           </div>
         ))}
       </div>

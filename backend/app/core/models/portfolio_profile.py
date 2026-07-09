@@ -34,6 +34,7 @@ class PortfolioProfileDB(Base):
     objective: Mapped[str | None] = mapped_column(Text, nullable=True)
     short_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     web_copy: Mapped[str | None] = mapped_column(Text, nullable=True)
+    website_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     impact_story: Mapped[str | None] = mapped_column(Text, nullable=True)
     stage: Mapped[str | None] = mapped_column(String(128), nullable=True)
     main_partner: Mapped[str | None] = mapped_column(Text, nullable=True)

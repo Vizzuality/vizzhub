@@ -1,5 +1,27 @@
 import type { ProjectIteration } from '../types/portfolio';
 
+export type ProfileTextKey =
+  | 'objective'
+  | 'short_description'
+  | 'impact_story'
+  | 'web_copy'
+  | 'main_partner'
+  | 'website_url';
+
+/** Text fields of the program profile, in display order (read view + edit form). */
+export const PROFILE_TEXT_FIELDS: {
+  key: ProfileTextKey;
+  label: string;
+  multiline: boolean;
+}[] = [
+  { key: 'objective', label: 'Objective', multiline: true },
+  { key: 'short_description', label: 'Short description', multiline: true },
+  { key: 'impact_story', label: 'Impact story', multiline: true },
+  { key: 'web_copy', label: 'Web copy', multiline: true },
+  { key: 'main_partner', label: 'Main partner', multiline: false },
+  { key: 'website_url', label: 'Website', multiline: false },
+];
+
 /** Outline-badge tints per taxonomy slug (literal Tailwind classes — no var() opacity). */
 export const TAXONOMY_CHIP_CLASSES: Record<string, string> = {
   'impact-area': 'border-emerald-400/60 text-emerald-700 dark:text-emerald-300',

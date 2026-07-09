@@ -201,12 +201,13 @@ async def test_profile_patch_creates_row_when_absent(
     seed = await _seed_catalogue(db_session)
     resp = await manager.patch(
         f"/api/portfolio/programs/{seed['bare'].id}/profile",
-        json={"objective": "new obj", "on_website": True},
+        json={"objective": "new obj", "on_website": True, "website_url": "https://example.org"},
     )
     assert resp.status_code == 200
     body = resp.json()
     assert body["objective"] == "new obj"
     assert body["on_website"] is True
+    assert body["website_url"] == "https://example.org"
     row = (
         await db_session.execute(
             select(PortfolioProfileDB).where(PortfolioProfileDB.program_id == seed["bare"].id)

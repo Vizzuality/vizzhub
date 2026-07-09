@@ -35,6 +35,7 @@ class ProfileFields(BaseModel):
     objective: str | None = None
     short_description: str | None = None
     web_copy: str | None = None
+    website_url: str | None = None
     impact_story: str | None = None
     main_partner: str | None = None
     stage: str | None = None
@@ -62,6 +63,7 @@ class ProgramProfileUpdate(BaseModel):
     objective: str | None = None
     short_description: str | None = None
     web_copy: str | None = None
+    website_url: str | None = None
     impact_story: str | None = None
     main_partner: str | None = None
     stage: str | None = None

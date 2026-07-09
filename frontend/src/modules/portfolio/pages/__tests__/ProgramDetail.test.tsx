@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import ProgramDetail from '../ProgramDetail';
@@ -10,7 +10,8 @@ const DETAIL = {
   name: 'Alpha Program',
   profile: {
     objective: 'The objective', short_description: 'Desc', web_copy: null,
-    impact_story: null, main_partner: 'Partner X', stage: 'live', on_website: false,
+    website_url: 'https://alpha.example.org', impact_story: null,
+    main_partner: 'Partner X', stage: 'live', on_website: false,
   },
   terms: [
     { term_id: 't1', taxonomy_id: 'x1', taxonomy_slug: 'service', name: 'Tools', is_primary: false },
@@ -69,11 +70,22 @@ function renderPage(): void {
 }
 
 describe('ProgramDetail', () => {
-  it('renders name, narrative fields and tags', () => {
+  it('renders name, narrative fields, website link and tags', () => {
     renderPage();
     expect(screen.getByText('Alpha Program')).toBeInTheDocument();
     expect(screen.getByText('The objective')).toBeInTheDocument();
     expect(screen.getByText('Tools')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /alpha\.example\.org/i })).toHaveAttribute(
+      'href',
+      'https://alpha.example.org',
+    );
+  });
+
+  it('opens the single edit form on Edit', () => {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
+    expect(screen.getByLabelText('Name')).toHaveValue('Alpha Program');
+    expect(screen.getByLabelText('Website')).toHaveValue('https://alpha.example.org');
   });
 
   it('shows Scorecard link only for has_scorecard and Tracker link only for billable', () => {
