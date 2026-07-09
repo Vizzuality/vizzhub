@@ -31,6 +31,7 @@ vi.mock('../../hooks/usePrograms', () => ({
     data: id ? PROGRAM : undefined,
     isLoading: false,
   }),
+  useUpdateProgramProfile: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 vi.mock('../../hooks/useTaxonomies', () => ({
   useTaxonomies: () => ({ data: [], isLoading: false }),
@@ -46,14 +47,18 @@ function renderFacet(programId: string | null): void {
 }
 
 describe('ProjectPortfolio facet', () => {
-  it('renders the program read view with a link to the portfolio page', () => {
+  it('renders the full program view inline (no Open in Portfolio button)', () => {
     renderFacet('prog-1');
     expect(screen.getByText('Mangrove Atlas')).toBeInTheDocument();
     expect(screen.getByText('Map mangroves')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /open in portfolio/i })).toHaveAttribute(
-      'href',
-      '/admin/portfolio/programs/prog-1',
-    );
+    expect(screen.getByText('GMW Phase 8')).toBeInTheDocument(); // sibling iterations
+    expect(screen.queryByRole('link', { name: /open in portfolio/i })).not.toBeInTheDocument();
+  });
+
+  it('is read-only without manage permission', () => {
+    renderFacet('prog-1');
+    expect(screen.queryByRole('button', { name: /edit/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
   });
 
   it('shows an empty state when the project has no program', () => {
