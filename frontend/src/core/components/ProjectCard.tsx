@@ -8,7 +8,7 @@ import type { Project } from '@/core/types/project';
 import type { ProjectCostSummaryLite, ProgressSummary } from '@/modules/tracker/public';
 import { formatDate } from '@/utils/formatters';
 import { formatCurrency } from '@/modules/tracker/public';
-import { getBurnDotClass, getScoreDotClass } from '@/utils/scoreColors';
+import { DEFAULT_SCORE_THRESHOLDS, getBurnDotClass, getScoreDotClass } from '@/utils/scoreColors';
 import { Card, CardTitle } from '@/shared/components/ui/card';
 import { StatusBadge } from '@/shared/components/StatusBadge';
 import { cn } from '@/lib/utils';
@@ -23,29 +23,32 @@ interface ProjectCardProps {
   readonly progress?: ProgressSummary | null;
 }
 
-const SCORE_THRESHOLDS = { green: 70, yellow: 40 };
-
 function Metric({
   label,
   value,
   muted = false,
+  dotClass,
 }: {
   readonly label: string;
   readonly value: string;
   readonly muted?: boolean;
+  readonly dotClass?: string;
 }): JSX.Element {
   return (
     <div className="min-w-0">
       <div className="text-[11px] uppercase tracking-wider text-muted-foreground leading-none mb-1">
         {label}
       </div>
-      <div
-        className={cn(
-          'text-sm font-medium leading-tight truncate',
-          muted ? 'text-muted-foreground/40' : 'text-foreground',
-        )}
-      >
-        {value}
+      <div className="flex items-center gap-1.5">
+        {dotClass && <span className={cn('inline-block w-2 h-2 rounded-full shrink-0', dotClass)} />}
+        <span
+          className={cn(
+            'text-sm font-medium leading-tight truncate',
+            muted ? 'text-muted-foreground/40' : 'text-foreground',
+          )}
+        >
+          {value}
+        </span>
       </div>
     </div>
   );
@@ -65,19 +68,11 @@ function ProjectMetrics({
   return (
     <div className="flex flex-wrap items-end gap-x-5 gap-y-2">
       {score != null && (
-        <div className="min-w-0">
-          <div className="text-[11px] uppercase tracking-wider text-muted-foreground leading-none mb-1">
-            Score
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span
-              className={cn('inline-block w-2 h-2 rounded-full shrink-0', getScoreDotClass(score, SCORE_THRESHOLDS))}
-            />
-            <span className="text-sm font-medium leading-tight">
-              {Math.round(score)}
-            </span>
-          </div>
-        </div>
+        <Metric
+          label="Score"
+          value={String(Math.round(score))}
+          dotClass={getScoreDotClass(score, DEFAULT_SCORE_THRESHOLDS)}
+        />
       )}
       {costs && (
         <>
@@ -90,21 +85,11 @@ function ProjectMetrics({
             label="Costs"
             value={formatCurrency(costs.total_cost)}
           />
-          <div className="min-w-0">
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground leading-none mb-1">
-              Burn
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span
-                className={cn('inline-block w-2 h-2 rounded-full shrink-0', getBurnDotClass(costs.burn_percentage))}
-              />
-              <span className="text-sm font-medium leading-tight">
-                {costs.burn_percentage == null
-                  ? '—'
-                  : `${costs.burn_percentage.toFixed(1)}%`}
-              </span>
-            </div>
-          </div>
+          <Metric
+            label="Burn"
+            value={costs.burn_percentage == null ? '—' : `${costs.burn_percentage.toFixed(1)}%`}
+            dotClass={getBurnDotClass(costs.burn_percentage)}
+          />
           <Metric
             label="Progress"
             value={progress ? `${progress.percentage.toFixed(0)}%` : '—'}

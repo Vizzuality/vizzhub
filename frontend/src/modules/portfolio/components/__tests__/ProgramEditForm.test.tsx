@@ -117,9 +117,6 @@ describe('ProgramEditForm', () => {
       term_ids: ['tools'],
       primary_term_id: 'tools',
     });
-
-    onDone.mockClear();
-    replaceTerms.mockClear();
   });
 
   it('deselects a primary term on the third click', async () => {

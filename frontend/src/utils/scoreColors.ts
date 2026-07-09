@@ -8,6 +8,9 @@ export interface ScoreThresholds {
   yellow: number;
 }
 
+/** Default score bands used across project cards and headers (0–100 scale). */
+export const DEFAULT_SCORE_THRESHOLDS: ScoreThresholds = { green: 70, yellow: 40 };
+
 /**
  * Get the dot background class for a score value.
  * Use with a neutral-colored number beside the dot.

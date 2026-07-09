@@ -4,9 +4,7 @@ import { usePermission, Action } from '@/core/permissions';
 import { useProjectContext } from '@/core/contexts/ProjectContext';
 import { useProjectScoresMap } from '@/modules/scorecard/hooks/useProjectScoresMap';
 import { useProjectCostsMap, useProjectProgressMap } from '@/modules/tracker/public';
-import { getBurnDotClass, getScoreDotClass } from '@/utils/scoreColors';
-
-const SCORE_THRESHOLDS = { green: 70, yellow: 40 };
+import { DEFAULT_SCORE_THRESHOLDS, getBurnDotClass, getScoreDotClass } from '@/utils/scoreColors';
 
 function Kpi({
   label,
@@ -51,7 +49,7 @@ export function ProjectHeaderKpis(): JSX.Element | null {
         <Kpi
           label="Score"
           value={score === null ? '—' : String(Math.round(score))}
-          dotClass={getScoreDotClass(score, SCORE_THRESHOLDS)}
+          dotClass={getScoreDotClass(score, DEFAULT_SCORE_THRESHOLDS)}
         />
       )}
       {canTracker && (
