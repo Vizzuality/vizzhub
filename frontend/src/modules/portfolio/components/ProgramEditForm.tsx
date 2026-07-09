@@ -37,6 +37,36 @@ function draftFor(program: ProgramSummary, taxonomyId: string): TermsDraft {
   };
 }
 
+function normalizeFieldValue(key: ProfileTextKey, raw: string): string | null {
+  const value = raw.trim() || null;
+  // Backend only accepts http(s) URLs; default bare domains to https.
+  if (key === 'website_url' && value && !/^https?:\/\//i.test(value)) {
+    return `https://${value}`;
+  }
+  return value;
+}
+
+function buildProfileDiff(
+  fields: Record<ProfileTextKey, string>,
+  profile: ProgramSummary['profile'],
+): ProgramProfileUpdate {
+  const diff: ProgramProfileUpdate = {};
+  for (const f of PROFILE_TEXT_FIELDS) {
+    if (fields[f.key] !== (profile?.[f.key] ?? '')) {
+      diff[f.key] = normalizeFieldValue(f.key, fields[f.key]);
+    }
+  }
+  return diff;
+}
+
+function termsDiffer(draft: TermsDraft, before: TermsDraft): boolean {
+  return (
+    draft.primary !== before.primary
+    || draft.selected.length !== before.selected.length
+    || draft.selected.some((id) => !before.selected.includes(id))
+  );
+}
+
 function TermToggleChip({
   name,
   slug,
@@ -131,27 +161,12 @@ export function ProgramEditForm({
       const trimmed = name.trim();
       if (trimmed && trimmed !== program.name) await rename.mutateAsync(trimmed);
 
-      const diff: ProgramProfileUpdate = {};
-      for (const f of PROFILE_TEXT_FIELDS) {
-        if (fields[f.key] !== (program.profile?.[f.key] ?? '')) {
-          let value: string | null = fields[f.key].trim() || null;
-          // Backend only accepts http(s) URLs; default bare domains to https.
-          if (f.key === 'website_url' && value && !/^https?:\/\//i.test(value)) {
-            value = `https://${value}`;
-          }
-          diff[f.key] = value;
-        }
-      }
+      const diff = buildProfileDiff(fields, program.profile);
       if (Object.keys(diff).length > 0) await updateProfile.mutateAsync(diff);
 
       for (const tax of active) {
         const draft = termsDraft(tax);
-        const before = draftFor(program, tax.id);
-        const changed =
-          draft.primary !== before.primary
-          || draft.selected.length !== before.selected.length
-          || draft.selected.some((id) => !before.selected.includes(id));
-        if (changed) {
+        if (termsDiffer(draft, draftFor(program, tax.id))) {
           await replaceTerms.mutateAsync({
             taxonomy_id: tax.id,
             term_ids: draft.selected,
