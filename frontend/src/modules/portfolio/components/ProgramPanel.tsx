@@ -3,9 +3,7 @@ import { Globe, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePermission, Action } from '@/core/permissions';
 import { Button } from '@/shared/components/ui/button';
-import { Switch } from '@/shared/components/ui/switch';
 import { Separator } from '@/shared/components/ui/separator';
-import { useUpdateProgramProfile } from '../hooks/usePrograms';
 import { ProgramNarrative } from './ProgramNarrative';
 import { ProgramIterations } from './ProgramIterations';
 import { ProgramTagsSection } from './ProgramTagsSection';
@@ -28,7 +26,6 @@ export function ProgramPanel({
   readonly titleClassName?: string;
 }): JSX.Element {
   const canManage = usePermission(Action.PORTFOLIO_MANAGE);
-  const updateProfile = useUpdateProgramProfile(program.id);
   const [editing, setEditing] = useState(false);
 
   const subtitle = [
@@ -54,19 +51,7 @@ export function ProgramPanel({
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Globe className="h-4 w-4" />
-            {canManage ? (
-              <>
-                <span>On website</span>
-                <Switch
-                  checked={program.profile?.on_website ?? false}
-                  onCheckedChange={(checked) =>
-                    void updateProfile.mutateAsync({ on_website: checked })
-                  }
-                />
-              </>
-            ) : (
-              <span>{program.profile?.on_website ? 'On website' : 'Not on website'}</span>
-            )}
+            <span>{program.profile?.on_website ? 'On website' : 'Not on website'}</span>
           </div>
           {canManage && !editing && (
             <Button variant="outline" size="sm" onClick={() => setEditing(true)}>

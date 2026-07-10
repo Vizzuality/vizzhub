@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
+import { Switch } from '@/shared/components/ui/switch';
 import { Textarea } from '@/shared/components/ui/textarea';
 import {
   useRenameProgram,
@@ -122,6 +123,7 @@ export function ProgramEditForm({
   const replaceTerms = useReplaceProgramTerms(program.id);
 
   const [name, setName] = useState(program.name);
+  const [onWebsite, setOnWebsite] = useState(program.profile?.on_website ?? false);
   const [fields, setFields] = useState<Record<ProfileTextKey, string>>(() =>
     Object.fromEntries(
       PROFILE_TEXT_FIELDS.map((f) => [f.key, program.profile?.[f.key] ?? '']),
@@ -162,6 +164,7 @@ export function ProgramEditForm({
       if (trimmed && trimmed !== program.name) await rename.mutateAsync(trimmed);
 
       const diff = buildProfileDiff(fields, program.profile);
+      if (onWebsite !== (program.profile?.on_website ?? false)) diff.on_website = onWebsite;
       if (Object.keys(diff).length > 0) await updateProfile.mutateAsync(diff);
 
       for (const tax of active) {
@@ -197,15 +200,23 @@ export function ProgramEditForm({
         void save();
       }}
     >
-      <div className="max-w-md space-y-1.5">
-        <Label htmlFor="program-name" className="text-xs uppercase tracking-wider text-muted-foreground">
-          Name
-        </Label>
-        <Input
-          id="program-name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
+      <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
+        <div className="max-w-md flex-1 space-y-1.5">
+          <Label htmlFor="program-name" className="text-xs uppercase tracking-wider text-muted-foreground">
+            Name
+          </Label>
+          <Input
+            id="program-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </div>
+        <div className="flex items-center gap-2 pb-2">
+          <Label htmlFor="program-on-website" className="text-sm text-muted-foreground">
+            On website
+          </Label>
+          <Switch id="program-on-website" checked={onWebsite} onCheckedChange={setOnWebsite} />
+        </div>
       </div>
 
       <section className="space-y-3">

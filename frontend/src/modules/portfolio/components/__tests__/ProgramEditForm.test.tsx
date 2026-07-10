@@ -95,6 +95,13 @@ describe('ProgramEditForm', () => {
     expect(updateProfile).not.toHaveBeenCalled();
   });
 
+  it('saves on_website when the switch is toggled', async () => {
+    renderForm();
+    fireEvent.click(screen.getByRole('switch', { name: /on website/i }));
+    await save();
+    expect(updateProfile).toHaveBeenCalledWith({ on_website: true });
+  });
+
   it('single cardinality: picking a second term replaces the first', async () => {
     renderForm();
     fireEvent.click(screen.getByRole('button', { name: 'Government' }));
