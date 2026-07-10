@@ -83,7 +83,7 @@ describe('ProgramDetail', () => {
 
   it('opens the single edit form on Edit', () => {
     renderPage();
-    fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /edit portfolio content/i }));
     expect(screen.getByLabelText('Name')).toHaveValue('Alpha Program');
     expect(screen.getByLabelText('Website')).toHaveValue('https://alpha.example.org');
   });

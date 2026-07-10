@@ -70,7 +70,7 @@ export function ProgramPanel({
           </div>
           {canManage && !editing && (
             <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-              <Pencil className="mr-2 h-3.5 w-3.5" /> Edit
+              <Pencil className="mr-2 h-3.5 w-3.5" /> Edit portfolio content
             </Button>
           )}
         </div>
