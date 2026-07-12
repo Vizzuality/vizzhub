@@ -16,6 +16,7 @@ import type {
   ProgramProfileUpdate,
   ProgramSummary,
   ProgramTermsUpdate,
+  ProjectIteration,
 } from '@/modules/portfolio/types/portfolio';
 
 export function useProgramIndex(
@@ -80,6 +81,21 @@ export function useReplaceProgramTerms(id: string) {
   return useMutation({
     mutationFn: (data: ProgramTermsUpdate) => portfolioApi.programs.replaceTerms(id, data),
     onSuccess: invalidate,
+  });
+}
+
+export function useUnassignedProjects(): UseQueryResult<ProjectIteration[]> {
+  return useQuery<ProjectIteration[]>({
+    queryKey: queryKeys.portfolio.programs.unassigned(),
+    queryFn: () => portfolioApi.programs.unassigned(),
+  });
+}
+
+export function useStageOptions(): UseQueryResult<string[]> {
+  return useQuery<string[]>({
+    queryKey: queryKeys.portfolio.programs.stages(),
+    queryFn: () => portfolioApi.programs.stages(),
+    staleTime: 5 * 60 * 1000,
   });
 }
 

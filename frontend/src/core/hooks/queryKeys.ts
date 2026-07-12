@@ -278,6 +278,8 @@ export const queryKeys = {
         ['portfolio', 'programs', 'index', filters] as const,
       detail: (id: string) => ['portfolio', 'programs', 'detail', id] as const,
       options: () => ['portfolio', 'programs', 'options'] as const,
+      unassigned: () => ['portfolio', 'programs', 'unassigned'] as const,
+      stages: () => ['portfolio', 'programs', 'stages'] as const,
     },
   },
   devstack: {

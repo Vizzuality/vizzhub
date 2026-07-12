@@ -31,16 +31,22 @@ vi.mock('../../hooks/usePrograms', () => ({
   useProgramIndex: () => ({
     data: {
       programs: [PROGRAM],
-      unassigned_projects: [
-        {
-          id: 'or1', name: 'Orphan', status: 'live', start_year: null, end_year: null,
-          has_scorecard: false, is_billable: true, is_absence: false,
-          client_id: null, client_name: null,
-        },
-      ],
+      total: 1,
+      pages: 1,
     },
     isLoading: false,
   }),
+  useUnassignedProjects: () => ({
+    data: [
+      {
+        id: 'or1', name: 'Orphan', status: 'live', start_year: null, end_year: null,
+        has_scorecard: false, is_billable: true, is_absence: false,
+        client_id: null, client_name: null,
+      },
+    ],
+    isLoading: false,
+  }),
+  useStageOptions: () => ({ data: ['live', 'pipeline'], isLoading: false }),
   useCreateProgram: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useSetProjectProgram: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useProgramOptions: () => ({ data: [{ id: 'p1', name: 'Alpha Program' }] }),

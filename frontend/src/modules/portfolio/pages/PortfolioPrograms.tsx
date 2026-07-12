@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/components/ui/select';
-import { useProgramIndex } from '../hooks/usePrograms';
+import { useProgramIndex, useUnassignedProjects } from '../hooks/usePrograms';
 import { useTaxonomies } from '../hooks/useTaxonomies';
 import { useClientOptions } from '../hooks/useClientOptions';
 import { ProgramCard } from '../components/ProgramCard';
@@ -73,9 +73,11 @@ export default function PortfolioPrograms(): JSX.Element {
 
   const hasFilters = Boolean(state.search || termIds.length || state.client);
 
+  const { data: unassignedData } = useUnassignedProjects();
+
   if (isLoading) return <LoadingSpinner />;
   const programs = data?.programs ?? [];
-  const unassigned = data?.unassigned_projects ?? [];
+  const unassigned = unassignedData ?? [];
 
   return (
     <div className="space-y-4">

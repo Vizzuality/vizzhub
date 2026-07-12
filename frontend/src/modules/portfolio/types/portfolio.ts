@@ -150,13 +150,17 @@ export interface ProgramSummary {
 
 export interface ProgramIndexResponse {
   programs: ProgramSummary[];
-  unassigned_projects: ProjectIteration[];
+  total: number;
+  pages: number;
 }
 
 export interface ProgramIndexFilters {
   search?: string;
   term_ids?: string[];
   client_id?: string;
+  stage?: string;
+  page?: number;
+  n?: number;
 }
 
 export interface ProgramProfileUpdate {
