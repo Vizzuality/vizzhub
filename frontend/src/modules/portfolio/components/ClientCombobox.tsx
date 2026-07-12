@@ -17,14 +17,13 @@ import {
 } from '@/shared/components/ui/popover';
 import { useClientOptions } from '../hooks/useClientOptions';
 
-/** Searchable client filter; value '' = all clients. */
-export function ClientCombobox({
-  value,
-  onChange,
-}: {
+interface Props {
   readonly value: string;
   readonly onChange: (clientId: string) => void;
-}): JSX.Element {
+}
+
+/** Searchable client filter; value '' = all clients. */
+export function ClientCombobox({ value, onChange }: Props): JSX.Element {
   const [open, setOpen] = useState(false);
   const { data: clients } = useClientOptions();
   const selected = clients?.find((c) => c.id === value);

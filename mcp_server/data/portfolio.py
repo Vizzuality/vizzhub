@@ -7,14 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.portfolio_profile import PortfolioProfileDB
 from app.core.models.program import ProgramDB
-from app.core.services.program_catalog import search_query_candidates
+from app.core.services.program_catalog import escape_like, search_query_candidates
 
 BASE_URL = "https://hub.vizzuality.com"
 MAX_LIMIT = 50
-
-
-def _escape_like(value: str) -> str:
-    return value.replace("\\", "\\\\").replace("%", r"\%").replace("_", r"\_")
 
 
 async def search_programs(session: AsyncSession, query: str, limit: int = 10) -> list[dict]:
@@ -28,7 +24,7 @@ async def search_programs(session: AsyncSession, query: str, limit: int = 10) ->
         return []
     limit = max(1, min(limit, MAX_LIMIT))
 
-    name_match = ProgramDB.name.ilike(f"%{_escape_like(needle)}%", escape="\\")
+    name_match = ProgramDB.name.ilike(f"%{escape_like(needle)}%", escape="\\")
     narrative = func.concat_ws(
         " ",
         PortfolioProfileDB.objective,

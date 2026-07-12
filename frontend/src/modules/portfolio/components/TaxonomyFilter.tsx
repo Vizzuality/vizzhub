@@ -8,16 +8,14 @@ import {
 } from '@/shared/components/ui/popover';
 import type { Taxonomy } from '../types/portfolio';
 
-/** One compact multi-select filter button per taxonomy (index filter bar). */
-export function TaxonomyFilter({
-  taxonomy,
-  selectedIds,
-  onToggle,
-}: {
+interface Props {
   readonly taxonomy: Taxonomy;
   readonly selectedIds: string[];
   readonly onToggle: (termId: string) => void;
-}): JSX.Element {
+}
+
+/** One compact multi-select filter button per taxonomy (index filter bar). */
+export function TaxonomyFilter({ taxonomy, selectedIds, onToggle }: Props): JSX.Element {
   const active = taxonomy.terms.filter((t) => t.is_active);
   const count = active.filter((t) => selectedIds.includes(t.id)).length;
   return (

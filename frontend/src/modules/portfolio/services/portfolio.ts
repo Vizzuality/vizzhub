@@ -74,8 +74,8 @@ export const portfolioApi = {
       if (filters.search) params.set('search', filters.search);
       if (filters.client_id) params.set('client_id', filters.client_id);
       if (filters.stage) params.set('stage', filters.stage);
-      if (filters.page) params.set('page', String(filters.page));
-      if (filters.n) params.set('n', String(filters.n));
+      if (filters.page !== undefined) params.set('page', String(filters.page));
+      if (filters.n !== undefined) params.set('n', String(filters.n));
       for (const id of filters.term_ids ?? []) params.append('term_ids', id);
       const response = await api.get<ProgramIndexResponse>('/portfolio/programs', { params });
       return response.data;

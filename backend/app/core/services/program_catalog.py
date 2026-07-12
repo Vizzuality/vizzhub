@@ -123,7 +123,7 @@ async def build_program_detail(db: AsyncSession, program_id: UUID) -> ProgramSum
     return (await _assemble(db, [program]))[0]
 
 
-def _escape_like(value: str) -> str:
+def escape_like(value: str) -> str:
     return value.replace("\\", "\\\\").replace("%", r"\%").replace("_", r"\_")
 
 
@@ -190,7 +190,7 @@ async def build_program_index(
 
     needle = search.strip()
     if len(needle) >= 2:
-        name_match = ProgramDB.name.ilike(f"%{_escape_like(needle)}%", escape="\\")
+        name_match = ProgramDB.name.ilike(f"%{escape_like(needle)}%", escape="\\")
         # websearch_to_tsquery ANDs every token, so one stray token (typo,
         # truncated paste) empties the result set — retry with OR semantics;
         # ts_rank still puts programs matching more terms first.
@@ -267,16 +267,20 @@ async def list_unassigned_projects(db: AsyncSession) -> list[ProjectIteration]:
 
 async def list_program_stages(db: AsyncSession) -> list[str]:
     rows = (
-        await db.execute(
-            select(PortfolioProfileDB.stage)
-            .distinct()
-            .where(
-                PortfolioProfileDB.program_id.is_not(None),
-                PortfolioProfileDB.stage.is_not(None),
+        (
+            await db.execute(
+                select(PortfolioProfileDB.stage)
+                .distinct()
+                .where(
+                    PortfolioProfileDB.program_id.is_not(None),
+                    PortfolioProfileDB.stage.is_not(None),
+                )
+                .order_by(PortfolioProfileDB.stage)
             )
-            .order_by(PortfolioProfileDB.stage)
         )
-    ).scalars()
+        .scalars()
+        .all()
+    )
     return list(rows)
 
 

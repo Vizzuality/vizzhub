@@ -55,6 +55,7 @@ export default function PortfolioPrograms(): JSX.Element {
   const pages = data?.pages ?? 1;
   const { data: taxonomies } = useTaxonomies();
   const { data: stages } = useStageOptions();
+  const { data: unassignedData } = useUnassignedProjects();
 
   const [localSearch, setLocalSearch] = useState(state.search);
   useEffect(() => {
@@ -78,8 +79,6 @@ export default function PortfolioPrograms(): JSX.Element {
   };
 
   const hasFilters = Boolean(state.search || termIds.length || state.client || state.stage);
-
-  const { data: unassignedData } = useUnassignedProjects();
 
   if (isLoading) return <LoadingSpinner />;
   const programs = data?.programs ?? [];
