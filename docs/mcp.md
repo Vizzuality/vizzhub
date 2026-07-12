@@ -1,6 +1,6 @@
 # MCP Server
 
-VizzHub exposes an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that allows Claude and other MCP clients to query operational data across all modules (ISO, Tracker, Scorecard, Capacity, Playbook, Users) directly from the database. 27 read-only tools + 16 write tools (via command queue) available.
+VizzHub exposes an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that allows Claude and other MCP clients to query operational data across all modules (ISO, Tracker, Scorecard, Capacity, Playbook, Users) directly from the database. 28 read-only tools + 16 write tools (via command queue) available.
 
 ## Architecture
 
@@ -338,6 +338,18 @@ List all billing rate bands.
 **Parameters:** None
 
 **Returns:** JSON array of rate bands with `id`, `code` (A-D), and `value`.
+
+### `portfolio_search_programs`
+
+Full-text search over the program catalogue — name and profile narrative (objective, short description, impact story, web copy, main partner). Gated `portfolio:view`.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `query` | string | yes | Free-text query (min 2 chars; websearch syntax supported, e.g. quoted phrases) |
+| `limit` | int | no | Max results (default 10, clamped to 50) |
+
+**Returns:** JSON array ordered by relevance (name matches first) with `program_id`, `name`, `stage`, `snippet` (highlighted fragment with `<b>` tags), and `url`.
 
 ## Authentication
 

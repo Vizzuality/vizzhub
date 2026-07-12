@@ -145,6 +145,20 @@ Playbook ── standalone (articles, linked by slug)
 
 **Yearly vs non-yearly registries:** call `iso_get_registries` for the current list — each entry includes `is_yearly: bool`. For yearly registries, pass `year` to `iso_get_registry_rows` (defaults to current cycle year if omitted). Do not rely on hardcoded enumerations; the set of registries changes over time as the management system evolves.
 
+### Portfolio (1 tool)
+
+| Tool | Use for | Key params |
+|------|---------|------------|
+| `portfolio_search_programs(query)` | Full-text search across program names and narrative | `query`, `limit` (default 10, max 50) |
+
+**Returns:** JSON array of `{program_id, name, stage, snippet, url}` ordered by relevance (name matches first). `snippet` contains PostgreSQL `ts_headline` fragments with `<b>` highlights.
+
+**Conventions:**
+- Requires `portfolio:view` permission (all standard roles have it)
+- Searches program name (ILIKE) plus profile narrative fields: objective, short description, impact story, web copy, main partner
+- Min query length is 2 characters; websearch syntax supported (e.g. `"quoted phrase"`)
+- Program URL: `https://hub.vizzuality.com/admin/portfolio/programs/{program_id}`
+
 ### Playbook (3 tools)
 
 | Tool | Use for | Key params |
