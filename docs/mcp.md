@@ -1,6 +1,6 @@
 # MCP Server
 
-VizzHub exposes an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that allows Claude and other MCP clients to query operational data across all modules (ISO, Tracker, Scorecard, Capacity, Playbook, Users) directly from the database. 28 read-only tools + 16 write tools (via command queue) available.
+VizzHub exposes an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that allows Claude and other MCP clients to query operational data across all modules (ISO, Tracker, Scorecard, Capacity, Playbook, Users, Portfolio) directly from the database. 28 read-only tools + 16 write tools (via command queue) available.
 
 ## Architecture
 

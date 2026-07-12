@@ -9,7 +9,7 @@ import { portfolioApi } from '../../services/portfolio';
 vi.mock('../../services/portfolio', () => ({
   portfolioApi: {
     programs: {
-      index: vi.fn().mockResolvedValue({ programs: [], unassigned_projects: [] }),
+      index: vi.fn().mockResolvedValue({ programs: [], total: 0, pages: 1 }),
     },
   },
 }));
