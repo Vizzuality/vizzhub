@@ -52,7 +52,23 @@ vi.mock('../../hooks/usePrograms', () => ({
   useProgramOptions: () => ({ data: [{ id: 'p1', name: 'Alpha Program' }] }),
 }));
 vi.mock('../../hooks/useTaxonomies', () => ({
-  useTaxonomies: () => ({ data: [], isLoading: false }),
+  useTaxonomies: () => ({
+    data: [
+      {
+        id: 'tax-svc', slug: 'service', name: 'Service', description: null,
+        cardinality: 'multi', allows_primary: true, is_active: true, sort_order: 0,
+        terms: [
+          { id: 't-tools', taxonomy_id: 'tax-svc', slug: 'tools', name: 'Tools', description: null, sort_order: 0, is_active: true },
+        ],
+      },
+      {
+        id: 'tax-geo', slug: 'geography', name: 'Geography', description: null,
+        cardinality: 'multi', allows_primary: false, is_active: true, sort_order: 1,
+        terms: [],
+      },
+    ],
+    isLoading: false,
+  }),
 }));
 vi.mock('../../hooks/useClientOptions', () => ({
   useClientOptions: () => ({ data: [{ id: 'c1', name: 'Acme', code: null }] }),
@@ -98,5 +114,12 @@ describe('PortfolioPrograms', () => {
     renderPage();
     expect(screen.getByRole('button', { name: /new program/i })).toBeEnabled();
     expect(screen.getByRole('button', { name: /assign/i })).toBeInTheDocument();
+  });
+
+  it('renders one filter button per active taxonomy and a stage select', () => {
+    renderPage();
+    expect(screen.getByRole('button', { name: /^service/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^geography/i })).toBeInTheDocument();
+    expect(screen.getByText('All stages')).toBeInTheDocument();
   });
 });

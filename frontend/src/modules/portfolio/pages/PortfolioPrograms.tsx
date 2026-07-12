@@ -7,25 +7,20 @@ import { Input } from '@/shared/components/ui/input';
 import { Card } from '@/shared/components/ui/card';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/shared/components/ui/popover';
-import { Checkbox } from '@/shared/components/ui/checkbox';
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/shared/components/ui/select';
-import { useProgramIndex, useUnassignedProjects } from '../hooks/usePrograms';
+import { useProgramIndex, useUnassignedProjects, useStageOptions } from '../hooks/usePrograms';
 import { useTaxonomies } from '../hooks/useTaxonomies';
-import { useClientOptions } from '../hooks/useClientOptions';
 import { ProgramCard } from '../components/ProgramCard';
 import { ProgramListRow } from '../components/ProgramListRow';
 import { UnassignedTray } from '../components/UnassignedTray';
 import { CreateProgramDialog } from '../components/CreateProgramDialog';
+import { TaxonomyFilter } from '../components/TaxonomyFilter';
+import { ClientCombobox } from '../components/ClientCombobox';
 
 type ViewMode = 'grid' | 'list';
 const SEARCH_DEBOUNCE_MS = 300;
@@ -37,6 +32,7 @@ export default function PortfolioPrograms(): JSX.Element {
     search: { defaultValue: '' },
     terms: { defaultValue: '' }, // comma-joined term ids
     client: { defaultValue: '' },
+    stage: { defaultValue: '' },
   }));
   const { state, setState } = useUrlState(schema);
   const viewMode = state.view as ViewMode;
@@ -46,9 +42,10 @@ export default function PortfolioPrograms(): JSX.Element {
     search: state.search || undefined,
     term_ids: termIds.length ? termIds : undefined,
     client_id: state.client || undefined,
+    stage: state.stage || undefined,
   });
   const { data: taxonomies } = useTaxonomies();
-  const { data: clients } = useClientOptions();
+  const { data: stages } = useStageOptions();
 
   const [localSearch, setLocalSearch] = useState(state.search);
   useEffect(() => {
@@ -71,7 +68,7 @@ export default function PortfolioPrograms(): JSX.Element {
     setState({ terms: next.join(',') });
   };
 
-  const hasFilters = Boolean(state.search || termIds.length || state.client);
+  const hasFilters = Boolean(state.search || termIds.length || state.client || state.stage);
 
   const { data: unassignedData } = useUnassignedProjects();
 
@@ -91,53 +88,40 @@ export default function PortfolioPrograms(): JSX.Element {
             className="w-56 pl-8"
           />
         </div>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm">
-              Tags{termIds.length > 0 ? ` (${termIds.length})` : ''}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="max-h-96 w-64 overflow-y-auto">
-            {(taxonomies ?? []).map((tax) => (
-              <div key={tax.id} className="mb-3 last:mb-0">
-                <p className="mb-1 text-xs font-medium text-muted-foreground">{tax.name}</p>
-                {tax.terms.filter((t) => t.is_active).map((term) => (
-                  <div key={term.id} className="flex items-center gap-2 py-0.5 text-sm">
-                    <Checkbox
-                      id={`filter-term-${term.id}`}
-                      checked={termIds.includes(term.id)}
-                      onCheckedChange={() => toggleTerm(term.id)}
-                    />
-                    <label htmlFor={`filter-term-${term.id}`}>{term.name}</label>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </PopoverContent>
-        </Popover>
+        {(taxonomies ?? [])
+          .filter((t) => t.is_active)
+          .map((tax) => (
+            <TaxonomyFilter
+              key={tax.id}
+              taxonomy={tax}
+              selectedIds={termIds}
+              onToggle={toggleTerm}
+            />
+          ))}
         <Select
-          value={state.client || 'all'}
-          onValueChange={(v) => setState({ client: v === 'all' ? '' : v })}
+          value={state.stage || 'all'}
+          onValueChange={(v) => setState({ stage: v === 'all' ? '' : v })}
         >
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Client" />
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="Stage" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All clients</SelectItem>
-            {(clients ?? []).map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name}
+            <SelectItem value="all">All stages</SelectItem>
+            {(stages ?? []).map((s) => (
+              <SelectItem key={s} value={s}>
+                {s}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+        <ClientCombobox value={state.client} onChange={(v) => setState({ client: v })} />
         {hasFilters && (
           <Button
             variant="ghost"
             size="sm"
             onClick={() => {
               setLocalSearch('');
-              setState({ search: '', terms: '', client: '' });
+              setState({ search: '', terms: '', client: '', stage: '' });
             }}
           >
             <X className="mr-1 h-3.5 w-3.5" />
