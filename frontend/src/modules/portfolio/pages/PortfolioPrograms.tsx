@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { LayoutGrid, List, Search, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LayoutGrid, List, Search, X } from 'lucide-react';
 import { useUrlState } from '@/shared/hooks/useUrlState';
 import { usePermission, Action } from '@/core/permissions';
 import { Button } from '@/shared/components/ui/button';
@@ -24,6 +24,7 @@ import { ClientCombobox } from '../components/ClientCombobox';
 
 type ViewMode = 'grid' | 'list';
 const SEARCH_DEBOUNCE_MS = 300;
+const PAGE_SIZE = 24;
 
 export default function PortfolioPrograms(): JSX.Element {
   const canManage = usePermission(Action.PORTFOLIO_MANAGE);
@@ -33,6 +34,7 @@ export default function PortfolioPrograms(): JSX.Element {
     terms: { defaultValue: '' }, // comma-joined term ids
     client: { defaultValue: '' },
     stage: { defaultValue: '' },
+    page: { defaultValue: 1 },
   }));
   const { state, setState } = useUrlState(schema);
   const viewMode = state.view as ViewMode;
@@ -43,7 +45,11 @@ export default function PortfolioPrograms(): JSX.Element {
     term_ids: termIds.length ? termIds : undefined,
     client_id: state.client || undefined,
     stage: state.stage || undefined,
+    page: state.page,
+    n: PAGE_SIZE,
   });
+  const total = data?.total ?? 0;
+  const pages = data?.pages ?? 1;
   const { data: taxonomies } = useTaxonomies();
   const { data: stages } = useStageOptions();
 
@@ -53,7 +59,7 @@ export default function PortfolioPrograms(): JSX.Element {
   }, [state.search]);
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (localSearch !== state.search) setState({ search: localSearch });
+      if (localSearch !== state.search) setState({ search: localSearch, page: 1 });
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [localSearch, state.search, setState]);
@@ -65,7 +71,7 @@ export default function PortfolioPrograms(): JSX.Element {
 
   const toggleTerm = (id: string): void => {
     const next = termIds.includes(id) ? termIds.filter((t) => t !== id) : [...termIds, id];
-    setState({ terms: next.join(',') });
+    setState({ terms: next.join(','), page: 1 });
   };
 
   const hasFilters = Boolean(state.search || termIds.length || state.client || state.stage);
@@ -100,7 +106,7 @@ export default function PortfolioPrograms(): JSX.Element {
           ))}
         <Select
           value={state.stage || 'all'}
-          onValueChange={(v) => setState({ stage: v === 'all' ? '' : v })}
+          onValueChange={(v) => setState({ stage: v === 'all' ? '' : v, page: 1 })}
         >
           <SelectTrigger className="w-36">
             <SelectValue placeholder="Stage" />
@@ -114,14 +120,14 @@ export default function PortfolioPrograms(): JSX.Element {
             ))}
           </SelectContent>
         </Select>
-        <ClientCombobox value={state.client} onChange={(v) => setState({ client: v })} />
+        <ClientCombobox value={state.client} onChange={(v) => setState({ client: v, page: 1 })} />
         {hasFilters && (
           <Button
             variant="ghost"
             size="sm"
             onClick={() => {
               setLocalSearch('');
-              setState({ search: '', terms: '', client: '', stage: '' });
+              setState({ search: '', terms: '', client: '', stage: '', page: 1 });
             }}
           >
             <X className="mr-1 h-3.5 w-3.5" />
@@ -167,6 +173,37 @@ export default function PortfolioPrograms(): JSX.Element {
             <ProgramListRow key={p.id} program={p} />
           ))}
         </Card>
+      )}
+
+      {total > 0 && (
+        <div className="flex flex-col items-center justify-between gap-2 pt-2 sm:flex-row">
+          <p className="text-sm text-muted-foreground">
+            Showing {programs.length} of {total} programs
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setState({ page: state.page - 1 })}
+              disabled={state.page <= 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Previous
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              Page {state.page} of {pages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setState({ page: state.page + 1 })}
+              disabled={state.page >= pages}
+            >
+              Next
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       )}
 
       <UnassignedTray projects={unassigned} canManage={canManage} />

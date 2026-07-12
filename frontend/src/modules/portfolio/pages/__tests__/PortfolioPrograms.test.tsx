@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import PortfolioPrograms from '../PortfolioPrograms';
@@ -27,23 +27,25 @@ const PROGRAM = {
   ],
 };
 
+const ORPHAN_PROJECT = {
+  id: 'or1', name: 'Orphan', status: 'live', start_year: null, end_year: null,
+  has_scorecard: false, is_billable: true, is_absence: false,
+  client_id: null, client_name: null,
+};
+
+const mockUseProgramIndex = vi.fn(() => ({
+  data: {
+    programs: [PROGRAM],
+    total: 1,
+    pages: 1,
+  },
+  isLoading: false,
+}));
+
 vi.mock('../../hooks/usePrograms', () => ({
-  useProgramIndex: () => ({
-    data: {
-      programs: [PROGRAM],
-      total: 1,
-      pages: 1,
-    },
-    isLoading: false,
-  }),
+  useProgramIndex: (...args: Parameters<typeof mockUseProgramIndex>) => mockUseProgramIndex(...args),
   useUnassignedProjects: () => ({
-    data: [
-      {
-        id: 'or1', name: 'Orphan', status: 'live', start_year: null, end_year: null,
-        has_scorecard: false, is_billable: true, is_absence: false,
-        client_id: null, client_name: null,
-      },
-    ],
+    data: [ORPHAN_PROJECT],
     isLoading: false,
   }),
   useStageOptions: () => ({ data: ['live', 'pipeline'], isLoading: false }),
@@ -77,10 +79,10 @@ vi.mock('@/core/permissions/usePermission', () => ({
   usePermission: (...args: Parameters<typeof mockUsePermission>) => mockUsePermission(...args),
 }));
 
-function renderPage(): void {
+function renderPage(options?: { initialEntries?: string[] }): void {
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={options?.initialEntries ?? ['/admin/portfolio']}>
         <PortfolioPrograms />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -88,6 +90,14 @@ function renderPage(): void {
 }
 
 describe('PortfolioPrograms', () => {
+  beforeEach(() => {
+    mockUseProgramIndex.mockReturnValue({
+      data: { programs: [PROGRAM], total: 1, pages: 1 },
+      isLoading: false,
+    });
+    mockUsePermission.mockReturnValue(true);
+  });
+
   it('renders program cards with tags from all taxonomies and iteration summary', () => {
     renderPage();
     expect(screen.getByText('Alpha Program')).toBeInTheDocument();
@@ -106,7 +116,6 @@ describe('PortfolioPrograms', () => {
     mockUsePermission.mockReturnValue(false);
     renderPage();
     expect(screen.queryByRole('button', { name: /new program/i })).not.toBeInTheDocument();
-    mockUsePermission.mockReturnValue(true);
   });
 
   it('shows an enabled New program button and assign controls with manage permission', () => {
@@ -121,5 +130,40 @@ describe('PortfolioPrograms', () => {
     expect(screen.getByRole('button', { name: /^service/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^geography/i })).toBeInTheDocument();
     expect(screen.getByText('All stages')).toBeInTheDocument();
+  });
+
+  it('shows pagination and navigates pages via URL state', () => {
+    mockUseProgramIndex.mockReturnValue({
+      data: { programs: [PROGRAM], total: 30, pages: 2 },
+      isLoading: false,
+    });
+    renderPage();
+    expect(screen.getByText(/showing \d+ of 30 programs/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /previous/i })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    expect(screen.getByText(/page 2 of 2/i)).toBeInTheDocument();
+  });
+
+  it('resets to page 1 when a filter changes', async () => {
+    mockUseProgramIndex.mockReturnValue({
+      data: { programs: [PROGRAM], total: 30, pages: 2 },
+      isLoading: false,
+    });
+    renderPage({ initialEntries: ['/admin/portfolio?page=2'] });
+    expect(screen.getByText(/page 2 of 2/i)).toBeInTheDocument();
+    vi.useFakeTimers();
+    fireEvent.change(screen.getByPlaceholderText(/search programs/i), {
+      target: { value: 'mangrove' },
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+    });
+    vi.useRealTimers();
+    expect(screen.getByText(/page 1 of 2/i)).toBeInTheDocument();
+  });
+
+  it('renders the unassigned tray from its own endpoint', () => {
+    renderPage();
+    expect(screen.getByText('Orphan')).toBeInTheDocument();
   });
 });
