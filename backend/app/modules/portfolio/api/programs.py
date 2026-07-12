@@ -12,6 +12,8 @@ from app.core.permissions import Action, require_permission
 from app.core.services.program_catalog import (
     build_program_detail,
     build_program_index,
+    list_program_stages,
+    list_unassigned_projects,
     replace_program_terms,
     upsert_program_profile,
 )
@@ -21,6 +23,7 @@ from app.modules.portfolio.schemas.programs import (
     ProgramProfileUpdate,
     ProgramSummary,
     ProgramTermsUpdate,
+    ProjectIteration,
     TermChip,
 )
 
@@ -47,6 +50,26 @@ async def program_index(
     return await build_program_index(
         db, search=search, term_ids=term_ids, client_id=client_id, stage=stage, page=page, n=n
     )
+
+
+@router.get("/unassigned", responses={403: {"description": "Missing portfolio:view permission"}})
+@limiter.limit("60/minute")
+async def unassigned_projects(
+    request: Request,
+    current_user: PortfolioViewer,
+    db: DBSession,
+) -> list[ProjectIteration]:
+    return await list_unassigned_projects(db)
+
+
+@router.get("/stages", responses={403: {"description": "Missing portfolio:view permission"}})
+@limiter.limit("60/minute")
+async def program_stages(
+    request: Request,
+    current_user: PortfolioViewer,
+    db: DBSession,
+) -> list[str]:
+    return await list_program_stages(db)
 
 
 @router.get(

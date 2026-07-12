@@ -232,6 +232,33 @@ async def upsert_program_profile(
     return ProfileFields.model_validate(profile)
 
 
+async def list_unassigned_projects(db: AsyncSession) -> list[ProjectIteration]:
+    rows = (
+        await db.execute(
+            select(ProjectDB, ClientDB.name)
+            .outerjoin(ClientDB, ClientDB.id == ProjectDB.client_id)
+            .where(ProjectDB.program_id.is_(None), ProjectDB.is_absence.is_(False))
+            .order_by(ProjectDB.name)
+        )
+    ).all()
+    return [_iteration(p, cn) for p, cn in rows]
+
+
+async def list_program_stages(db: AsyncSession) -> list[str]:
+    rows = (
+        await db.execute(
+            select(PortfolioProfileDB.stage)
+            .distinct()
+            .where(
+                PortfolioProfileDB.program_id.is_not(None),
+                PortfolioProfileDB.stage.is_not(None),
+            )
+            .order_by(PortfolioProfileDB.stage)
+        )
+    ).scalars()
+    return list(rows)
+
+
 async def replace_program_terms(
     db: AsyncSession,
     program_id: UUID,

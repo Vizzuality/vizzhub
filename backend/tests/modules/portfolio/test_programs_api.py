@@ -443,3 +443,31 @@ async def test_n_over_100_rejected(viewer: AsyncClient, db_session: AsyncSession
     await _seed_catalogue(db_session)
     resp = await viewer.get("/api/portfolio/programs", params={"n": 500})
     assert resp.status_code == 400  # FastAPI validation mapped to 400 by global handler
+
+
+@pytest.mark.asyncio
+async def test_unassigned_endpoint_lists_orphans_not_absences(
+    viewer: AsyncClient, db_session: AsyncSession
+) -> None:
+    await _seed_catalogue(db_session)
+    resp = await viewer.get("/api/portfolio/programs/unassigned")
+    assert resp.status_code == 200
+    names = [p["name"] for p in resp.json()]
+    assert names == ["Orphan"]  # absence project excluded, members excluded
+
+
+@pytest.mark.asyncio
+async def test_stages_endpoint_distinct_sorted_non_null(
+    viewer: AsyncClient, db_session: AsyncSession
+) -> None:
+    await _seed_catalogue(db_session)
+    piped = ProgramDB(name="Piped Program")
+    piped2 = ProgramDB(name="Piped Two")
+    db_session.add_all([piped, piped2])
+    await db_session.flush()
+    db_session.add(PortfolioProfileDB(program_id=piped.id, stage="pipeline"))
+    db_session.add(PortfolioProfileDB(program_id=piped2.id, stage="pipeline"))
+    await db_session.commit()
+    resp = await viewer.get("/api/portfolio/programs/stages")
+    assert resp.status_code == 200
+    assert resp.json() == ["live", "pipeline"]  # distinct (pipeline ×2 → once), sorted
