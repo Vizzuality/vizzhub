@@ -1,7 +1,7 @@
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.portfolio_profile import PortfolioProfileDB
@@ -57,3 +57,35 @@ async def test_profile_rejects_both_null(db_session: AsyncSession) -> None:
     db_session.add(PortfolioProfileDB(objective="orphan"))
     with pytest.raises(IntegrityError):
         await db_session.flush()
+
+
+@pytest.mark.asyncio
+async def test_search_vector_generated_and_queryable(db_session: AsyncSession) -> None:
+    """create_all must produce the same generated tsvector column as migration 099."""
+    from app.core.models.program import ProgramDB
+
+    program = ProgramDB(name="Vector Program")
+    db_session.add(program)
+    await db_session.flush()
+    db_session.add(
+        PortfolioProfileDB(
+            program_id=program.id,
+            objective="Restoring mangrove ecosystems in coastal areas",
+        )
+    )
+    await db_session.commit()
+
+    match = (
+        (
+            await db_session.execute(
+                select(PortfolioProfileDB.program_id).where(
+                    PortfolioProfileDB.search_vector.op("@@")(
+                        func.websearch_to_tsquery("english", "restoration mangroves")
+                    )
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert match == [program.id]
