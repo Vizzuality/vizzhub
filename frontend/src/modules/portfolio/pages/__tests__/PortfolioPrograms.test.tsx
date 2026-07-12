@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import PortfolioPrograms from '../PortfolioPrograms';
 
 const mockUsePermission = vi.fn(() => true);
@@ -83,7 +83,13 @@ function renderPage(options?: { initialEntries?: string[] }): void {
   render(
     <QueryClientProvider client={new QueryClient()}>
       <MemoryRouter initialEntries={options?.initialEntries ?? ['/admin/portfolio']}>
-        <PortfolioPrograms />
+        <Routes>
+          <Route path="/admin/portfolio" element={<PortfolioPrograms />} />
+          <Route
+            path="/admin/portfolio/programs/:programId"
+            element={<div>PROGRAM DETAIL</div>}
+          />
+        </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -152,7 +158,7 @@ describe('PortfolioPrograms', () => {
     renderPage({ initialEntries: ['/admin/portfolio?page=2'] });
     expect(screen.getByText(/page 2 of 2/i)).toBeInTheDocument();
     vi.useFakeTimers();
-    fireEvent.change(screen.getByPlaceholderText(/search programs/i), {
+    fireEvent.change(screen.getByPlaceholderText(/search text/i), {
       target: { value: 'mangrove' },
     });
     await act(async () => {
@@ -165,5 +171,12 @@ describe('PortfolioPrograms', () => {
   it('renders the unassigned tray from its own endpoint', () => {
     renderPage();
     expect(screen.getByText('Orphan')).toBeInTheDocument();
+  });
+
+  it('program combobox jumps straight to the program detail', () => {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: /go to program/i }));
+    fireEvent.click(screen.getByRole('option', { name: /alpha program/i }));
+    expect(screen.getByText('PROGRAM DETAIL')).toBeInTheDocument();
   });
 });

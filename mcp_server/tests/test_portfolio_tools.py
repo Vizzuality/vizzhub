@@ -55,6 +55,21 @@ async def test_search_returns_ranked_matches_with_snippets(
 
 
 @pytest.mark.asyncio
+async def test_search_or_fallback_when_strict_query_matches_nothing(
+    db_session: AsyncSession, seed_programs: None
+) -> None:
+    server = create_mcp_server()
+    async with override_session(db_session):
+        result = await server.call_tool(
+            "portfolio_search_programs", {"query": "zzqq mangrove restoration"}
+        )
+    rows = _parse_tool_result(result)
+    # strict AND pass yields nothing ('zzqq'); the OR fallback recovers the
+    # narrative match (name ILIKE needs the full phrase, so Atlas stays out)
+    assert [r["name"] for r in rows] == ["Alpha Program"]
+
+
+@pytest.mark.asyncio
 async def test_search_limit_clamped(db_session: AsyncSession, seed_programs: None) -> None:
     server = create_mcp_server()
     async with override_session(db_session):

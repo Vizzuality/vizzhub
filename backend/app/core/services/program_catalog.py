@@ -127,6 +127,18 @@ def _escape_like(value: str) -> str:
     return value.replace("\\", "\\\\").replace("%", r"\%").replace("_", r"\_")
 
 
+def search_query_candidates(needle: str) -> list[str]:
+    """Full-text query attempts, in order: strict AND, then OR of every token.
+
+    Shared with the MCP portfolio search so both rank and fall back identically.
+    """
+    candidates = [needle]
+    tokens = needle.split()
+    if len(tokens) > 1:
+        candidates.append(" OR ".join(tokens))
+    return candidates
+
+
 async def _term_groups(db: AsyncSession, term_ids: list[UUID]) -> dict[UUID, set[UUID]]:
     rows = (
         await db.execute(
@@ -155,12 +167,6 @@ async def build_program_index(
         PortfolioProfileDB, PortfolioProfileDB.program_id == ProgramDB.id
     )
 
-    needle = search.strip()
-    tsq = func.websearch_to_tsquery("english", needle)
-    if len(needle) >= 2:
-        name_match = ProgramDB.name.ilike(f"%{_escape_like(needle)}%", escape="\\")
-        vector_match = PortfolioProfileDB.search_vector.op("@@")(tsq)
-        query = query.where(name_match | vector_match)
     if stage is not None:
         query = query.where(PortfolioProfileDB.stage == stage)
     if client_id is not None:
@@ -182,18 +188,33 @@ async def build_program_index(
                 )
             )
 
-    total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar_one()
-    pages = max(1, math.ceil(total / n))
-
+    needle = search.strip()
     if len(needle) >= 2:
-        query = query.order_by(
-            ProgramDB.name.ilike(f"%{_escape_like(needle)}%", escape="\\").desc(),
+        name_match = ProgramDB.name.ilike(f"%{_escape_like(needle)}%", escape="\\")
+        # websearch_to_tsquery ANDs every token, so one stray token (typo,
+        # truncated paste) empties the result set — retry with OR semantics;
+        # ts_rank still puts programs matching more terms first.
+        for query_text in search_query_candidates(needle):
+            tsq = func.websearch_to_tsquery("english", query_text)
+            filtered = query.where(name_match | PortfolioProfileDB.search_vector.op("@@")(tsq))
+            total = (
+                await db.execute(select(func.count()).select_from(filtered.subquery()))
+            ).scalar_one()
+            if total:
+                break
+        logger.info(
+            "program_search", query=needle, result_count=total, or_fallback=query_text != needle
+        )
+        query = filtered.order_by(
+            name_match.desc(),
             func.coalesce(func.ts_rank(PortfolioProfileDB.search_vector, tsq), 0).desc(),
             ProgramDB.name,
         )
-        logger.info("program_search", query=needle, result_count=total)
     else:
+        total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar_one()
         query = query.order_by(ProgramDB.name)
+
+    pages = max(1, math.ceil(total / n))
     query = query.offset((page - 1) * n).limit(n)
 
     programs = (await db.execute(query)).scalars().all()

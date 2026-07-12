@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, LayoutGrid, List, Search, X } from 'lucide-react';
 import { useUrlState } from '@/shared/hooks/useUrlState';
 import { usePermission, Action } from '@/core/permissions';
@@ -21,12 +22,14 @@ import { UnassignedTray } from '../components/UnassignedTray';
 import { CreateProgramDialog } from '../components/CreateProgramDialog';
 import { TaxonomyFilter } from '../components/TaxonomyFilter';
 import { ClientCombobox } from '../components/ClientCombobox';
+import { ProgramCombobox } from '../components/ProgramCombobox';
 
 type ViewMode = 'grid' | 'list';
 const SEARCH_DEBOUNCE_MS = 300;
 const PAGE_SIZE = 24;
 
 export default function PortfolioPrograms(): JSX.Element {
+  const navigate = useNavigate();
   const canManage = usePermission(Action.PORTFOLIO_MANAGE);
   const [schema] = useState(() => ({
     view: { defaultValue: (localStorage.getItem('portfolioViewMode') as ViewMode) || 'grid' },
@@ -90,20 +93,16 @@ export default function PortfolioPrograms(): JSX.Element {
           <Input
             value={localSearch}
             onChange={(e) => setLocalSearch(e.target.value)}
-            placeholder="Search programs…"
-            className="w-56 pl-8"
+            placeholder="Search text…"
+            className="w-64 pl-8"
           />
         </div>
-        {(taxonomies ?? [])
-          .filter((t) => t.is_active)
-          .map((tax) => (
-            <TaxonomyFilter
-              key={tax.id}
-              taxonomy={tax}
-              selectedIds={termIds}
-              onToggle={toggleTerm}
-            />
-          ))}
+        <ProgramCombobox
+          value={null}
+          onSelect={(id) => navigate(`/admin/portfolio/programs/${id}`)}
+          triggerLabel="Go to program…"
+        />
+        <ClientCombobox value={state.client} onChange={(v) => setState({ client: v, page: 1 })} />
         <Select
           value={state.stage || 'all'}
           onValueChange={(v) => setState({ stage: v === 'all' ? '' : v, page: 1 })}
@@ -120,7 +119,6 @@ export default function PortfolioPrograms(): JSX.Element {
             ))}
           </SelectContent>
         </Select>
-        <ClientCombobox value={state.client} onChange={(v) => setState({ client: v, page: 1 })} />
         {hasFilters && (
           <Button
             variant="ghost"
@@ -153,6 +151,20 @@ export default function PortfolioPrograms(): JSX.Element {
             <List className="h-4 w-4" />
           </Button>
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs uppercase tracking-wider text-muted-foreground">Tags</span>
+        {(taxonomies ?? [])
+          .filter((t) => t.is_active)
+          .map((tax) => (
+            <TaxonomyFilter
+              key={tax.id}
+              taxonomy={tax}
+              selectedIds={termIds}
+              onToggle={toggleTerm}
+            />
+          ))}
       </div>
 
       {programs.length === 0 && (

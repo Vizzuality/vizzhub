@@ -401,6 +401,21 @@ async def test_search_matches_narrative_with_stemming(
 
 
 @pytest.mark.asyncio
+async def test_search_or_fallback_when_strict_query_matches_nothing(
+    viewer: AsyncClient, db_session: AsyncSession
+) -> None:
+    await _seed_catalogue(db_session)
+    # websearch ANDs every token: 'zzqq' alone empties the strict pass; the OR
+    # fallback still finds the narrative match on the remaining tokens.
+    resp = await viewer.get(
+        "/api/portfolio/programs", params={"search": "zzqq mangrove restoration"}
+    )
+    body = resp.json()
+    assert body["total"] == 1
+    assert body["programs"][0]["name"] == "Alpha Program"
+
+
+@pytest.mark.asyncio
 async def test_search_name_match_outranks_narrative_match(
     viewer: AsyncClient, db_session: AsyncSession
 ) -> None:
