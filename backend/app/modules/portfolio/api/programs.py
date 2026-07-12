@@ -40,8 +40,13 @@ async def program_index(
     search: str = "",
     term_ids: Annotated[list[UUID] | None, Query()] = None,
     client_id: Annotated[UUID | None, Query()] = None,
+    stage: Annotated[str | None, Query()] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    n: Annotated[int, Query(ge=1, le=100)] = 24,
 ) -> ProgramIndexResponse:
-    return await build_program_index(db, search=search, term_ids=term_ids, client_id=client_id)
+    return await build_program_index(
+        db, search=search, term_ids=term_ids, client_id=client_id, stage=stage, page=page, n=n
+    )
 
 
 @router.get(

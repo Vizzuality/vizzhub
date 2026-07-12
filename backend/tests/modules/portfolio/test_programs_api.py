@@ -78,7 +78,14 @@ async def _seed_catalogue(db: AsyncSession) -> dict:
     bare = ProgramDB(name="Bare Program")
     db.add_all([prog, bare])
     await db.flush()
-    db.add(PortfolioProfileDB(program_id=prog.id, stage="live", short_description="desc"))
+    db.add(
+        PortfolioProfileDB(
+            program_id=prog.id,
+            stage="live",
+            short_description="desc",
+            objective="Restoring mangrove ecosystems in coastal areas",
+        )
+    )
     db.add(EntityTermDB(term_id=tools.id, taxonomy_id=tax.id, program_id=prog.id))
     db.add(EntityTermDB(term_id=europe.id, taxonomy_id=tax2.id, program_id=prog.id))
 
@@ -136,8 +143,7 @@ async def test_index_unassigned_tray_excludes_absence_and_ignores_filters(
     resp = await viewer.get("/api/portfolio/programs", params={"search": "zzz-no-match"})
     body = resp.json()
     assert body["programs"] == []  # filter emptied the programs
-    names = [p["name"] for p in body["unassigned_projects"]]
-    assert names == ["Orphan"]  # tray unfiltered, absence project excluded
+    assert "unassigned_projects" not in body  # moved to Task 3's endpoint
 
 
 @pytest.mark.asyncio
@@ -365,3 +371,75 @@ async def test_terms_put_403_without_manage(viewer: AsyncClient, db_session: Asy
         },
     )
     assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_index_is_paginated(viewer: AsyncClient, db_session: AsyncSession) -> None:
+    await _seed_catalogue(db_session)
+    resp = await viewer.get("/api/portfolio/programs", params={"n": 1, "page": 1})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["total"] == 2
+    assert body["pages"] == 2
+    assert len(body["programs"]) == 1
+    assert body["programs"][0]["name"] == "Alpha Program"  # name order
+
+    page2 = (await viewer.get("/api/portfolio/programs", params={"n": 1, "page": 2})).json()
+    assert page2["programs"][0]["name"] == "Bare Program"
+
+
+@pytest.mark.asyncio
+async def test_search_matches_narrative_with_stemming(
+    viewer: AsyncClient, db_session: AsyncSession
+) -> None:
+    await _seed_catalogue(db_session)
+    # "restoration mangroves" stems to match "Restoring mangrove" in the objective
+    resp = await viewer.get("/api/portfolio/programs", params={"search": "restoration mangroves"})
+    body = resp.json()
+    assert body["total"] == 1
+    assert body["programs"][0]["name"] == "Alpha Program"
+
+
+@pytest.mark.asyncio
+async def test_search_name_match_outranks_narrative_match(
+    viewer: AsyncClient, db_session: AsyncSession
+) -> None:
+    seed = await _seed_catalogue(db_session)
+    # Third program whose NAME contains the needle; Alpha only matches via narrative.
+    named = ProgramDB(name="Mangrove Atlas")
+    db_session.add(named)
+    await db_session.commit()
+    resp = await viewer.get("/api/portfolio/programs", params={"search": "mangrove"})
+    names = [p["name"] for p in resp.json()["programs"]]
+    assert names[0] == "Mangrove Atlas"
+    assert "Alpha Program" in names
+
+
+@pytest.mark.asyncio
+async def test_search_shorter_than_two_chars_is_ignored(
+    viewer: AsyncClient, db_session: AsyncSession
+) -> None:
+    await _seed_catalogue(db_session)
+    resp = await viewer.get("/api/portfolio/programs", params={"search": "a"})
+    assert resp.json()["total"] == 2
+
+
+@pytest.mark.asyncio
+async def test_stage_filter(viewer: AsyncClient, db_session: AsyncSession) -> None:
+    await _seed_catalogue(db_session)
+    piped = ProgramDB(name="Piped Program")
+    db_session.add(piped)
+    await db_session.flush()
+    db_session.add(PortfolioProfileDB(program_id=piped.id, stage="pipeline"))
+    await db_session.commit()
+    resp = await viewer.get("/api/portfolio/programs", params={"stage": "pipeline"})
+    body = resp.json()
+    assert body["total"] == 1
+    assert body["programs"][0]["name"] == "Piped Program"
+
+
+@pytest.mark.asyncio
+async def test_n_over_100_rejected(viewer: AsyncClient, db_session: AsyncSession) -> None:
+    await _seed_catalogue(db_session)
+    resp = await viewer.get("/api/portfolio/programs", params={"n": 500})
+    assert resp.status_code == 400  # FastAPI validation mapped to 400 by global handler

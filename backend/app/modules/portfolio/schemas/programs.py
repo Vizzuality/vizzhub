@@ -55,7 +55,8 @@ class ProgramSummary(BaseModel):
 
 class ProgramIndexResponse(BaseModel):
     programs: list[ProgramSummary]
-    unassigned_projects: list[ProjectIteration]
+    total: int
+    pages: int
 
 
 class ProgramProfileUpdate(BaseModel):

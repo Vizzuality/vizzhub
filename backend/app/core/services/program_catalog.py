@@ -3,15 +3,15 @@
 Lives in core/services because it reads and writes core entities (programs,
 projects, clients, portfolio_profile, entity_terms) on behalf of the
 portfolio module (architecture rule 4, same layering as portfolio_dashboard).
-Index filters run in Python: the catalogue is ~150 programs, one pass over
-three batched IN() queries beats SQL EXISTS gymnastics and stays testable.
+Index filtering and pagination run in SQL (spec 2026-07-12).
 """
 
+import math
 from collections import defaultdict
 from uuid import UUID
 
 import structlog
-from sqlalchemy import delete, select
+from sqlalchemy import delete, exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.client import ClientDB
@@ -123,10 +123,22 @@ async def build_program_detail(db: AsyncSession, program_id: UUID) -> ProgramSum
     return (await _assemble(db, [program]))[0]
 
 
-def _passes_term_filter(chips: list[TermChip], groups: dict[UUID, set[UUID]]) -> bool:
-    """OR within a taxonomy group, AND across groups."""
-    have = {c.term_id for c in chips}
-    return all(have & wanted for wanted in groups.values())
+def _escape_like(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("%", r"\%").replace("_", r"\_")
+
+
+async def _term_groups(db: AsyncSession, term_ids: list[UUID]) -> dict[UUID, set[UUID]]:
+    rows = (
+        await db.execute(
+            select(TaxonomyTermDB.id, TaxonomyTermDB.taxonomy_id).where(
+                TaxonomyTermDB.id.in_(term_ids)
+            )
+        )
+    ).all()
+    groups: dict[UUID, set[UUID]] = defaultdict(set)
+    for tid, taxonomy_id in rows:
+        groups[taxonomy_id].add(tid)
+    return groups
 
 
 async def build_program_index(
@@ -135,38 +147,58 @@ async def build_program_index(
     search: str = "",
     term_ids: list[UUID] | None = None,
     client_id: UUID | None = None,
+    stage: str | None = None,
+    page: int = 1,
+    n: int = 24,
 ) -> ProgramIndexResponse:
-    programs = (await db.execute(select(ProgramDB).order_by(ProgramDB.name))).scalars().all()
-    summaries = await _assemble(db, list(programs))
-    needle = search.strip().lower()
-    if needle:
-        summaries = [s for s in summaries if needle in s.name.lower()]
+    query = select(ProgramDB).outerjoin(
+        PortfolioProfileDB, PortfolioProfileDB.program_id == ProgramDB.id
+    )
+
+    needle = search.strip()
+    tsq = func.websearch_to_tsquery("english", needle)
+    if len(needle) >= 2:
+        name_match = ProgramDB.name.ilike(f"%{_escape_like(needle)}%", escape="\\")
+        vector_match = PortfolioProfileDB.search_vector.op("@@")(tsq)
+        query = query.where(name_match | vector_match)
+    if stage is not None:
+        query = query.where(PortfolioProfileDB.stage == stage)
     if client_id is not None:
-        summaries = [s for s in summaries if any(c.id == client_id for c in s.clients)]
-    if term_ids:
-        term_rows = (
-            await db.execute(
-                select(TaxonomyTermDB.id, TaxonomyTermDB.taxonomy_id).where(
-                    TaxonomyTermDB.id.in_(term_ids)
+        query = query.where(
+            exists(
+                select(1).where(
+                    ProjectDB.program_id == ProgramDB.id, ProjectDB.client_id == client_id
                 )
             )
-        ).all()
-        groups: dict[UUID, set[UUID]] = defaultdict(set)
-        for tid, taxonomy_id in term_rows:
-            groups[taxonomy_id].add(tid)
-        summaries = [s for s in summaries if _passes_term_filter(s.terms, groups)]
-    unassigned_rows = (
-        await db.execute(
-            select(ProjectDB, ClientDB.name)
-            .outerjoin(ClientDB, ClientDB.id == ProjectDB.client_id)
-            .where(ProjectDB.program_id.is_(None), ProjectDB.is_absence.is_(False))
-            .order_by(ProjectDB.name)
         )
-    ).all()
-    return ProgramIndexResponse(
-        programs=summaries,
-        unassigned_projects=[_iteration(p, cn) for p, cn in unassigned_rows],
-    )
+    if term_ids:
+        for wanted in (await _term_groups(db, term_ids)).values():
+            query = query.where(
+                exists(
+                    select(1).where(
+                        EntityTermDB.program_id == ProgramDB.id,
+                        EntityTermDB.term_id.in_(wanted),
+                    )
+                )
+            )
+
+    total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar_one()
+    pages = max(1, math.ceil(total / n))
+
+    if len(needle) >= 2:
+        query = query.order_by(
+            ProgramDB.name.ilike(f"%{_escape_like(needle)}%", escape="\\").desc(),
+            func.coalesce(func.ts_rank(PortfolioProfileDB.search_vector, tsq), 0).desc(),
+            ProgramDB.name,
+        )
+        logger.info("program_search", query=needle, result_count=total)
+    else:
+        query = query.order_by(ProgramDB.name)
+    query = query.offset((page - 1) * n).limit(n)
+
+    programs = (await db.execute(query)).scalars().all()
+    summaries = await _assemble(db, list(programs))
+    return ProgramIndexResponse(programs=summaries, total=total, pages=pages)
 
 
 async def _require_program(db: AsyncSession, program_id: UUID) -> ProgramDB:
