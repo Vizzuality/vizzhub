@@ -11,6 +11,7 @@ from app.core.permissions import Action
 from mcp_server.data.base import get_mcp_user, get_write_session
 from mcp_server.handlers import iso_docs as iso_handler
 from mcp_server.handlers import playbook as playbook_handler
+from mcp_server.handlers import portfolio as portfolio_handler
 from mcp_server.services.command_service import CommandService
 from mcp_server.tools._annotations import COMMAND_GATE, READ_ONLY
 from mcp_server.tools._shared import to_json
@@ -20,11 +21,13 @@ logger = structlog.get_logger()
 _MODULE_PERMISSIONS = {
     "iso_docs": Action.ISO_DOCS_EDIT,
     "playbook": Action.PLAYBOOK_EDIT,
+    "portfolio": Action.PORTFOLIO_MANAGE,
 }
 
 _MODULE_EXECUTORS = {
     "iso_docs": iso_handler.execute,
     "playbook": playbook_handler.execute,
+    "portfolio": portfolio_handler.execute,
 }
 
 
@@ -35,7 +38,7 @@ async def get_pending_commands(module: str | None = None) -> str:
     Use approve_command() or reject_command() on any returned command_id.
 
     Args:
-        module: Optional filter by module name ("iso_docs" or "playbook").
+        module: Optional filter by module name ("iso_docs", "playbook" or "portfolio").
                 Omit to see all pending commands.
 
     Returns JSON array of pending commands with command_id, module,
@@ -152,7 +155,7 @@ async def approve_all(module: str | None = None) -> str:
     its own transaction so a single failure does not block the rest.
 
     Args:
-        module: Optional filter by module name ("iso_docs" or "playbook").
+        module: Optional filter by module name ("iso_docs", "playbook" or "portfolio").
                 Omit to approve pending commands from all modules.
 
     Returns JSON with total counts and a per-command result list

@@ -148,13 +148,17 @@ Playbook ── standalone (articles, linked by slug)
 
 **Yearly vs non-yearly registries:** call `iso_get_registries` for the current list — each entry includes `is_yearly: bool`. For yearly registries, pass `year` to `iso_get_registry_rows` (defaults to current cycle year if omitted). Do not rely on hardcoded enumerations; the set of registries changes over time as the management system evolves.
 
-### Portfolio (3 tools)
+### Portfolio (5 read tools + 4 write tools)
 
 | Tool | Use for | Key params |
 |------|---------|------------|
 | `portfolio_search_programs(query)` | Full-text search across program names and narrative | `query`, `limit` (default 10, max 50) |
 | `portfolio_get_program(program_id)` | Full detail of one program: narrative profile, tags, clients, project iterations | `program_id` |
 | `portfolio_list_programs(...)` | Browse/filter the catalogue with pagination | `stage`, `tags`, `client`, `page`, `limit` (default 20, max 50) |
+| `portfolio_get_taxonomies()` | Discover taxonomies, term names, and stage values (feeds the filters and set_tags) | — |
+| `portfolio_get_clients()` | Discover client names (feeds the `client` filter) | — |
+
+Write tools (queued for human approval, like ISO/Playbook; gated `portfolio:manage`): `portfolio_create_program(name)`, `portfolio_rename_program(program_id, name)`, `portfolio_update_profile(program_id, …)` (PATCH; empty string clears a field), `portfolio_set_tags(program_id, taxonomy, term_names, primary?)` (replaces the terms of ONE taxonomy; names resolved case-insensitively).
 
 **Data model:** a *program* is the long-lived unit of work (e.g. "Mangrove Atlas"); each funded phase is a *project iteration* (`projects.program_id` FK — same `project_id` as Tracker/Scorecard). A program has at most one *profile* (narrative fields: objective, short_description, impact_story, web_copy, website_url, main_partner, stage, on_website) and any number of taxonomy *tags* (M:N via entity terms; each tag belongs to a taxonomy such as service or geography, optionally marked primary). Clients are derived from the program's projects.
 

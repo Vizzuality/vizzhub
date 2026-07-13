@@ -10,7 +10,7 @@ _SKILL_PATH = Path(__file__).resolve().parent.parent / "docs" / "mcp" / "vizzhub
 _SKILL_CONTENT = _SKILL_PATH.read_text(encoding="utf-8") if _SKILL_PATH.exists() else ""
 
 _INSTRUCTIONS = """\
-**CRITICAL — HUMAN-IN-THE-LOOP FOR WRITES:** Write tools (iso_*, playbook_*)
+**CRITICAL — HUMAN-IN-THE-LOOP FOR WRITES:** Write tools (iso_*, playbook_*, portfolio_*)
 NEVER execute directly — they only queue a command and return a summary.
 `approve_command` and `approve_all` are NOT shortcuts for the assistant to
 complete its task. They MUST ONLY be called AFTER the human user has seen
@@ -134,6 +134,9 @@ def create_mcp_server(
 
     from mcp_server.tools.playbook_write import register_playbook_write_tools  # noqa: PLC0415
     register_playbook_write_tools(instance)
+
+    from mcp_server.tools.portfolio_write import register_portfolio_write_tools  # noqa: PLC0415
+    register_portfolio_write_tools(instance)
 
     from mcp_server.tools.commands import register_command_tools  # noqa: PLC0415
     register_command_tools(instance)

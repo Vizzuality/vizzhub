@@ -10,11 +10,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.models.client import ClientDB
 from app.core.models.portfolio_profile import PortfolioProfileDB
 from app.core.models.program import ProgramDB
-from app.core.models.taxonomy import TaxonomyTermDB
+from app.core.models.project import ProjectDB
+from app.core.models.taxonomy import TaxonomyDB, TaxonomyTermDB
 from app.core.services.program_catalog import (
     build_program_detail,
     build_program_index,
     escape_like,
+    list_program_stages,
     search_query_candidates,
 )
 
@@ -177,3 +179,66 @@ async def list_programs(
     if unmatched_tags:
         out["unmatched_tags"] = unmatched_tags
     return out
+
+
+async def get_taxonomies(session: AsyncSession) -> dict:
+    """Active taxonomies with their active terms, plus the existing stage values.
+
+    Makes the list_programs `tags`/`stage` filters (and set_tags term names)
+    discoverable without guessing.
+    """
+    taxonomies = (
+        (
+            await session.execute(
+                select(TaxonomyDB)
+                .where(TaxonomyDB.is_active.is_(True))
+                .order_by(TaxonomyDB.sort_order, TaxonomyDB.name)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    term_rows = (
+        await session.execute(
+            select(TaxonomyTermDB)
+            .where(TaxonomyTermDB.is_active.is_(True))
+            .order_by(TaxonomyTermDB.sort_order, TaxonomyTermDB.name)
+        )
+    ).scalars()
+    terms_by_taxonomy: dict = {}
+    for term in term_rows:
+        terms_by_taxonomy.setdefault(term.taxonomy_id, []).append(term.name)
+    return {
+        "taxonomies": [
+            {
+                "slug": t.slug,
+                "name": t.name,
+                "cardinality": t.cardinality.value,
+                "allows_primary": t.allows_primary,
+                "terms": terms_by_taxonomy.get(t.id, []),
+            }
+            for t in taxonomies
+        ],
+        "stages": await list_program_stages(session),
+    }
+
+
+async def get_clients(session: AsyncSession) -> list[dict]:
+    """All clients with how many projects each has (0-project clients included)."""
+    projects_count = (
+        select(func.count())
+        .where(ProjectDB.client_id == ClientDB.id)
+        .correlate(ClientDB)
+        .scalar_subquery()
+    )
+    rows = (
+        await session.execute(
+            select(ClientDB.id, ClientDB.name, projects_count.label("projects_count")).order_by(
+                ClientDB.name
+            )
+        )
+    ).all()
+    return [
+        {"client_id": str(row.id), "name": row.name, "projects_count": row.projects_count}
+        for row in rows
+    ]

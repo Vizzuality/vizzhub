@@ -1,6 +1,6 @@
 # MCP Server
 
-VizzHub exposes an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that allows Claude and other MCP clients to query operational data across all modules (ISO, Tracker, Scorecard, Capacity, Playbook, Users, Portfolio) directly from the database. 30 read-only tools + 16 write tools (via command queue) available.
+VizzHub exposes an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that allows Claude and other MCP clients to query operational data across all modules (ISO, Tracker, Scorecard, Capacity, Playbook, Users, Portfolio) directly from the database. 32 read-only tools + 20 write tools (via command queue) available.
 
 ## Architecture
 
@@ -376,6 +376,22 @@ Browse the program catalogue with optional filters and pagination. Filter names 
 | `limit` | int | no | Programs per page (default 20, clamped to 50) |
 
 **Returns:** JSON object `{programs, total, pages, page}`; each program is a compact summary (`program_id`, `name`, `stage`, `short_description`, `tags`, `clients`, `projects_count`, `years`, `url`) ordered by name.
+
+### `portfolio_get_taxonomies`
+
+List active taxonomies with their active terms, plus the program stage values in use. Makes the `tags`/`stage` filters and `portfolio_set_tags` term names discoverable. Gated `portfolio:view`.
+
+**Parameters:** None
+
+**Returns:** JSON object `{taxonomies, stages}`; each taxonomy has `slug`, `name`, `cardinality` (single/multi), `allows_primary`, and `terms` (active term names).
+
+### `portfolio_get_clients`
+
+List all clients with project counts. Gated `portfolio:view`.
+
+**Parameters:** None
+
+**Returns:** JSON array of `{client_id, name, projects_count}` ordered by name.
 
 ## Authentication
 
@@ -795,6 +811,15 @@ All write operations go through a human-in-the-loop command queue. Tools enqueue
 | `playbook_update_article_content` | `playbook:edit` | Update article markdown content (versioned) |
 | `playbook_update_node` | `playbook:edit` | Rename or move a node |
 | `playbook_delete_node` | `playbook:edit` | Delete a leaf node (no children) |
+
+### Portfolio Write Tools (4)
+
+| Tool | Permission | Description |
+|---|---|---|
+| `portfolio_create_program` | `portfolio:manage` | Create a new program (unique name) |
+| `portfolio_rename_program` | `portfolio:manage` | Rename an existing program |
+| `portfolio_update_profile` | `portfolio:manage` | PATCH narrative profile fields; empty string clears a field |
+| `portfolio_set_tags` | `portfolio:manage` | Replace a program's terms for one taxonomy (names resolved server-side; empty list clears) |
 
 ### Queue Management Tools (4)
 

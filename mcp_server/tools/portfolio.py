@@ -97,8 +97,37 @@ async def portfolio_list_programs(
     return to_json(result)
 
 
+@mcp_requires(Action.PORTFOLIO_VIEW)
+async def portfolio_get_taxonomies() -> str:
+    """List the taxonomies, their terms, and the existing program stages.
+
+    Returns JSON `{taxonomies, stages}`. Each taxonomy has slug, name,
+    cardinality (single/multi), allows_primary, and its active term names.
+    Use these exact term names in the portfolio_list_programs `tags`
+    filter and in portfolio_set_tags; use the stage values in the `stage`
+    filter.
+    """
+    async with get_read_session() as session:
+        result = await portfolio_data.get_taxonomies(session)
+    return to_json(result)
+
+
+@mcp_requires(Action.PORTFOLIO_VIEW)
+async def portfolio_get_clients() -> str:
+    """List all clients with their project counts.
+
+    Returns a JSON array of `{client_id, name, projects_count}` ordered by
+    name. Use these names in the portfolio_list_programs `client` filter.
+    """
+    async with get_read_session() as session:
+        result = await portfolio_data.get_clients(session)
+    return to_json(result)
+
+
 def register_portfolio_tools(server: FastMCP) -> None:
     """Register all Portfolio tools on the given MCP server instance."""
     server.tool(annotations=READ_ONLY)(portfolio_search_programs)
     server.tool(annotations=READ_ONLY)(portfolio_get_program)
     server.tool(annotations=READ_ONLY)(portfolio_list_programs)
+    server.tool(annotations=READ_ONLY)(portfolio_get_taxonomies)
+    server.tool(annotations=READ_ONLY)(portfolio_get_clients)

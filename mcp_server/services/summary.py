@@ -7,10 +7,12 @@ Called at enqueue time to produce descriptions like
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.models.program import ProgramDB
 from app.core.services.content_version_service import ContentVersionService
 from app.modules.iso_docs.models.node import IsoDocNodeDB
 from app.modules.iso_docs.models.page_version import IsoDocVersionDB
@@ -263,6 +265,59 @@ async def _playbook_delete_node(
 
 
 # ---------------------------------------------------------------------------
+# Portfolio generators
+# ---------------------------------------------------------------------------
+
+async def _portfolio_program_name(session: AsyncSession, target: str | None) -> str:
+    if not target:
+        return "unknown"
+    try:
+        program_id = UUID(target)
+    except ValueError:
+        return target
+    result = await session.execute(select(ProgramDB).where(ProgramDB.id == program_id))
+    program = result.scalar_one_or_none()
+    return program.name if program else target
+
+
+async def _portfolio_create_program(
+    session: AsyncSession, target: str | None, payload: dict,
+) -> str:
+    return f"Create program **{payload.get('name', 'untitled')}**"
+
+
+async def _portfolio_rename_program(
+    session: AsyncSession, target: str | None, payload: dict,
+) -> str:
+    old_name = await _portfolio_program_name(session, target)
+    return f"Rename program **{old_name}** → **{payload.get('name', 'untitled')}**"
+
+
+async def _portfolio_update_profile(
+    session: AsyncSession, target: str | None, payload: dict,
+) -> str:
+    program_name = await _portfolio_program_name(session, target)
+    parts = [
+        f"clear {field}" if isinstance(value, str) and not value.strip() else f"{field}"
+        for field, value in payload.items()
+    ]
+    return f"Update profile of **{program_name}** ({', '.join(sorted(parts))})"
+
+
+async def _portfolio_set_tags(
+    session: AsyncSession, target: str | None, payload: dict,
+) -> str:
+    program_name = await _portfolio_program_name(session, target)
+    taxonomy = payload.get("taxonomy", "unknown")
+    names = payload.get("term_names") or []
+    terms = ", ".join(names) if names else "none (clear)"
+    summary = f"Set {taxonomy} tags of **{program_name}** → {terms}"
+    if payload.get("primary"):
+        summary += f" (primary: {payload['primary']})"
+    return summary
+
+
+# ---------------------------------------------------------------------------
 # Dispatch table
 # ---------------------------------------------------------------------------
 
@@ -280,6 +335,10 @@ _GENERATORS: dict[tuple[str, str], Generator] = {
     ("playbook", "update_article_content"): _playbook_update_article_content,
     ("playbook", "update_node"): _playbook_update_node,
     ("playbook", "delete_node"): _playbook_delete_node,
+    ("portfolio", "create_program"): _portfolio_create_program,
+    ("portfolio", "rename_program"): _portfolio_rename_program,
+    ("portfolio", "update_profile"): _portfolio_update_profile,
+    ("portfolio", "set_tags"): _portfolio_set_tags,
 }
 
 
