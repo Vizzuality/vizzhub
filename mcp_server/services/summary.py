@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.program import ProgramDB
@@ -283,7 +283,15 @@ async def _portfolio_program_name(session: AsyncSession, target: str | None) -> 
 async def _portfolio_create_program(
     session: AsyncSession, target: str | None, payload: dict,
 ) -> str:
-    return f"Create program **{payload.get('name', 'untitled')}**"
+    name = payload.get("name", "untitled")
+    duplicate = (
+        await session.execute(
+            select(ProgramDB).where(func.lower(ProgramDB.name) == str(name).lower())
+        )
+    ).scalar_one_or_none()
+    if duplicate:
+        return f"Create program **{name}** (WARNING: name already exists — will fail)"
+    return f"Create program **{name}**"
 
 
 async def _portfolio_rename_program(

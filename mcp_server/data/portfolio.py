@@ -19,6 +19,7 @@ from app.core.services.program_catalog import (
     list_program_stages,
     search_query_candidates,
 )
+from app.modules.portfolio.schemas.programs import ProgramSummary
 
 BASE_URL = "https://hub.vizzuality.com"
 MAX_LIMIT = 50
@@ -110,6 +111,42 @@ async def _resolve_term_ids(
     return [tid for tid, _ in rows], sorted(wanted - matched)
 
 
+async def _resolve_client_filter(session: AsyncSession, client: str) -> UUID | dict:
+    """Resolve a client name substring to a single client id, or an error dict."""
+    needle = escape_like(client.strip())
+    rows = (
+        await session.execute(
+            select(ClientDB.id, ClientDB.name)
+            .where(ClientDB.name.ilike(f"%{needle}%", escape="\\"))
+            .order_by(ClientDB.name)
+        )
+    ).all()
+    if not rows:
+        return {"error": f"No client matches '{client}'"}
+    if len(rows) > 1:
+        return {
+            "error": f"Client '{client}' is ambiguous — use a more specific name",
+            "candidates": [name for _, name in rows[:10]],
+        }
+    return rows[0].id
+
+
+def _compact_program(p: ProgramSummary) -> dict:
+    years = [y for it in p.projects for y in (it.start_year, it.end_year) if y is not None]
+    short = p.profile.short_description if p.profile else None
+    return {
+        "program_id": str(p.id),
+        "name": p.name,
+        "stage": p.profile.stage if p.profile else None,
+        "short_description": short[:200] if short else None,
+        "tags": [t.name for t in p.terms],
+        "clients": [c.name for c in p.clients],
+        "projects_count": len(p.projects),
+        "years": f"{min(years)}-{max(years)}" if years else None,
+        "url": f"{BASE_URL}/admin/portfolio/programs/{p.id}",
+    }
+
+
 async def list_programs(
     session: AsyncSession,
     *,
@@ -138,43 +175,15 @@ async def list_programs(
 
     client_id: UUID | None = None
     if client and client.strip():
-        needle = escape_like(client.strip())
-        client_rows = (
-            await session.execute(
-                select(ClientDB.id, ClientDB.name)
-                .where(ClientDB.name.ilike(f"%{needle}%", escape="\\"))
-                .order_by(ClientDB.name)
-            )
-        ).all()
-        if not client_rows:
-            return {"error": f"No client matches '{client}'"}
-        if len(client_rows) > 1:
-            return {
-                "error": f"Client '{client}' is ambiguous — use a more specific name",
-                "candidates": [name for _, name in client_rows[:10]],
-            }
-        client_id = client_rows[0].id
+        resolved = await _resolve_client_filter(session, client)
+        if isinstance(resolved, dict):
+            return resolved
+        client_id = resolved
 
     resp = await build_program_index(
         session, term_ids=term_ids, client_id=client_id, stage=stage, page=page, n=limit
     )
-    programs = []
-    for p in resp.programs:
-        years = [y for it in p.projects for y in (it.start_year, it.end_year) if y is not None]
-        short = p.profile.short_description if p.profile else None
-        programs.append(
-            {
-                "program_id": str(p.id),
-                "name": p.name,
-                "stage": p.profile.stage if p.profile else None,
-                "short_description": short[:200] if short else None,
-                "tags": [t.name for t in p.terms],
-                "clients": [c.name for c in p.clients],
-                "projects_count": len(p.projects),
-                "years": f"{min(years)}-{max(years)}" if years else None,
-                "url": f"{BASE_URL}/admin/portfolio/programs/{p.id}",
-            }
-        )
+    programs = [_compact_program(p) for p in resp.programs]
     out = {"programs": programs, "total": resp.total, "pages": resp.pages, "page": page}
     if unmatched_tags:
         out["unmatched_tags"] = unmatched_tags
