@@ -1,11 +1,11 @@
 ---
 name: vizzhub-data-model
-description: Use this skill whenever querying VizzHub data through MCP tools — it describes the data model, module relationships, cross-module query patterns, and conventions needed to plan efficient tool calls. Trigger whenever the user asks about Vizzuality's projects, team capacity, ISO compliance, scorecards, playbook articles, billing rates, or any operational data. Also trigger when a VizzHub MCP tool returns data and you need to interpret it or decide what to query next. Without this skill, you will waste tool calls discovering the schema by trial and error.
+description: Use this skill whenever querying VizzHub data through MCP tools — it describes the data model, module relationships, cross-module query patterns, and conventions needed to plan efficient tool calls. Trigger whenever the user asks about Vizzuality's projects, portfolio programs, team capacity, ISO compliance, scorecards, playbook articles, billing rates, or any operational data. Also trigger when a VizzHub MCP tool returns data and you need to interpret it or decide what to query next. Without this skill, you will waste tool calls discovering the schema by trial and error.
 ---
 
 # VizzHub Data Model Guide
 
-VizzHub is Vizzuality's internal operations platform. It has 6 modules, each with its own MCP tools. This guide tells you how they fit together so you can plan queries efficiently.
+VizzHub is Vizzuality's internal operations platform. It has 7 modules, each with its own MCP tools. This guide tells you how they fit together so you can plan queries efficiently.
 
 ## Modules Overview
 
