@@ -145,6 +145,31 @@ async def test_set_tags_replaces_terms_with_primary(
 
 
 @pytest.mark.asyncio
+async def test_set_tags_empty_list_clears_taxonomy(
+    db_session: AsyncSession, test_user: UserDB, catalogue: dict
+) -> None:
+    program = catalogue["program"]
+    result = await execute(
+        "set_tags",
+        str(program.id),
+        {"taxonomy": "geography", "term_names": []},
+        test_user.id,
+        db_session,
+    )
+    assert result["terms"] == []
+    remaining = (
+        (
+            await db_session.execute(
+                select(EntityTermDB).where(EntityTermDB.program_id == program.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert remaining == []
+
+
+@pytest.mark.asyncio
 async def test_set_tags_unknown_term_rejected(
     db_session: AsyncSession, test_user: UserDB, catalogue: dict
 ) -> None:

@@ -190,6 +190,20 @@ async def test_list_programs_resolves_client_by_name(
 
 
 @pytest.mark.asyncio
+async def test_list_programs_ambiguous_client_returns_candidates(
+    db_session: AsyncSession, seed_programs: dict
+) -> None:
+    db_session.add(ClientDB(name="Acme Labs", slug="acme-labs"))
+    await db_session.commit()
+    server = create_mcp_server()
+    async with override_session(db_session):
+        result = await server.call_tool("portfolio_list_programs", {"client": "acme"})
+    payload = _parse_tool_result(result)
+    assert "ambiguous" in payload["error"]
+    assert payload["candidates"] == ["Acme", "Acme Labs"]
+
+
+@pytest.mark.asyncio
 async def test_get_taxonomies_lists_terms_and_stages(
     db_session: AsyncSession, seed_programs: dict
 ) -> None:

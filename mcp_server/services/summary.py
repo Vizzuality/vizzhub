@@ -298,7 +298,7 @@ async def _portfolio_update_profile(
 ) -> str:
     program_name = await _portfolio_program_name(session, target)
     parts = [
-        f"clear {field}" if isinstance(value, str) and not value.strip() else f"{field}"
+        f"clear {field}" if isinstance(value, str) and not value.strip() else field
         for field, value in payload.items()
     ]
     return f"Update profile of **{program_name}** ({', '.join(sorted(parts))})"
