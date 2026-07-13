@@ -1,6 +1,6 @@
 # MCP Server
 
-VizzHub exposes an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that allows Claude and other MCP clients to query operational data across all modules (ISO, Tracker, Scorecard, Capacity, Playbook, Users, Portfolio) directly from the database. 28 read-only tools + 16 write tools (via command queue) available.
+VizzHub exposes an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that allows Claude and other MCP clients to query operational data across all modules (ISO, Tracker, Scorecard, Capacity, Playbook, Users, Portfolio) directly from the database. 30 read-only tools + 16 write tools (via command queue) available.
 
 ## Architecture
 
@@ -350,6 +350,32 @@ Full-text search over the program catalogue — name and profile narrative (obje
 | `limit` | int | no | Max results (default 10, clamped to 50) |
 
 **Returns:** JSON array ordered by relevance (name matches first) with `program_id`, `name`, `stage`, `snippet` (highlighted fragment with `<b>` tags), and `url`.
+
+### `portfolio_get_program`
+
+Full detail of one program: narrative profile, taxonomy tags, clients, and project iterations. Gated `portfolio:view`.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `program_id` | string (UUID) | yes | Program id (from `portfolio_search_programs` or `portfolio_list_programs`) |
+
+**Returns:** JSON object with `program_id`, `name`, `profile` (objective, short_description, impact_story, web_copy, website_url, main_partner, stage, on_website), `terms` (name, taxonomy_slug, is_primary), `clients`, `projects` (iterations with status, years, billable/scorecard flags), and `url`.
+
+### `portfolio_list_programs`
+
+Browse the program catalogue with optional filters and pagination. Filter names are resolved server-side (no UUIDs needed). Gated `portfolio:view`.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `stage` | string | no | Profile stage, exact match (e.g. `live`) |
+| `tags` | string[] | no | Taxonomy term names, case-insensitive; same-taxonomy terms OR, across taxonomies AND. Unresolved names come back in `unmatched_tags` |
+| `client` | string | no | Client name substring; must resolve to exactly one client, otherwise `candidates` are returned |
+| `page` | int | no | Page number, 1-based (default 1) |
+| `limit` | int | no | Programs per page (default 20, clamped to 50) |
+
+**Returns:** JSON object `{programs, total, pages, page}`; each program is a compact summary (`program_id`, `name`, `stage`, `short_description`, `tags`, `clients`, `projects_count`, `years`, `url`) ordered by name.
 
 ## Authentication
 

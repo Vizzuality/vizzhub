@@ -1,4 +1,4 @@
-"""Tests for MCP Portfolio tools — full-text program search."""
+"""Tests for MCP Portfolio tools — search, detail, and filtered listing."""
 
 import json
 
@@ -6,8 +6,11 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.models.client import ClientDB
 from app.core.models.portfolio_profile import PortfolioProfileDB
 from app.core.models.program import ProgramDB
+from app.core.models.project import ProjectDB
+from app.core.models.taxonomy import Cardinality, EntityTermDB, TaxonomyDB, TaxonomyTermDB
 from mcp_server.data.base import override_session
 from mcp_server.server import create_mcp_server
 
@@ -18,7 +21,7 @@ def _parse_tool_result(result) -> dict | list:
 
 
 @pytest_asyncio.fixture
-async def seed_programs(db_session: AsyncSession) -> None:
+async def seed_programs(db_session: AsyncSession) -> dict:
     narrative = ProgramDB(name="Alpha Program")
     named = ProgramDB(name="Mangrove Atlas")
     db_session.add_all([narrative, named])
@@ -27,11 +30,35 @@ async def seed_programs(db_session: AsyncSession) -> None:
         PortfolioProfileDB(
             program_id=narrative.id,
             stage="live",
+            short_description="Coastal restoration programme",
             objective="Restoring mangrove ecosystems in coastal areas",
         )
     )
-    db_session.add(PortfolioProfileDB(program_id=named.id, stage="live"))
+    db_session.add(PortfolioProfileDB(program_id=named.id, stage="proposal"))
+
+    tax = TaxonomyDB(slug="geography", name="Geography", cardinality=Cardinality.MULTI)
+    db_session.add(tax)
+    await db_session.flush()
+    europe = TaxonomyTermDB(taxonomy_id=tax.id, slug="europe", name="Europe")
+    db_session.add(europe)
+    await db_session.flush()
+    db_session.add(EntityTermDB(term_id=europe.id, taxonomy_id=tax.id, program_id=narrative.id))
+
+    acme = ClientDB(name="Acme", slug="acme")
+    db_session.add(acme)
+    await db_session.flush()
+    db_session.add(
+        ProjectDB(
+            name="Alpha 2024",
+            is_billable=True,
+            is_absence=False,
+            status="live",
+            program_id=narrative.id,
+            client_id=acme.id,
+        )
+    )
     await db_session.commit()
+    return {"narrative_id": str(narrative.id), "named_id": str(named.id)}
 
 
 @pytest.mark.asyncio
@@ -77,3 +104,85 @@ async def test_search_limit_clamped(db_session: AsyncSession, seed_programs: Non
             "portfolio_search_programs", {"query": "mangrove", "limit": 999}
         )
     assert len(_parse_tool_result(result)) <= 50
+
+
+@pytest.mark.asyncio
+async def test_get_program_returns_full_detail(
+    db_session: AsyncSession, seed_programs: dict
+) -> None:
+    server = create_mcp_server()
+    async with override_session(db_session):
+        result = await server.call_tool(
+            "portfolio_get_program", {"program_id": seed_programs["narrative_id"]}
+        )
+    detail = _parse_tool_result(result)
+    assert detail["name"] == "Alpha Program"
+    assert detail["profile"]["objective"].startswith("Restoring mangrove")
+    assert [t["name"] for t in detail["terms"]] == ["Europe"]
+    assert detail["terms"][0]["taxonomy_slug"] == "geography"
+    assert [c["name"] for c in detail["clients"]] == ["Acme"]
+    assert [p["name"] for p in detail["projects"]] == ["Alpha 2024"]
+    assert detail["url"].endswith(f"/admin/portfolio/programs/{seed_programs['narrative_id']}")
+
+
+@pytest.mark.asyncio
+async def test_get_program_unknown_and_invalid_id(
+    db_session: AsyncSession, seed_programs: dict
+) -> None:
+    server = create_mcp_server()
+    async with override_session(db_session):
+        missing = await server.call_tool(
+            "portfolio_get_program",
+            {"program_id": "00000000-0000-0000-0000-000000000001"},
+        )
+        malformed = await server.call_tool("portfolio_get_program", {"program_id": "nope"})
+    assert "not found" in _parse_tool_result(missing)["error"]
+    assert "Invalid program_id" in _parse_tool_result(malformed)["error"]
+
+
+@pytest.mark.asyncio
+async def test_list_programs_unfiltered_paginates(
+    db_session: AsyncSession, seed_programs: dict
+) -> None:
+    server = create_mcp_server()
+    async with override_session(db_session):
+        result = await server.call_tool("portfolio_list_programs", {"limit": 1})
+    payload = _parse_tool_result(result)
+    assert payload["total"] == 2
+    assert payload["pages"] == 2
+    assert payload["page"] == 1
+    # ordered by name: Alpha Program first, compact shape with tags/clients
+    (row,) = payload["programs"]
+    assert row["name"] == "Alpha Program"
+    assert row["tags"] == ["Europe"]
+    assert row["clients"] == ["Acme"]
+    assert row["projects_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_list_programs_filters_by_stage_and_tag_name(
+    db_session: AsyncSession, seed_programs: dict
+) -> None:
+    server = create_mcp_server()
+    async with override_session(db_session):
+        by_stage = await server.call_tool("portfolio_list_programs", {"stage": "proposal"})
+        by_tag = await server.call_tool("portfolio_list_programs", {"tags": ["europe"]})
+        bad_tag = await server.call_tool("portfolio_list_programs", {"tags": ["Neverland"]})
+    assert [p["name"] for p in _parse_tool_result(by_stage)["programs"]] == ["Mangrove Atlas"]
+    # tag names resolve case-insensitively to term ids
+    assert [p["name"] for p in _parse_tool_result(by_tag)["programs"]] == ["Alpha Program"]
+    bad = _parse_tool_result(bad_tag)
+    assert bad["programs"] == []
+    assert bad["unmatched_tags"] == ["neverland"]
+
+
+@pytest.mark.asyncio
+async def test_list_programs_resolves_client_by_name(
+    db_session: AsyncSession, seed_programs: dict
+) -> None:
+    server = create_mcp_server()
+    async with override_session(db_session):
+        by_client = await server.call_tool("portfolio_list_programs", {"client": "acm"})
+        no_client = await server.call_tool("portfolio_list_programs", {"client": "Globex"})
+    assert [p["name"] for p in _parse_tool_result(by_client)["programs"]] == ["Alpha Program"]
+    assert "No client matches" in _parse_tool_result(no_client)["error"]

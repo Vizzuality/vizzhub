@@ -15,6 +15,7 @@ VizzHub is Vizzuality's internal operations platform. It has 6 modules, each wit
 | **Tracker** | Projects, budgets, invoices, time allocation, progress | `project_id` (UUID) |
 | **Scorecard** | Project quality scores across 8 dimensions | `project_id` (UUID) |
 | **Capacity** | Monthly allocation of users to projects | `user_id` + `period` (YYYY-MM) |
+| **Portfolio** | Program catalogue: narrative profiles, taxonomy tags, project iterations | `program_id` (UUID) |
 | **ISO** | Compliance registries (JSONB rows) and policy documents | `slug` (string) |
 | **Playbook** | Internal knowledge base articles | `slug` (string) |
 
@@ -37,6 +38,8 @@ Playbook ── standalone (articles, linked by slug)
 ```
 
 **The key join:** `user_id` is the same UUID across Users, Capacity, and Tracker. A `project_id` is the same UUID across Tracker and Scorecard.
+
+**Portfolio join:** a program groups project iterations — `projects.program_id` points to a program, so every project listed inside a portfolio program is the same `project_id` used by Tracker and Scorecard. Use Portfolio to find the program, then drill into its projects with the Tracker/Scorecard tools.
 
 ## Module Details
 
@@ -145,18 +148,27 @@ Playbook ── standalone (articles, linked by slug)
 
 **Yearly vs non-yearly registries:** call `iso_get_registries` for the current list — each entry includes `is_yearly: bool`. For yearly registries, pass `year` to `iso_get_registry_rows` (defaults to current cycle year if omitted). Do not rely on hardcoded enumerations; the set of registries changes over time as the management system evolves.
 
-### Portfolio (1 tool)
+### Portfolio (3 tools)
 
 | Tool | Use for | Key params |
 |------|---------|------------|
 | `portfolio_search_programs(query)` | Full-text search across program names and narrative | `query`, `limit` (default 10, max 50) |
+| `portfolio_get_program(program_id)` | Full detail of one program: narrative profile, tags, clients, project iterations | `program_id` |
+| `portfolio_list_programs(...)` | Browse/filter the catalogue with pagination | `stage`, `tags`, `client`, `page`, `limit` (default 20, max 50) |
 
-**Returns:** JSON array of `{program_id, name, stage, snippet, url}` ordered by relevance (name matches first). `snippet` contains PostgreSQL `ts_headline` fragments with `<b>` highlights.
+**Data model:** a *program* is the long-lived unit of work (e.g. "Mangrove Atlas"); each funded phase is a *project iteration* (`projects.program_id` FK — same `project_id` as Tracker/Scorecard). A program has at most one *profile* (narrative fields: objective, short_description, impact_story, web_copy, website_url, main_partner, stage, on_website) and any number of taxonomy *tags* (M:N via entity terms; each tag belongs to a taxonomy such as service or geography, optionally marked primary). Clients are derived from the program's projects.
+
+**Returns:**
+- `portfolio_search_programs`: JSON array of `{program_id, name, stage, snippet, url}` ordered by relevance (name matches first). `snippet` contains PostgreSQL `ts_headline` fragments with `<b>` highlights.
+- `portfolio_get_program`: `{program_id, name, profile, terms, clients, projects, url}` — the complete record.
+- `portfolio_list_programs`: `{programs, total, pages, page}` with compact rows (`program_id, name, stage, short_description, tags, clients, projects_count, years, url`). Ordered by name.
 
 **Conventions:**
 - Requires `portfolio:view` permission (all standard roles have it)
-- Searches program name (ILIKE) plus profile narrative fields: objective, short description, impact story, web copy, main partner
-- Min query length is 2 characters; websearch syntax supported (e.g. `"quoted phrase"`)
+- Search covers program name (ILIKE) plus profile narrative fields; min query length 2 chars; websearch syntax supported (e.g. `"quoted phrase"`)
+- List filters resolve names server-side: `tags` are term names (case-insensitive; same-taxonomy terms OR, across taxonomies AND; unresolved names come back in `unmatched_tags`), `client` is a name substring that must match exactly one client (otherwise `candidates` are returned)
+- `stage` is a free-form profile field (e.g. `live`, `proposal`) — exact match
+- Workflow: `portfolio_search_programs` or `portfolio_list_programs` to find → `portfolio_get_program` for the narrative → Tracker/Scorecard tools with the iteration `project_id`s
 - Program URL: `https://hub.vizzuality.com/admin/portfolio/programs/{program_id}`
 
 ### Playbook (3 tools)

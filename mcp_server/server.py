@@ -20,7 +20,7 @@ auto-approve to "be helpful". Do NOT loop approve_all on your own. If the
 user has not clearly confirmed, stop and ask. Auto-approving defeats the
 whole purpose of the queue.
 
-VizzHub is Vizzuality's internal operations hub with 6 modules:
+VizzHub is Vizzuality's internal operations hub with 8 modules:
 
 | Module | Key ID | Tools prefix |
 |--------|--------|-------------|
@@ -28,12 +28,15 @@ VizzHub is Vizzuality's internal operations hub with 6 modules:
 | Tracker | project_id (UUID) | tracker_ |
 | Scorecard | project_id (UUID) | scorecard_ |
 | Capacity | user_id + period (YYYY-MM) | capacity_ |
+| Portfolio | program_id (UUID) | portfolio_ |
 | ISO | slug (string) | iso_ |
 | Playbook | slug (string) | playbook_ |
 | DevStack | name (string) | devstack_ |
 
 Key joins: user_id is the same UUID across Users, Capacity, and Tracker. \
-project_id is the same UUID across Tracker and Scorecard.
+project_id is the same UUID across Tracker and Scorecard. A Portfolio program \
+groups project iterations — the project_id of each iteration is the same UUID \
+used by Tracker and Scorecard.
 
 FA mapping (Capacity short codes → Users full names): \
 FE=Frontend Developer, BE=Backend Developer, Design=Designer, \
@@ -46,6 +49,7 @@ App URLs (base: https://hub.vizzuality.com):
 - Capacity insights: /capacity/insights (add ?fa=FE to filter)
 - ISO document: /iso/docs?page={slug}
 - Playbook article: /playbook?page={slug}
+- Portfolio program: /admin/portfolio/programs/{program_id}
 - Admin user: /admin/users/{user_id}
 Always include full URLs in responses using IDs/slugs from tool results.
 
@@ -143,9 +147,11 @@ def create_mcp_server(
             "vizzhub://data-model",
             name="VizzHub Data Model Guide",
             description=(
-                "Complete reference: 6 modules, 26 tools, cross-module query "
-                "patterns, registry lists (yearly vs non-yearly), and URL "
-                "construction. Read this before planning multi-tool queries."
+                "Complete reference for every VizzHub module (Users, Tracker, "
+                "Scorecard, Capacity, ISO, Portfolio, Playbook): data models, "
+                "read tools, cross-module query patterns, registry lists "
+                "(yearly vs non-yearly), and URL construction. Read this "
+                "before planning multi-tool queries."
             ),
             mime_type="text/markdown",
         )
