@@ -267,6 +267,10 @@ When presenting results, include direct links to the app so the user can navigat
 | ISO registries | (within ISO docs) | — |
 | Playbook | `/playbook` | — |
 | Playbook article | `/playbook?page={slug}` | `slug` from `playbook_get_article` |
+| Portfolio index | `/admin/portfolio` | — |
+| Portfolio program | `/admin/portfolio/programs/{program_id}` | `program_id` from Portfolio |
+| Portfolio dashboard | `/admin/portfolio/dashboard` | — |
+| Portfolio clients | `/admin/portfolio/clients` | — |
 | Admin users | `/admin/users` | — |
 | Admin user detail | `/admin/users/{user_id}` | `user_id` from Users |
 | Global scores | `/admin/global-scores` | — |
