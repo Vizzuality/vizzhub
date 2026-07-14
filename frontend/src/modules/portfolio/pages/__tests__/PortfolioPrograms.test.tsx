@@ -82,11 +82,11 @@ vi.mock('@/core/permissions/usePermission', () => ({
 function renderPage(options?: { initialEntries?: string[] }): void {
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <MemoryRouter initialEntries={options?.initialEntries ?? ['/admin/portfolio']}>
+      <MemoryRouter initialEntries={options?.initialEntries ?? ['/portfolio']}>
         <Routes>
-          <Route path="/admin/portfolio" element={<PortfolioPrograms />} />
+          <Route path="/portfolio" element={<PortfolioPrograms />} />
           <Route
-            path="/admin/portfolio/programs/:programId"
+            path="/portfolio/programs/:programId"
             element={<div>PROGRAM DETAIL</div>}
           />
         </Routes>
@@ -155,7 +155,7 @@ describe('PortfolioPrograms', () => {
       data: { programs: [PROGRAM], total: 30, pages: 2 },
       isLoading: false,
     });
-    renderPage({ initialEntries: ['/admin/portfolio?page=2'] });
+    renderPage({ initialEntries: ['/portfolio?page=2'] });
     expect(screen.getByText(/page 2 of 2/i)).toBeInTheDocument();
     vi.useFakeTimers();
     fireEvent.change(screen.getByPlaceholderText(/search text/i), {

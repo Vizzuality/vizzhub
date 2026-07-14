@@ -2,14 +2,14 @@ import { describe, it, expect } from 'vitest';
 import { activeSubItemTo, projectsHubItems, PROJECTS_HUB_ITEMS } from '../sidebarNav';
 
 const PORTFOLIO = [
-  { to: '/admin/portfolio', label: 'Programs' },
+  { to: '/portfolio', label: 'Programs' },
   { to: '/admin/portfolio/clients', label: 'Clients' },
   { to: '/admin/portfolio/dashboard', label: 'Dashboard' },
 ] as const;
 
 describe('activeSubItemTo', () => {
   it('activates the index route only on its exact path', () => {
-    expect(activeSubItemTo('/admin/portfolio', PORTFOLIO)).toBe('/admin/portfolio');
+    expect(activeSubItemTo('/portfolio', PORTFOLIO)).toBe('/portfolio');
   });
 
   it('activates the more specific sibling, not the index, on a child path', () => {
@@ -26,7 +26,7 @@ describe('activeSubItemTo', () => {
   });
 
   it('returns null when nothing matches (mere string prefix is not a segment match)', () => {
-    expect(activeSubItemTo('/admin/portfolio-archive', PORTFOLIO)).toBeNull();
+    expect(activeSubItemTo('/portfolio-archive', PORTFOLIO)).toBeNull();
   });
 });
 
@@ -52,8 +52,8 @@ describe('activeSubItemTo over hub items', () => {
     ['/projects/abc-123/overview', '/projects'],
     ['/scorecard', '/scorecard'],
     ['/scorecard/global', '/scorecard/global'],
-    ['/admin/portfolio', '/admin/portfolio'],
-    ['/admin/portfolio/programs/xyz', '/admin/portfolio'],
+    ['/portfolio', '/portfolio'],
+    ['/portfolio/programs/xyz', '/portfolio'],
   ])('%s resolves to %s', (path, expected) => {
     expect(activeSubItemTo(path, PROJECTS_HUB_ITEMS)).toBe(expected);
   });

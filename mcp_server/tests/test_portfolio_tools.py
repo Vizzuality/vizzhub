@@ -79,7 +79,7 @@ async def test_search_returns_ranked_matches_with_snippets(
     # narrative match carries a ts_headline snippet with <b> highlights
     alpha = next(r for r in rows if r["name"] == "Alpha Program")
     assert "<b>" in alpha["snippet"]
-    assert alpha["url"].endswith(f"/admin/portfolio/programs/{alpha['program_id']}")
+    assert alpha["url"].endswith(f"/portfolio/programs/{alpha['program_id']}")
 
 
 @pytest.mark.asyncio
@@ -123,7 +123,7 @@ async def test_get_program_returns_full_detail(
     assert detail["terms"][0]["taxonomy_slug"] == "geography"
     assert [c["name"] for c in detail["clients"]] == ["Acme"]
     assert [p["name"] for p in detail["projects"]] == ["Alpha 2024"]
-    assert detail["url"].endswith(f"/admin/portfolio/programs/{seed_programs['narrative_id']}")
+    assert detail["url"].endswith(f"/portfolio/programs/{seed_programs['narrative_id']}")
 
 
 @pytest.mark.asyncio

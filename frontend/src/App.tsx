@@ -76,6 +76,11 @@ function LegacyTrackerRedirect(): JSX.Element {
   return <Navigate to={`/projects/${projectId}/tracker${search}`} replace />;
 }
 
+function LegacyPortfolioProgramRedirect(): JSX.Element {
+  const { programId } = useParams();
+  return <Navigate to={`/portfolio/programs/${programId}`} replace />;
+}
+
 const BYPASS_AUTH =
   import.meta.env.VITE_BYPASS_AUTH === 'true' && !import.meta.env.PROD;
 
@@ -139,11 +144,16 @@ function AppRoutes(): JSX.Element {
             <Route path="/projects" element={<CoreProjects />} />
             <Route path="/scorecard" element={<ScorecardProjects />} />
             <Route path="/scorecard/global" element={<GlobalDashboard />} />
-            <Route path="/admin/portfolio" element={<PortfolioPrograms />} />
-            <Route path="/admin/portfolio/programs/:programId" element={<ProgramDetail />} />
+            <Route path="/portfolio" element={<PortfolioPrograms />} />
+            <Route path="/portfolio/programs/:programId" element={<ProgramDetail />} />
           </Route>
           <Route path="/admin/portfolio/clients" element={<PortfolioClients />} />
           <Route path="/admin/portfolio/dashboard" element={<PortfolioDashboard />} />
+          <Route path="/admin/portfolio" element={<Navigate to="/portfolio" replace />} />
+          <Route
+            path="/admin/portfolio/programs/:programId"
+            element={<LegacyPortfolioProgramRedirect />}
+          />
           <Route path="/projects/new" element={<ProjectFormPage />} />
           <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
           <Route path="/projects/:id" element={<ProjectHubLayout />}>
@@ -202,14 +212,19 @@ function AppRoutes(): JSX.Element {
             <Route path="/scorecard" element={<ScorecardProjects />} />
             <Route path="/scorecard/global" element={<GlobalDashboard />} />
             <Route element={<PermissionRoute require={Action.PORTFOLIO_VIEW} />}>
-              <Route path="/admin/portfolio" element={<PortfolioPrograms />} />
-              <Route path="/admin/portfolio/programs/:programId" element={<ProgramDetail />} />
+              <Route path="/portfolio" element={<PortfolioPrograms />} />
+              <Route path="/portfolio/programs/:programId" element={<ProgramDetail />} />
             </Route>
           </Route>
           <Route element={<PermissionRoute require={Action.PORTFOLIO_MANAGE} />}>
             <Route path="/admin/portfolio/clients" element={<PortfolioClients />} />
             <Route path="/admin/portfolio/dashboard" element={<PortfolioDashboard />} />
           </Route>
+          <Route path="/admin/portfolio" element={<Navigate to="/portfolio" replace />} />
+          <Route
+            path="/admin/portfolio/programs/:programId"
+            element={<LegacyPortfolioProgramRedirect />}
+          />
           <Route path="/projects/new" element={<ProjectFormPage />} />
           <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
           <Route path="/projects/:id" element={<ProjectHubLayout />}>

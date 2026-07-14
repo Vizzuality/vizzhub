@@ -27,7 +27,7 @@ export function CreateProgramDialog(): JSX.Element {
     try {
       const created = await createProgram.mutateAsync(name.trim());
       setOpen(false);
-      navigate(`/admin/portfolio/programs/${created.id}`);
+      navigate(`/portfolio/programs/${created.id}`);
     } catch (err) {
       setError(
         getApiErrorMessage(err as Error, {

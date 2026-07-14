@@ -49,7 +49,7 @@ App URLs (base: https://hub.vizzuality.com):
 - Capacity insights: /capacity/insights (add ?fa=FE to filter)
 - ISO document: /iso/docs?page={slug}
 - Playbook article: /playbook?page={slug}
-- Portfolio program: /admin/portfolio/programs/{program_id}
+- Portfolio program: /portfolio/programs/{program_id}
 - Admin user: /admin/users/{user_id}
 Always include full URLs in responses using IDs/slugs from tool results.
 

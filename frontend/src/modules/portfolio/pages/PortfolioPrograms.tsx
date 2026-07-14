@@ -98,7 +98,7 @@ export default function PortfolioPrograms(): JSX.Element {
         </div>
         <ProgramCombobox
           value={null}
-          onSelect={(id) => navigate(`/admin/portfolio/programs/${id}`)}
+          onSelect={(id) => navigate(`/portfolio/programs/${id}`)}
           triggerLabel="Go to program…"
         />
         <ClientCombobox value={state.client} onChange={(v) => setState({ client: v, page: 1 })} />

@@ -173,7 +173,7 @@ Write tools (queued for human approval, like ISO/Playbook; gated `portfolio:mana
 - List filters resolve names server-side: `tags` are term names (case-insensitive; same-taxonomy terms OR, across taxonomies AND; unresolved names come back in `unmatched_tags`), `client` is a name substring that must match exactly one client (otherwise `candidates` are returned)
 - `stage` is a free-form profile field (e.g. `live`, `proposal`) — exact match
 - Workflow: `portfolio_search_programs` or `portfolio_list_programs` to find → `portfolio_get_program` for the narrative → Tracker/Scorecard tools with the iteration `project_id`s
-- Program URL: `https://hub.vizzuality.com/admin/portfolio/programs/{program_id}`
+- Program URL: `https://hub.vizzuality.com/portfolio/programs/{program_id}`
 
 ### Playbook (3 tools)
 
@@ -267,8 +267,8 @@ When presenting results, include direct links to the app so the user can navigat
 | ISO registries | (within ISO docs) | — |
 | Playbook | `/playbook` | — |
 | Playbook article | `/playbook?page={slug}` | `slug` from `playbook_get_article` |
-| Portfolio index | `/admin/portfolio` | — |
-| Portfolio program | `/admin/portfolio/programs/{program_id}` | `program_id` from Portfolio |
+| Portfolio index | `/portfolio` | — |
+| Portfolio program | `/portfolio/programs/{program_id}` | `program_id` from Portfolio |
 | Portfolio dashboard | `/admin/portfolio/dashboard` | — |
 | Portfolio clients | `/admin/portfolio/clients` | — |
 | Admin users | `/admin/users` | — |

@@ -6,7 +6,7 @@ export interface SubItem {
 /**
  * The active sub-item is the one whose `to` is the longest prefix of the current path
  * (exact or a segment-boundary descendant). Longest-prefix-wins stops an index route
- * (`/admin/portfolio`) from lighting up on a sibling's page (`/admin/portfolio/dashboard`),
+ * (`/portfolio`) from lighting up on a lookalike prefix (`/portfolio-archive`),
  * where a plain prefix test would match both. Returns the winning `to`, or null.
  */
 export function activeSubItemTo(pathname: string, items: readonly SubItem[]): string | null {
@@ -23,7 +23,7 @@ export function activeSubItemTo(pathname: string, items: readonly SubItem[]): st
 export const PROJECTS_HUB_ITEMS: readonly SubItem[] = [
   { to: '/projects', label: 'Tracker' },
   { to: '/scorecard', label: 'Scorecard' },
-  { to: '/admin/portfolio', label: 'Portfolio' },
+  { to: '/portfolio', label: 'Portfolio' },
   { to: '/scorecard/global', label: 'Global Scores' },
 ];
 
@@ -31,5 +31,5 @@ export const PROJECTS_HUB_ITEMS: readonly SubItem[] = [
 export function projectsHubItems(showPortfolio: boolean): readonly SubItem[] {
   return showPortfolio
     ? PROJECTS_HUB_ITEMS
-    : PROJECTS_HUB_ITEMS.filter((item) => item.to !== '/admin/portfolio');
+    : PROJECTS_HUB_ITEMS.filter((item) => item.to !== '/portfolio');
 }

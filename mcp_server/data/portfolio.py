@@ -79,7 +79,7 @@ async def search_programs(session: AsyncSession, query: str, limit: int = 10) ->
             "name": row.name,
             "stage": row.stage,
             "snippet": row.snippet if row.is_vector_match else row.fallback[:150],
-            "url": f"{BASE_URL}/admin/portfolio/programs/{row.id}",
+            "url": f"{BASE_URL}/portfolio/programs/{row.id}",
         }
         for row in rows
     ]
@@ -92,7 +92,7 @@ async def get_program(session: AsyncSession, program_id: UUID) -> dict | None:
         return None
     data = summary.model_dump(mode="json")
     data["program_id"] = data.pop("id")
-    data["url"] = f"{BASE_URL}/admin/portfolio/programs/{program_id}"
+    data["url"] = f"{BASE_URL}/portfolio/programs/{program_id}"
     return data
 
 
@@ -143,7 +143,7 @@ def _compact_program(p: ProgramSummary) -> dict:
         "clients": [c.name for c in p.clients],
         "projects_count": len(p.projects),
         "years": f"{min(years)}-{max(years)}" if years else None,
-        "url": f"{BASE_URL}/admin/portfolio/programs/{p.id}",
+        "url": f"{BASE_URL}/portfolio/programs/{p.id}",
     }
 
 

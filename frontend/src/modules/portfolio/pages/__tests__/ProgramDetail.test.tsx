@@ -60,9 +60,9 @@ vi.mock('@/core/permissions/usePermission', () => ({
 function renderPage(): void {
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <MemoryRouter initialEntries={['/admin/portfolio/programs/p1']}>
+      <MemoryRouter initialEntries={['/portfolio/programs/p1']}>
         <Routes>
-          <Route path="/admin/portfolio/programs/:programId" element={<ProgramDetail />} />
+          <Route path="/portfolio/programs/:programId" element={<ProgramDetail />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,

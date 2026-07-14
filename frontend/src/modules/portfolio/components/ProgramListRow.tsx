@@ -28,7 +28,7 @@ export function ProgramListRow({ program }: { readonly program: ProgramSummary }
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <Link
-              to={`/admin/portfolio/programs/${program.id}`}
+              to={`/portfolio/programs/${program.id}`}
               className="truncate text-sm font-medium underline-offset-2 hover:underline"
             >
               {program.name}

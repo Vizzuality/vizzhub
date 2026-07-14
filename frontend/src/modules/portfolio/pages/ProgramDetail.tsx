@@ -15,7 +15,7 @@ export default function ProgramDetail(): JSX.Element {
     return (
       <div className="space-y-2 py-8 text-center">
         <p className="text-sm text-muted-foreground">Program not found.</p>
-        <Button variant="outline" size="sm" onClick={() => navigate('/admin/portfolio')}>
+        <Button variant="outline" size="sm" onClick={() => navigate('/portfolio')}>
           Back to programs
         </Button>
       </div>
@@ -31,7 +31,7 @@ export default function ProgramDetail(): JSX.Element {
           size="icon"
           className="mt-0.5 shrink-0"
           aria-label="Back to programs"
-          onClick={() => navigate('/admin/portfolio')}
+          onClick={() => navigate('/portfolio')}
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>

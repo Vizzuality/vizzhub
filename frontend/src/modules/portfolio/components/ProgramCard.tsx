@@ -7,7 +7,7 @@ import type { ProgramSummary } from '../types/portfolio';
 
 export function ProgramCard({ program }: { readonly program: ProgramSummary }): JSX.Element {
   return (
-    <Link to={`/admin/portfolio/programs/${program.id}`} className="block">
+    <Link to={`/portfolio/programs/${program.id}`} className="block">
       <Card className="h-full transition-colors hover:bg-accent/50">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">

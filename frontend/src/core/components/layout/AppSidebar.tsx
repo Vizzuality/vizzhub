@@ -255,8 +255,8 @@ export function AppSidebar(): JSX.Element {
                 isActive={
                   isActive('/projects')
                   || isActive('/scorecard')
-                  || location.pathname === '/admin/portfolio'
-                  || location.pathname.startsWith('/admin/portfolio/programs')
+                  || location.pathname === '/portfolio'
+                  || location.pathname.startsWith('/portfolio/programs')
                 }
                 items={projectsHubItems(showPortfolio)}
               />

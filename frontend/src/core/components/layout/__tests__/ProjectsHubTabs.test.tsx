@@ -36,7 +36,7 @@ describe('ProjectsHubTabs', () => {
 
   it('renders the Portfolio tab with permission', () => {
     mockCanPortfolio = true;
-    renderAt('/admin/portfolio');
+    renderAt('/portfolio');
     expect(screen.getByRole('link', { name: 'Portfolio' })).toBeInTheDocument();
   });
 
@@ -51,7 +51,7 @@ describe('ProjectsHubTabs', () => {
 
   it('marks Portfolio active on program detail', () => {
     mockCanPortfolio = true;
-    renderAt('/admin/portfolio/programs/abc');
+    renderAt('/portfolio/programs/abc');
     expect(screen.getByRole('link', { name: 'Portfolio' })).toHaveAttribute(
       'aria-current',
       'page',
