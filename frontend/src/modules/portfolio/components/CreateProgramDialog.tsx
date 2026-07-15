@@ -41,7 +41,7 @@ export function CreateProgramDialog(): JSX.Element {
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); setName(''); setError(''); }}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
+        <Button size="sm">
           <Plus className="mr-1 h-3.5 w-3.5" />
           New program
         </Button>
