@@ -38,12 +38,12 @@
     /* Sidebar is onix in BOTH modes — brand anchor (see .dark for the twin set) */
     --sidebar: #0C0C0C;
     --sidebar-foreground: #B9BDB6;
-    --sidebar-primary: #5AFF15;
+    --sidebar-primary: var(--aux-brand-yellow);
     --sidebar-primary-foreground: #0C0C0C;
     --sidebar-accent: #1C1F1B;
     --sidebar-accent-foreground: #F2F2F0;
     --sidebar-border: #232623;
-    --sidebar-ring: #5AFF15;
+    --sidebar-ring: var(--aux-brand-yellow);
     --aux-onix: #0C0C0C;
     --aux-deep-teal: #5f7470;
     --aux-cool-steel: #889696;
@@ -51,6 +51,7 @@
     --aux-dust-grey: #d2d4c8;
     --aux-soft-linen: #e0e2db;
     --aux-neon-grass: #5AFF15;
+    --aux-brand-yellow: #FFE229;
     --accent-green: #2d8a4e;
     --aux-yellow: #FFD23F;
     --aux-amber: #F97316;
@@ -87,7 +88,7 @@
     --card-foreground: oklch(0.9850 0 0);
     --popover: #1D2421;
     --popover-foreground: oklch(0.9850 0 0);
-    --primary: #5AFF15;
+    --primary: var(--aux-brand-yellow);
     --primary-foreground: #0C0C0C;
     --secondary: #27302D;
     --secondary-foreground: oklch(0.9850 0 0);
@@ -99,7 +100,7 @@
     --destructive-foreground: oklch(0.9850 0 0);
     --border: #2A332F;
     --input: #35403B;
-    --ring: #5AFF15;
+    --ring: var(--aux-brand-yellow);
     --switch-track: oklch(0.45 0 0);
     --score-green: oklch(0.770 0.170 155);
     --score-yellow: oklch(0.850 0.160 84);
@@ -115,12 +116,12 @@
     /* Same onix sidebar as light mode — intentional twin set */
     --sidebar: #0C0C0C;
     --sidebar-foreground: #B9BDB6;
-    --sidebar-primary: #5AFF15;
+    --sidebar-primary: var(--aux-brand-yellow);
     --sidebar-primary-foreground: #0C0C0C;
     --sidebar-accent: #1C1F1B;
     --sidebar-accent-foreground: #F2F2F0;
     --sidebar-border: #232623;
-    --sidebar-ring: #5AFF15;
+    --sidebar-ring: var(--aux-brand-yellow);
     --accent-green: var(--aux-neon-grass);
     --aux-amber: #FB923C;
     --font-sans: DM Sans, ui-sans-serif, sans-serif, system-ui;
