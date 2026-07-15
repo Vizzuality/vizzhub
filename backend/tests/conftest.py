@@ -60,6 +60,7 @@ import pytest
 import pytest_asyncio
 from cryptography.fernet import Fernet
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import ScoringConfig, set_scoring_config
@@ -70,6 +71,30 @@ from app.main import app
 _TEST_ENCRYPTION_KEY = Fernet.generate_key().decode()
 
 TEST_DATABASE_URL = _TEST_DB_URL
+
+
+def _reset_schema_once() -> None:
+    """Create the full schema once per worker, at import time (no event loop yet).
+
+    Per-test cleanup is a TRUNCATE (see db_session) — orders of magnitude
+    cheaper than the previous per-test drop_all/create_all, which dominated
+    the suite's runtime (~0.9s of DDL per test).
+    """
+
+    async def _reset() -> None:
+        engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
+        await engine.dispose()
+
+    asyncio.run(_reset())
+
+
+_reset_schema_once()
+
+# All mapped tables, quoted, for the per-test TRUNCATE.
+_ALL_TABLES_SQL = ", ".join(f'"{t.name}"' for t in Base.metadata.sorted_tables)
 
 
 @pytest.fixture(autouse=True)
@@ -183,17 +208,13 @@ async def db_session() -> AsyncGenerator[AsyncSession]:
         expire_on_commit=False,
     )
 
-    # Ensure clean state: drop all tables first, then create
+    # Schema is created once per worker (_reset_schema_once); wiping the data
+    # before the test also cleans up after any previously crashed test.
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(text(f"TRUNCATE {_ALL_TABLES_SQL} RESTART IDENTITY CASCADE"))
 
     async with async_session_maker() as session:
         yield session
-
-    # Cleanup after test
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
 
     await engine.dispose()
 
