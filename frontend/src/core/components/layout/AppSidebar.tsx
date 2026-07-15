@@ -117,22 +117,26 @@ const EVENTS_TABS = [
 function GuardedLink({
   to,
   children,
-  className,
+  onClick,
+  ...props
 }: {
   readonly to: To;
   readonly children: React.ReactNode;
-  readonly className?: string;
-}): JSX.Element {
+} & Omit<React.ComponentPropsWithoutRef<typeof Link>, 'to'>): JSX.Element {
   const { confirmNavigation } = useNavigationGuard();
 
+  // Spread props through so Slot-injected attributes (data-active,
+  // data-sidebar, aria-*) from SidebarMenuButton reach the anchor.
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>): void => {
     if (!confirmNavigation()) {
       e.preventDefault();
+      return;
     }
+    onClick?.(e);
   };
 
   return (
-    <Link to={to} className={className} onClick={handleClick}>
+    <Link to={to} onClick={handleClick} {...props}>
       {children}
     </Link>
   );

@@ -672,7 +672,7 @@ export default function IsoDocs(): JSX.Element {
         onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
       />
 
-      <div data-iso-content className={`flex-1 min-h-0 flex flex-col p-6 ${contentOverflow} ${selectedId ? '' : 'hidden md:block'}`}>
+      <div data-iso-content className={`flex-1 min-h-0 flex flex-col p-6 bg-card ${contentOverflow} ${selectedId ? '' : 'hidden md:block'}`}>
         {renderContent()}
       </div>
 

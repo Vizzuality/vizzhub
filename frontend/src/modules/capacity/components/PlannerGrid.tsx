@@ -379,7 +379,7 @@ export function PlannerGrid({
   return (
     <div
       ref={containerRef}
-      className="relative overflow-auto rounded-md border"
+      className="relative overflow-auto rounded-md border bg-card"
       style={{ maxHeight: 'calc(100vh - 120px)' }}
       role="grid"
       aria-label="Capacity planner"
@@ -387,7 +387,7 @@ export function PlannerGrid({
       onKeyDown={handleGridKeyDown}
     >
       {showBatchInput && (
-        <div className="absolute left-1/2 top-12 z-50 -translate-x-1/2 rounded-md border bg-background p-2 shadow-lg">
+        <div className="absolute left-1/2 top-12 z-50 -translate-x-1/2 rounded-md border bg-card p-2 shadow-lg">
           <label className="mb-1 block text-xs text-muted-foreground">
             Set {selection.selected.size} cells to:
           </label>
@@ -406,8 +406,8 @@ export function PlannerGrid({
       )}
       <table className="w-full border-collapse">
         <thead className="sticky top-0 z-20" style={{ boxShadow: '0 1px 0 hsl(var(--border))' }}>
-          <tr className="bg-background">
-            <th colSpan={2} className="sticky left-0 z-20 bg-background" />
+          <tr className="bg-card">
+            <th colSpan={2} className="sticky left-0 z-20 bg-card" />
             {Array.from(monthGroups.entries()).map(([month, monthWeeks], idx) => (
               <th
                 key={month}
@@ -420,7 +420,7 @@ export function PlannerGrid({
             ))}
           </tr>
           {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id} className="bg-background">
+            <tr key={headerGroup.id} className="bg-card">
               {headerGroup.headers.map((header) => {
                 const weekKey = header.index >= 2 ? weeks[header.index - 2] : undefined;
                 const wStyle = weekKey ? weekCellStyle(weekKey, weekStyleConfig) : {};
@@ -429,7 +429,7 @@ export function PlannerGrid({
                     key={header.id}
                     className={`px-2 py-1 text-left text-xs font-medium ${
                       header.index < 2
-                        ? 'sticky left-0 z-20 bg-background'
+                        ? 'sticky left-0 z-20 bg-card'
                         : 'border-l'
                     }`}
                     style={{
@@ -509,7 +509,7 @@ export function PlannerGrid({
                 <tr key={row.id} className="group/row border-b">
                   <td
                     colSpan={2}
-                    className="sticky left-0 z-10 bg-background px-2 py-0"
+                    className="sticky left-0 z-10 bg-card px-2 py-0"
                     style={{ left: 0, height: 28 }}
                   >
                     <PlannerAddRow
@@ -557,7 +557,7 @@ export function PlannerGrid({
                       key={cell.id}
                       className={`group/cell px-0 py-0 ${
                         colIdx < 2
-                          ? 'sticky left-0 z-10 bg-background px-2'
+                          ? 'sticky left-0 z-10 bg-card px-2'
                           : 'border-l'
                       } ${isNameCol ? 'max-w-0 overflow-hidden' : ''}`}
                       style={{

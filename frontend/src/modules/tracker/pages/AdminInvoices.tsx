@@ -45,10 +45,10 @@ function InvoiceRow({ invoice }: { readonly invoice: AdminInvoice }): JSX.Elemen
       </td>
       <td className="py-2 max-w-[200px] hidden lg:table-cell truncate">{invoice.milestone}</td>
       <td className="py-2 hidden xl:table-cell">{invoice.code ?? '—'}</td>
-      <td className="py-2 text-right tabular-nums pr-4">
+      <td className="py-2 text-right font-mono tabular-nums pr-4">
         {formatCurrency(invoice.amount, invoice.currency, 2)}
       </td>
-      <td className="py-2 pl-4 hidden sm:table-cell tabular-nums">{displayDate}</td>
+      <td className="py-2 pl-4 hidden sm:table-cell font-mono tabular-nums">{displayDate}</td>
       <td className="py-2">
         <div className="inline-flex items-center gap-1.5">
           <span className={cn('inline-block w-2 h-2 rounded-full shrink-0', STATUS_DOT_COLORS[invoice.status])} />
@@ -108,7 +108,7 @@ function KpiCards({ totals }: { readonly totals: InvoiceTotals | undefined }): J
         <Card key={c.label}>
           <CardContent className="py-3 px-4">
             <p className="text-xs text-muted-foreground">{c.label} (EUR)</p>
-            <p className="text-lg font-semibold tabular-nums">
+            <p className="text-lg font-semibold font-mono tabular-nums">
               {c.value != null ? formatCurrency(c.value) : '-'}
             </p>
           </CardContent>
@@ -117,7 +117,7 @@ function KpiCards({ totals }: { readonly totals: InvoiceTotals | undefined }): J
       <Card>
         <CardContent className="py-3 px-4">
           <p className="text-xs text-muted-foreground">USD/EUR Rate</p>
-          <p className="text-lg font-semibold tabular-nums">
+          <p className="text-lg font-semibold font-mono tabular-nums">
             {totals?.usd_eur_rate != null ? totals.usd_eur_rate.toFixed(4) : '-'}
           </p>
           {totals?.rate_date && (

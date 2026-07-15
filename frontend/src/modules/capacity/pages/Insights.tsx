@@ -94,11 +94,13 @@ export default function Insights(): JSX.Element {
       )}
 
       {data && (
-        <InsightsChart
-          key={`${state.start}-${state.end}`}
-          data={data}
-          onBarClick={handleBarClick}
-        />
+        <section className="rounded-xl border bg-card p-5">
+          <InsightsChart
+            key={`${state.start}-${state.end}`}
+            data={data}
+            onBarClick={handleBarClick}
+          />
+        </section>
       )}
 
       <div ref={detailRef}>
@@ -115,18 +117,20 @@ export default function Insights(): JSX.Element {
         )}
 
         {detailData && (
-          <FADetailChart
-            key={`${state.fa}-${state.detail_start}-${state.detail_end}`}
-            data={detailData}
-            fa={state.fa}
-            onFAChange={(fa) => setState({ fa })}
-            startDate={state.detail_start}
-            endDate={state.detail_end}
-            onRangeChange={(detail_start, detail_end) =>
-              setState({ detail_start, detail_end })
-            }
-            onUserClick={handleUserClick}
-          />
+          <section className="rounded-xl border bg-card p-5">
+            <FADetailChart
+              key={`${state.fa}-${state.detail_start}-${state.detail_end}`}
+              data={detailData}
+              fa={state.fa}
+              onFAChange={(fa) => setState({ fa })}
+              startDate={state.detail_start}
+              endDate={state.detail_end}
+              onRangeChange={(detail_start, detail_end) =>
+                setState({ detail_start, detail_end })
+              }
+              onUserClick={handleUserClick}
+            />
+          </section>
         )}
       </div>
 
@@ -144,18 +148,20 @@ export default function Insights(): JSX.Element {
         )}
 
         {reportableUsers && (
-          <UserDetailChart
-            key={`${state.user_id}-${state.user_start}-${state.user_end}`}
-            data={userDetailData ?? []}
-            userId={state.user_id}
-            users={reportableUsers}
-            onUserChange={(user_id) => setState({ user_id })}
-            startDate={state.user_start}
-            endDate={state.user_end}
-            onRangeChange={(user_start, user_end) =>
-              setState({ user_start, user_end })
-            }
-          />
+          <section className="rounded-xl border bg-card p-5">
+            <UserDetailChart
+              key={`${state.user_id}-${state.user_start}-${state.user_end}`}
+              data={userDetailData ?? []}
+              userId={state.user_id}
+              users={reportableUsers}
+              onUserChange={(user_id) => setState({ user_id })}
+              startDate={state.user_start}
+              endDate={state.user_end}
+              onRangeChange={(user_start, user_end) =>
+                setState({ user_start, user_end })
+              }
+            />
+          </section>
         )}
       </div>
     </div>

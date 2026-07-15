@@ -72,7 +72,7 @@ export function EventsTable({
   onSortChange,
 }: EventsTableProps): JSX.Element {
   return (
-    <div className="rounded-md border">
+    <div className="rounded-md border bg-card">
       <Table>
         <TableHeader>
           <TableRow>

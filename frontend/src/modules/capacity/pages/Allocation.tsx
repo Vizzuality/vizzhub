@@ -152,7 +152,11 @@ export default function Allocation(): JSX.Element {
         </div>
       )}
 
-      {data && <UserAllocationList users={filteredUsers} />}
+      {data && (
+        <section className="rounded-xl border bg-card p-5">
+          <UserAllocationList users={filteredUsers} />
+        </section>
+      )}
 
       {/* Project Distribution */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -190,7 +194,11 @@ export default function Allocation(): JSX.Element {
         </div>
       )}
 
-      {projectsData && <ProjectAllocationList projects={sortedProjects} />}
+      {projectsData && (
+        <section className="rounded-xl border bg-card p-5">
+          <ProjectAllocationList projects={sortedProjects} />
+        </section>
+      )}
     </div>
   );
 }

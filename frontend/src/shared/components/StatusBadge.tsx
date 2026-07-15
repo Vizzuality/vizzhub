@@ -1,34 +1,23 @@
-import { Badge } from '@/shared/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { getStatusLabel } from '@/utils/projectStatus';
 
-function getStatusBadgeClasses(status: string): string {
-  switch (status) {
-    case 'proposal':
-      return 'bg-amber-100 text-amber-800 hover:bg-amber-100/80 dark:bg-amber-900 dark:text-amber-200';
-    case 'finished':
-      return 'bg-green-100 text-green-800 hover:bg-green-100/80 dark:bg-green-900 dark:text-green-200';
-    default:
-      return '';
-  }
-}
-
-function getStatusVariant(status: string): 'default' | 'secondary' | 'outline' {
-  switch (status) {
-    case 'proposal': return 'outline';
-    case 'live': return 'secondary';
-    case 'finished': return 'default';
-    default: return 'secondary';
-  }
-}
+// Status display convention: colored dot + plain text, never tinted pills.
+const STATUS_DOT_CLASSES: Record<string, string> = {
+  proposal: 'bg-score-yellow',
+  live: 'bg-score-green',
+  finished: 'bg-muted-foreground',
+};
 
 export function StatusBadge({ status }: { readonly status: string }): JSX.Element {
   return (
-    <Badge
-      variant={getStatusVariant(status)}
-      className={cn('shrink-0', getStatusBadgeClasses(status))}
-    >
+    <span className="inline-flex items-center gap-1.5 shrink-0 text-xs font-medium text-muted-foreground whitespace-nowrap">
+      <span
+        className={cn(
+          'inline-block w-2 h-2 rounded-full shrink-0',
+          STATUS_DOT_CLASSES[status] ?? 'bg-muted-foreground',
+        )}
+      />
       {getStatusLabel(status)}
-    </Badge>
+    </span>
   );
 }

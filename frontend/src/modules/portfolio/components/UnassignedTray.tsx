@@ -14,7 +14,7 @@ export function UnassignedTray({
   return (
     <section className="space-y-2">
       <h2 className="text-sm font-medium text-muted-foreground">No program</h2>
-      <div className="rounded-md border">
+      <div className="rounded-md border bg-card">
         {projects.map((p) => (
           <div
             key={p.id}

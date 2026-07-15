@@ -43,7 +43,7 @@ function Metric({
         {dotClass && <span className={cn('inline-block w-2 h-2 rounded-full shrink-0', dotClass)} />}
         <span
           className={cn(
-            'text-sm font-medium leading-tight truncate',
+            'text-[13px] font-mono font-medium tabular-nums leading-tight truncate',
             muted ? 'text-muted-foreground/40' : 'text-foreground',
           )}
         >
@@ -119,7 +119,7 @@ function ProjectMeta({ project }: { readonly project: Project }): JSX.Element | 
         </span>
       )}
       {hasDateRange && (
-        <span className="flex items-center gap-1.5">
+        <span className="flex items-center gap-1.5 font-mono text-[13px] tabular-nums">
           <Calendar className="w-4 h-4 shrink-0" />
           {project.start_date && formatDate(project.start_date)}
           {project.start_date && project.end_date && ' – '}

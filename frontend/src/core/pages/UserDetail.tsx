@@ -175,7 +175,7 @@ export default function UserDetail(): JSX.Element {
         </div>
       )}
 
-      <div className="border rounded-lg p-6 space-y-5">
+      <div className="border rounded-lg bg-card p-6 space-y-5">
         {/* Email (read-only) */}
         <div className="space-y-1.5">
           <Label className="text-muted-foreground">Email</Label>
@@ -303,7 +303,7 @@ export default function UserDetail(): JSX.Element {
       </div>
 
       {/* Slack */}
-      <div className="border rounded-lg p-6 space-y-4">
+      <div className="border rounded-lg bg-card p-6 space-y-4">
         <h3 className="font-medium">Slack</h3>
         <div className="flex items-center justify-between">
           {user.slack_display_name ? (
@@ -332,7 +332,7 @@ export default function UserDetail(): JSX.Element {
       </div>
 
       {/* Actions */}
-      <div className="border rounded-lg p-6 space-y-4">
+      <div className="border rounded-lg bg-card p-6 space-y-4">
         <h3 className="font-medium">Actions</h3>
 
         <div className="flex items-center justify-between">

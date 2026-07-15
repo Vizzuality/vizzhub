@@ -58,13 +58,13 @@ export function AccrualDashboard(): JSX.Element {
         <>
           <DashboardKpis kpis={data.kpis} />
           <div className="grid gap-4 lg:grid-cols-2">
-            <div className="rounded-lg border p-4">
+            <div className="rounded-lg border bg-card p-4">
               <h2 className="mb-2 text-sm font-medium text-muted-foreground">
                 Recognition by month
               </h2>
               <RecognitionByMonthChart months={data.months} />
             </div>
-            <div className="rounded-lg border p-4">
+            <div className="rounded-lg border bg-card p-4">
               <h2 className="mb-2 text-sm font-medium text-muted-foreground">
                 YTD burn-up vs year plan
               </h2>

@@ -13,7 +13,7 @@ export function VizzualityLogo({ className }: VizzualityLogoProps): JSX.Element 
     <svg
       viewBox="0 0 109 26"
       preserveAspectRatio="xMinYMid slice"
-      className={`fill-[#2ba4a0] dark:fill-current overflow-hidden ${className}`}
+      className={`fill-[#2ba4a0] overflow-hidden ${className}`}
       aria-label="Vizzuality"
     >
       {/* "v" — always visible */}

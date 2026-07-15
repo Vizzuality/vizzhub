@@ -79,7 +79,7 @@ function ScoreBadge({ score, thresholds }: Readonly<{ score: number | null | und
   return (
     <div className="flex items-center gap-2">
       <span className="text-sm text-muted-foreground">Score:</span>
-      <span className={cn("text-2xl font-bold text-foreground flex items-center gap-1.5")}>
+      <span className={cn("text-2xl font-bold font-mono tabular-nums text-foreground flex items-center gap-1.5")}>
         <span className={cn('inline-block w-2.5 h-2.5 rounded-full shrink-0', getScoreDotClass(score, thresholds))} />
         {Math.round(score)}
       </span>

@@ -425,7 +425,7 @@ export default function Playbook(): JSX.Element {
         onAdd={() => setFormOpen(true)}
       />
 
-      <div className={`flex-1 overflow-auto p-6 ${selectedId ? '' : 'hidden md:block'}`}>
+      <div className={`flex-1 overflow-auto p-6 bg-card ${selectedId ? '' : 'hidden md:block'}`}>
         {renderContent()}
       </div>
 
