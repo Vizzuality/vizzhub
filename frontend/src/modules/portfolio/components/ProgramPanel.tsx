@@ -61,22 +61,24 @@ export function ProgramPanel({
         </div>
       </div>
 
-      {editing ? (
-        <ProgramEditForm program={program} onDone={() => setEditing(false)} />
-      ) : (
-        <>
-          <ProgramTagsSection program={program} />
-          <Separator />
-          <ProgramNarrative profile={program.profile} />
-        </>
-      )}
+      <div className="space-y-8 rounded-xl border bg-card p-6">
+        {editing ? (
+          <ProgramEditForm program={program} onDone={() => setEditing(false)} />
+        ) : (
+          <>
+            <ProgramTagsSection program={program} />
+            <Separator />
+            <ProgramNarrative profile={program.profile} />
+          </>
+        )}
 
-      <Separator />
-      <ProgramIterations
-        projects={program.projects}
-        canManage={canManage}
-        programId={program.id}
-      />
+        <Separator />
+        <ProgramIterations
+          projects={program.projects}
+          canManage={canManage}
+          programId={program.id}
+        />
+      </div>
     </div>
   );
 }
