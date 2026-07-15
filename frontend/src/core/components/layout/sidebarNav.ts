@@ -25,9 +25,10 @@ export function activeSubItemTo(pathname: string, items: readonly SubItem[]): st
  * so `/tracker/my-report` beats `/tracker` and `/admin/iso` beats `/iso`.
  */
 const SECTION_TITLES: readonly SubItem[] = [
-  { to: '/projects', label: 'Projects' },
-  { to: '/scorecard', label: 'Projects' },
-  { to: '/portfolio', label: 'Projects' },
+  { to: '/projects', label: 'Tracker' },
+  { to: '/scorecard', label: 'Scorecard' },
+  { to: '/scorecard/global', label: 'Global Scores' },
+  { to: '/portfolio', label: 'Portfolio' },
   { to: '/tracker', label: 'Tracker' },
   { to: '/tracker/my-report', label: 'My Report' },
   { to: '/tracker/my-reports', label: 'My Report' },
@@ -50,8 +51,19 @@ const SECTION_TITLES: readonly SubItem[] = [
   { to: '/admin/accrual', label: 'Accrual' },
 ];
 
+/** Project detail tabs carry the facet in a dynamic segment, out of reach of static prefixes. */
+const PROJECT_DETAIL_TAB_RE = /^\/projects\/[^/]+\/(tracker|scorecard|portfolio)(?:\/|$)/;
+
+const PROJECT_DETAIL_TAB_TITLES: Record<string, string> = {
+  tracker: 'Tracker',
+  scorecard: 'Scorecard',
+  portfolio: 'Portfolio',
+};
+
 /** Section title for the app header, or null when no section matches (e.g. landing). */
 export function sectionTitle(pathname: string): string | null {
+  const detailTab = PROJECT_DETAIL_TAB_RE.exec(pathname);
+  if (detailTab) return PROJECT_DETAIL_TAB_TITLES[detailTab[1]];
   const to = activeSubItemTo(pathname, SECTION_TITLES);
   if (to === null) return null;
   return SECTION_TITLES.find((item) => item.to === to)?.label ?? null;

@@ -48,9 +48,14 @@ describe('projectsHubItems', () => {
 
 describe('sectionTitle', () => {
   it.each([
-    ['/projects', 'Projects'],
-    ['/scorecard/global', 'Projects'],
-    ['/portfolio/programs/xyz', 'Projects'],
+    ['/projects', 'Tracker'],
+    ['/projects/abc-123/tracker', 'Tracker'],
+    ['/projects/abc-123/scorecard', 'Scorecard'],
+    ['/projects/abc-123/portfolio', 'Portfolio'],
+    ['/scorecard', 'Scorecard'],
+    ['/scorecard/global', 'Global Scores'],
+    ['/portfolio', 'Portfolio'],
+    ['/portfolio/programs/xyz', 'Portfolio'],
     ['/tracker/my-report', 'My Report'],
     ['/tracker/my-report/2026-05', 'My Report'],
     ['/tracker/invoices/abc', 'Tracker'],
