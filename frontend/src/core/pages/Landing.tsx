@@ -13,11 +13,21 @@ interface ModuleCard {
   symbol: string;
   label: string;
   path: string;
-  iconType: 'tracker' | 'scorecard' | 'iso' | 'playbook' | 'capacity';
+  iconType:
+    | 'tracker'
+    | 'scorecard'
+    | 'portfolio'
+    | 'iso'
+    | 'playbook'
+    | 'capacity'
+    | 'events'
+    | 'devstack';
   adminOnly?: boolean;
+  requiresPortfolio?: boolean;
   comingSoon?: boolean;
 }
 
+/** Same order as the sidebar: Projects facets first, then the standalone modules. */
 const MODULES: ModuleCard[] = [
   {
     number: '01',
@@ -35,24 +45,46 @@ const MODULES: ModuleCard[] = [
   },
   {
     number: '03',
-    symbol: 'Is',
-    label: 'ISO',
-    path: '/iso/docs',
-    iconType: 'iso',
+    symbol: 'Po',
+    label: 'PORTFOLIO',
+    path: '/portfolio',
+    iconType: 'portfolio',
+    requiresPortfolio: true,
   },
   {
     number: '04',
+    symbol: 'Ca',
+    label: 'CAPACITY',
+    path: '/capacity/insights',
+    iconType: 'capacity',
+  },
+  {
+    number: '05',
     symbol: 'Pb',
     label: 'PLAYBOOK',
     path: '/playbook',
     iconType: 'playbook',
   },
   {
-    number: '05',
-    symbol: 'Ca',
-    label: 'CAPACITY',
-    path: '/capacity/insights',
-    iconType: 'capacity',
+    number: '06',
+    symbol: 'Ev',
+    label: 'EVENTS',
+    path: '/events',
+    iconType: 'events',
+  },
+  {
+    number: '07',
+    symbol: 'Ds',
+    label: 'DEVSTACK',
+    path: '/devstack',
+    iconType: 'devstack',
+  },
+  {
+    number: '08',
+    symbol: 'Is',
+    label: 'ISO',
+    path: '/iso/docs',
+    iconType: 'iso',
   },
 ];
 
@@ -73,9 +105,12 @@ function getScoreCssVar(score: number | null): string {
 const ICON_CLASS: Record<ModuleCard['iconType'], string> = {
   tracker: 'landing__icon-tracker',
   scorecard: 'landing__icon-scorecard',
+  portfolio: 'landing__icon-portfolio',
   iso: 'landing__icon-iso',
   playbook: 'landing__icon-playbook',
   capacity: 'landing__icon-capacity',
+  events: 'landing__icon-events',
+  devstack: 'landing__icon-devstack',
 };
 
 function CardIcon({ type }: Readonly<{ type: ModuleCard['iconType'] }>): JSX.Element {
@@ -101,7 +136,7 @@ function TopScores(): JSX.Element | null {
 
   return (
     <div className="landing__card landing__card--scores">
-      <span className="landing__card-number">06</span>
+      <span className="landing__card-number">09</span>
       <span className="landing__card-label">TOP_SCORES</span>
       <div className="landing__top5-list">
         {top5.map((p, i) => {
@@ -156,7 +191,10 @@ function useReportStatus(userEmail: string | undefined) {
 export default function Landing(): JSX.Element {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
   const isAdmin = usePermission(Action.ADMIN_USERS);
+  const portfolioPerm = usePermission(Action.PORTFOLIO_VIEW);
+  const canPortfolio = bypassAuth || portfolioPerm;
   const reportStatus = useReportStatus(user?.email);
   const firstName = user?.first_name ?? user?.email?.split('@')[0];
 
@@ -181,7 +219,9 @@ export default function Landing(): JSX.Element {
 
       <div className="landing__grid">
         {MODULES.map((mod) => {
-          const disabled = mod.comingSoon || (mod.adminOnly && !isAdmin);
+          const disabled = mod.comingSoon
+            || (mod.adminOnly && !isAdmin)
+            || (mod.requiresPortfolio && !canPortfolio);
           return (
           <button
             key={mod.number}
