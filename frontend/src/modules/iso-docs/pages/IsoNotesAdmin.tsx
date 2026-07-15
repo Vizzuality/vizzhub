@@ -29,7 +29,7 @@ function NoteRow({ note }: { readonly note: AdminIsoDocNote }): JSX.Element {
   };
 
   return (
-    <div className={`border rounded p-3 space-y-2 ${note.done ? 'opacity-60' : ''}`}>
+    <div className={`border rounded bg-card p-3 space-y-2 ${note.done ? 'opacity-60' : ''}`}>
       {editing ? (
         <Textarea
           value={draft}
