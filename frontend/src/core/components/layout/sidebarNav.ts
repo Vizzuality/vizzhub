@@ -20,6 +20,43 @@ export function activeSubItemTo(pathname: string, items: readonly SubItem[]): st
   return best;
 }
 
+/**
+ * Route prefix → section title shown in the app header. Longest prefix wins,
+ * so `/tracker/my-report` beats `/tracker` and `/admin/iso` beats `/iso`.
+ */
+const SECTION_TITLES: readonly SubItem[] = [
+  { to: '/projects', label: 'Projects' },
+  { to: '/scorecard', label: 'Projects' },
+  { to: '/portfolio', label: 'Projects' },
+  { to: '/tracker', label: 'Tracker' },
+  { to: '/tracker/my-report', label: 'My Report' },
+  { to: '/tracker/my-reports', label: 'My Report' },
+  { to: '/tracker/how-to-report', label: 'My Report' },
+  { to: '/capacity', label: 'Capacity' },
+  { to: '/playbook', label: 'Playbook' },
+  { to: '/events', label: 'Events' },
+  { to: '/devstack', label: 'DevStack' },
+  { to: '/iso', label: 'ISO' },
+  { to: '/admin/scorecard-parameters', label: 'Parameters' },
+  { to: '/admin/integrations', label: 'Integrations' },
+  { to: '/admin/assets', label: 'Assets' },
+  { to: '/admin/jobs', label: 'Jobs' },
+  { to: '/admin/commands', label: 'Command Queue' },
+  { to: '/admin/users', label: 'Users' },
+  { to: '/admin/notifications', label: 'Notifications' },
+  { to: '/admin/tracker', label: 'Tracker' },
+  { to: '/admin/portfolio', label: 'Portfolio' },
+  { to: '/admin/iso', label: 'ISO' },
+  { to: '/admin/accrual', label: 'Accrual' },
+];
+
+/** Section title for the app header, or null when no section matches (e.g. landing). */
+export function sectionTitle(pathname: string): string | null {
+  const to = activeSubItemTo(pathname, SECTION_TITLES);
+  if (to === null) return null;
+  return SECTION_TITLES.find((item) => item.to === to)?.label ?? null;
+}
+
 export const PROJECTS_HUB_ITEMS: readonly SubItem[] = [
   { to: '/projects', label: 'Tracker' },
   { to: '/scorecard', label: 'Scorecard' },

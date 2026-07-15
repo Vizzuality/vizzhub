@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { activeSubItemTo, projectsHubItems, PROJECTS_HUB_ITEMS } from '../sidebarNav';
+import { activeSubItemTo, projectsHubItems, sectionTitle, PROJECTS_HUB_ITEMS } from '../sidebarNav';
 
 const PORTFOLIO = [
   { to: '/portfolio', label: 'Programs' },
@@ -43,6 +43,28 @@ describe('projectsHubItems', () => {
   it('excludes Portfolio when not visible', () => {
     const items = projectsHubItems(false);
     expect(items.map((i) => i.label)).toEqual(['Tracker', 'Scorecard', 'Global Scores']);
+  });
+});
+
+describe('sectionTitle', () => {
+  it.each([
+    ['/projects', 'Projects'],
+    ['/scorecard/global', 'Projects'],
+    ['/portfolio/programs/xyz', 'Projects'],
+    ['/tracker/my-report', 'My Report'],
+    ['/tracker/my-report/2026-05', 'My Report'],
+    ['/tracker/invoices/abc', 'Tracker'],
+    ['/capacity/planner', 'Capacity'],
+    ['/iso/docs', 'ISO'],
+    ['/admin/iso/notes', 'ISO'],
+    ['/admin/accrual/dashboard', 'Accrual'],
+    ['/admin/commands', 'Command Queue'],
+  ])('%s → %s', (path, expected) => {
+    expect(sectionTitle(path)).toBe(expected);
+  });
+
+  it('returns null on the landing page', () => {
+    expect(sectionTitle('/')).toBeNull();
   });
 });
 
