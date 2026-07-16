@@ -193,6 +193,7 @@ def _serialize_grid_line(
         "period_rate": period_rate,
         "window_start": line.window_start.isoformat() if line.window_start else None,
         "window_end": line.window_end.isoformat() if line.window_end else None,
+        "created_at": line.created_at.isoformat(),
         "projects": [_serialize_line_project(p, pm_name) for p, pm_name in projects],
         "health": _line_health(line.value_eur, sum_cells),
         "data_quality_note": _data_quality_note(line),

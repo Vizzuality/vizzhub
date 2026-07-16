@@ -27,6 +27,11 @@ function sortValue(line: AccrualGridLine, key: string): string | number {
       return (line.excel_code ?? '').toLowerCase();
     case 'name':
       return (line.name ?? '').toLowerCase();
+    // ISO date strings sort correctly under plain string comparison.
+    case 'created_at':
+      return line.created_at ?? '';
+    case 'window_start':
+      return line.window_start ?? '';
     default:
       return '';
   }

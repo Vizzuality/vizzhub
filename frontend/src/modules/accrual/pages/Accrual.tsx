@@ -20,6 +20,10 @@ const CURRENT_YEAR = new Date().getFullYear();
 // localStorage keys for grid preferences that persist across sessions.
 const HIDDEN_COLUMNS_KEY = 'accrual.grid.hiddenColumns';
 const COLLAPSED_KEY = 'accrual.grid.collapsed';
+const SORT_KEY = 'accrual.grid.sort';
+
+// Creation order mirrors the original Excel seed, so it is the natural default.
+const DEFAULT_SORT: AccrualSort = { key: 'created_at', dir: 'asc' };
 
 // When collapsed, only the Line column stays pinned so the month grid gets the
 // horizontal room — critical on laptop-width screens.
@@ -41,7 +45,7 @@ export function Accrual(): JSX.Element {
     [],
   );
   const [collapsed, setCollapsed] = useLocalStorage<boolean>(COLLAPSED_KEY, false);
-  const [sort, setSort] = useState<AccrualSort | null>(null);
+  const [sort, setSort] = useLocalStorage<AccrualSort>(SORT_KEY, DEFAULT_SORT);
 
   const hiddenColumns = useMemo(() => new Set(hiddenColumnIds), [hiddenColumnIds]);
 
@@ -63,7 +67,7 @@ export function Accrual(): JSX.Element {
 
   const handleSort = (key: string): void => {
     setSort((prev) =>
-      prev?.key === key
+      prev.key === key
         ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
         : { key, dir: 'asc' },
     );
@@ -182,6 +186,8 @@ export function Accrual(): JSX.Element {
         onToggleColumn={toggleColumn}
         collapsed={collapsed}
         onToggleCollapsed={() => setCollapsed((c) => !c)}
+        sort={sort}
+        onSortChange={setSort}
       />
       {issuesCount > 0 && !filters.issues_only && (
         <button

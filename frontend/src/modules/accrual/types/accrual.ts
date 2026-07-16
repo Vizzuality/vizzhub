@@ -89,6 +89,7 @@ export interface AccrualGridLine {
   currency: string | null;
   window_start: string | null;
   window_end: string | null;
+  created_at: string;
   projects: AccrualLineProject[];
   health: AccrualHealth;
   data_quality_note: string | null;

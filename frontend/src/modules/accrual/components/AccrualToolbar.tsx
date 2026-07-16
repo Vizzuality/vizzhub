@@ -1,4 +1,6 @@
 import {
+  ArrowDownWideNarrow,
+  ArrowUpNarrowWide,
   ChevronLeft,
   ChevronRight,
   Columns3,
@@ -16,10 +18,17 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/shared/components/ui/dropdown-menu';
-import { STATIC_COLUMNS, type StaticColumn } from '@/modules/accrual/components/AccrualGridColumns';
+import {
+  STATIC_COLUMNS,
+  type AccrualSort,
+  type SortDir,
+  type StaticColumn,
+} from '@/modules/accrual/components/AccrualGridColumns';
 
 export interface AccrualFilters {
   year_from: number;
@@ -27,6 +36,14 @@ export interface AccrualFilters {
   issues_only: boolean;
   search: string;
 }
+
+// Fields offered by the toolbar's sort selector. Header-click sorting can set
+// other keys (code, value_eur) — the selector then shows no field checked.
+const SORT_FIELDS: readonly { key: string; label: string }[] = [
+  { key: 'created_at', label: 'Creation date' },
+  { key: 'name', label: 'Line' },
+  { key: 'window_start', label: 'Start date' },
+];
 
 interface AccrualToolbarProps {
   readonly filters: AccrualFilters;
@@ -38,6 +55,53 @@ interface AccrualToolbarProps {
   readonly onToggleColumn?: (id: string) => void;
   readonly collapsed?: boolean;
   readonly onToggleCollapsed?: () => void;
+  readonly sort?: AccrualSort | null;
+  readonly onSortChange?: (sort: AccrualSort) => void;
+}
+
+function SortSelector({
+  sort,
+  onSortChange,
+}: {
+  readonly sort: AccrualSort | null;
+  readonly onSortChange: (sort: AccrualSort) => void;
+}): JSX.Element {
+  const activeField = SORT_FIELDS.find((f) => f.key === sort?.key);
+  const dir: SortDir = sort?.dir ?? 'asc';
+  const DirIcon = dir === 'asc' ? ArrowUpNarrowWide : ArrowDownWideNarrow;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm" aria-label="Sort lines">
+          <DirIcon className="mr-1 h-4 w-4" />
+          {activeField?.label ?? 'Sort'}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={activeField?.key ?? ''}
+          onValueChange={(key) => onSortChange({ key, dir })}
+        >
+          {SORT_FIELDS.map((f) => (
+            <DropdownMenuRadioItem key={f.key} value={f.key}>
+              {f.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuRadioGroup
+          value={dir}
+          onValueChange={(d) =>
+            onSortChange({ key: sort?.key ?? SORT_FIELDS[0].key, dir: d as SortDir })
+          }
+        >
+          <DropdownMenuRadioItem value="asc">Ascending</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="desc">Descending</DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 export function AccrualToolbar({
@@ -50,6 +114,8 @@ export function AccrualToolbar({
   onToggleColumn,
   collapsed = false,
   onToggleCollapsed,
+  sort,
+  onSortChange,
 }: AccrualToolbarProps): JSX.Element {
   const { year_from, year_to, search } = filters;
 
@@ -119,6 +185,8 @@ export function AccrualToolbar({
           </button>
         )}
       </div>
+
+      {onSortChange && <SortSelector sort={sort ?? null} onSortChange={onSortChange} />}
 
       {onToggleCollapsed && (
         <Button

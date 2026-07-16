@@ -139,4 +139,55 @@ describe('AccrualToolbar', () => {
     render(<AccrualToolbar filters={defaultFilters} onChange={vi.fn()} />);
     expect(screen.queryByRole('button', { name: /collapse fixed columns/i })).toBeNull();
   });
+
+  describe('sort selector', () => {
+    it('labels the trigger with the active sort field', () => {
+      render(
+        <AccrualToolbar
+          filters={defaultFilters}
+          onChange={vi.fn()}
+          sort={{ key: 'created_at', dir: 'asc' }}
+          onSortChange={vi.fn()}
+        />,
+      );
+      expect(screen.getByRole('button', { name: /sort lines/i })).toHaveTextContent(
+        'Creation date',
+      );
+    });
+
+    it('changing the field keeps the current direction', async () => {
+      const onSortChange = vi.fn();
+      render(
+        <AccrualToolbar
+          filters={defaultFilters}
+          onChange={vi.fn()}
+          sort={{ key: 'created_at', dir: 'desc' }}
+          onSortChange={onSortChange}
+        />,
+      );
+      await userEvent.click(screen.getByRole('button', { name: /sort lines/i }));
+      await userEvent.click(await screen.findByRole('menuitemradio', { name: 'Start date' }));
+      expect(onSortChange).toHaveBeenCalledWith({ key: 'window_start', dir: 'desc' });
+    });
+
+    it('changing the direction keeps the current field', async () => {
+      const onSortChange = vi.fn();
+      render(
+        <AccrualToolbar
+          filters={defaultFilters}
+          onChange={vi.fn()}
+          sort={{ key: 'name', dir: 'asc' }}
+          onSortChange={onSortChange}
+        />,
+      );
+      await userEvent.click(screen.getByRole('button', { name: /sort lines/i }));
+      await userEvent.click(await screen.findByRole('menuitemradio', { name: 'Descending' }));
+      expect(onSortChange).toHaveBeenCalledWith({ key: 'name', dir: 'desc' });
+    });
+
+    it('omits the sort selector when no handler is provided', () => {
+      render(<AccrualToolbar filters={defaultFilters} onChange={vi.fn()} />);
+      expect(screen.queryByRole('button', { name: /sort lines/i })).toBeNull();
+    });
+  });
 });

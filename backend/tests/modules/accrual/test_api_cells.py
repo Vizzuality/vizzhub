@@ -350,6 +350,7 @@ async def test_grid_returns_lines_and_cells(
     assert row["id"] == str(line.id)
     assert row["excel_code"] == "TEST.AC.GRID1"
     assert [p["id"] for p in row["projects"]] == [str(pid)]
+    assert row["created_at"] is not None
     assert len(body["cells"]) == 12
     assert all(c["line_id"] == str(line.id) for c in body["cells"])
 

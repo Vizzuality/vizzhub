@@ -13,6 +13,7 @@ function makeLine(overrides: Partial<AccrualGridLine>): AccrualGridLine {
     currency: null,
     window_start: null,
     window_end: null,
+    created_at: '2026-01-01T00:00:00',
     projects: [],
     health: { status: 'ok', diff_eur: '0', diff_pct: 0 },
     data_quality_note: null,
@@ -83,6 +84,32 @@ describe('sortLines', () => {
       'Cherry',
       'Banana',
       'Apple',
+    ]);
+  });
+
+  it('sorts by created_at descending (newest first)', () => {
+    const dated = [
+      makeLine({ id: 'a', created_at: '2026-02-01T10:00:00' }),
+      makeLine({ id: 'b', created_at: '2026-07-01T10:00:00' }),
+      makeLine({ id: 'c', created_at: '2025-11-01T10:00:00' }),
+    ];
+    expect(sortLines(dated, { key: 'created_at', dir: 'desc' }).map((l) => l.id)).toEqual([
+      'b',
+      'a',
+      'c',
+    ]);
+  });
+
+  it('sorts by window_start ascending', () => {
+    const dated = [
+      makeLine({ id: 'a', window_start: '2026-06-01' }),
+      makeLine({ id: 'b', window_start: '2025-01-01' }),
+      makeLine({ id: 'c', window_start: '2026-01-01' }),
+    ];
+    expect(sortLines(dated, { key: 'window_start', dir: 'asc' }).map((l) => l.id)).toEqual([
+      'b',
+      'c',
+      'a',
     ]);
   });
 
