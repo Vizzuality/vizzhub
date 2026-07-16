@@ -103,7 +103,15 @@ export function AccrualGrid({
       role="grid"
       aria-label="Accrual grid"
     >
-      <table className="border-collapse table-fixed text-sm" style={{ width: tableWidth }}>
+      {/* border-separate (not collapse): collapsed borders and <tr> backgrounds
+          are painted by the table's scrolling layer, so they lag behind the
+          sticky <thead> and body rows bleed through in strips while scrolling.
+          With border-separate every border/background lives on the cell and
+          sticks with it — hence all bg/border classes below are on th/td. */}
+      <table
+        className="border-separate border-spacing-0 table-fixed text-sm"
+        style={{ width: tableWidth }}
+      >
         <colgroup>
           {allColumns.map((col) => (
             <col key={col.id} style={{ width: col.getSize() }} />
@@ -111,10 +119,10 @@ export function AccrualGrid({
         </colgroup>
         <thead className="sticky top-0 z-20">
           {/* Totals row — pinned above the column headers */}
-          <tr className="border-b-2 bg-card">
+          <tr>
             <th
               colSpan={stickyCount}
-              className="sticky left-0 z-20 bg-card px-3 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+              className="sticky left-0 z-20 border-b-2 bg-card px-3 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
               style={{ left: 0 }}
             >
               Totals (EUR)
@@ -122,20 +130,20 @@ export function AccrualGrid({
             {months.map((m) => (
               <th
                 key={`total_${m.year}_${m.month}`}
-                className="border-l px-2 py-1.5 text-right text-xs font-semibold tabular-nums"
+                className="border-b-2 border-l bg-card px-2 py-1.5 text-right text-xs font-semibold tabular-nums"
               >
                 {formatAmount(monthTotals.get(`${m.year}_${m.month}`) ?? 0)}
               </th>
             ))}
           </tr>
           {/* Year group row */}
-          <tr className="bg-muted">
+          <tr>
             <th colSpan={stickyCount} className="sticky left-0 z-20 bg-muted" />
             {yearGroups.map(([year, count]) => (
               <th
                 key={year}
                 colSpan={count}
-                className="border-l px-1 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                className="border-l bg-muted px-1 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
               >
                 {year}
               </th>
@@ -143,7 +151,7 @@ export function AccrualGrid({
           </tr>
           {/* Column header row */}
           {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id} className="border-b bg-muted">
+            <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => {
                 const colIdx = header.index;
                 const isSticky = colIdx < stickyCount;
@@ -151,8 +159,8 @@ export function AccrualGrid({
                 return (
                   <th
                     key={header.id}
-                    className={`px-3 py-2 text-left text-[11px] font-semibold text-muted-foreground ${
-                      isSticky ? 'sticky z-20 bg-muted' : 'border-l'
+                    className={`border-b bg-muted px-3 py-2 text-left text-[11px] font-semibold text-muted-foreground ${
+                      isSticky ? 'sticky z-20' : 'border-l'
                     } ${isFirstMonth ? 'border-l-2 border-l-border' : ''}`}
                     style={{
                       width: header.getSize(),
@@ -168,7 +176,7 @@ export function AccrualGrid({
         </thead>
         <tbody>
           {table.getRowModel().rows.map((row) => (
-            <tr key={row.id} className="group border-b transition-colors hover:bg-muted/40">
+            <tr key={row.id} className="group transition-colors hover:bg-muted/40">
               {row.getVisibleCells().map((cell) => {
                 const colIdx = cell.column.getIndex();
                 const isSticky = colIdx < stickyCount;
@@ -177,7 +185,7 @@ export function AccrualGrid({
                 return (
                   <td
                     key={cell.id}
-                    className={`align-middle ${
+                    className={`border-b align-middle ${
                       isSticky ? 'sticky z-10 bg-card px-3 group-hover:bg-muted/40' : 'border-l p-0'
                     } ${isNameCol ? 'max-w-0 overflow-hidden' : ''} ${
                       isFirstMonth ? 'border-l-2 border-l-border' : ''
