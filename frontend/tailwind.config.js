@@ -58,6 +58,10 @@ export default {
   				amber: 'var(--aux-amber)',
   				red: 'var(--aux-red)',
   			},
+  			'grid-header': {
+  				DEFAULT: 'var(--grid-header)',
+  				foreground: 'var(--grid-header-foreground)'
+  			},
   			'switch-track': 'var(--switch-track)',
   			border: 'var(--border)',
   			input: 'var(--input)',

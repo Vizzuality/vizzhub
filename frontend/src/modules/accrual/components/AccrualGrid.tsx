@@ -138,12 +138,12 @@ export function AccrualGrid({
           </tr>
           {/* Year group row */}
           <tr>
-            <th colSpan={stickyCount} className="sticky left-0 z-20 bg-muted" />
+            <th colSpan={stickyCount} className="sticky left-0 z-20 bg-grid-header" />
             {yearGroups.map(([year, count]) => (
               <th
                 key={year}
                 colSpan={count}
-                className="border-l bg-muted px-1 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                className="border-l bg-grid-header px-1 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-grid-header-foreground"
               >
                 {year}
               </th>
@@ -159,7 +159,7 @@ export function AccrualGrid({
                 return (
                   <th
                     key={header.id}
-                    className={`border-b bg-muted px-3 py-2 text-left text-[11px] font-semibold text-muted-foreground ${
+                    className={`border-b bg-grid-header px-3 py-2 text-left text-[11px] font-semibold text-grid-header-foreground ${
                       isSticky ? 'sticky z-20' : 'border-l'
                     } ${isFirstMonth ? 'border-l-2 border-l-border' : ''}`}
                     style={{

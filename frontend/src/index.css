@@ -57,6 +57,10 @@
     --aux-purple: #7020FF;
     --aux-orange: #FFAA36;
     --aux-coral: #F84B5A;
+    /* Sticky data-grid header band — light tint of --aux-blue so it stands
+       off the bruma canvas (bg-muted was near-identical to --background). */
+    --grid-header: #E1F5FD;
+    --grid-header-foreground: #33637A;
     --accent-green: #2d8a4e;
     --aux-yellow: #FFD23F;
     --aux-amber: #F97316;
@@ -127,6 +131,8 @@
     --sidebar-accent-foreground: #F2F2F0;
     --sidebar-border: #232623;
     --sidebar-ring: var(--aux-brand-yellow);
+    --grid-header: #17313D;
+    --grid-header-foreground: #8FC6E0;
     --accent-green: var(--aux-neon-grass);
     --aux-amber: #FB923C;
     --font-sans: DM Sans, ui-sans-serif, sans-serif, system-ui;
