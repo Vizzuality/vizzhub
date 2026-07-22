@@ -59,13 +59,12 @@ interface AccrualToolbarProps {
   readonly onSortChange?: (sort: AccrualSort) => void;
 }
 
-function SortSelector({
-  sort,
-  onSortChange,
-}: {
+interface SortSelectorProps {
   readonly sort: AccrualSort | null;
   readonly onSortChange: (sort: AccrualSort) => void;
-}): JSX.Element {
+}
+
+function SortSelector({ sort, onSortChange }: SortSelectorProps): JSX.Element {
   const activeField = SORT_FIELDS.find((f) => f.key === sort?.key);
   const dir: SortDir = sort?.dir ?? 'asc';
   const DirIcon = dir === 'asc' ? ArrowUpNarrowWide : ArrowDownWideNarrow;

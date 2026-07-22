@@ -65,7 +65,6 @@ async def get_projects(
     is_billable: bool | None = None,
 ) -> list[dict]:
     """List projects with cost summary (budget, burn, staff/non-staff, income)."""
-    pm_name = _user_full_name().label("project_manager_name")
     pm_user = UserDB.__table__.alias("pm_user")
     pm_name_expr = case(
         (
@@ -611,6 +610,19 @@ MAX_TREND_MONTHS = 60
 _MOOD_SCALE = "1 (lowest) to 5 (highest)"
 
 
+def _mood_response(report: ReportDB, user_name: str, uid: UUID) -> dict:
+    return {
+        "user_id": str(uid),
+        "user_name": user_name,
+        "mood": report.mood,
+        "feedback": report.feedback_text,
+    }
+
+
+def _avg(values: list[int]) -> float | None:
+    return round(sum(values) / len(values), 2) if values else None
+
+
 def _months_back(n: int) -> list[tuple[int, int]]:
     """The n (month, year) pairs up to and including the current month, oldest first."""
     d = date.today().replace(day=1)
@@ -664,12 +676,7 @@ async def get_moods(session: AsyncSession, month: int, year: int) -> dict:
             distribution[report.mood] = distribution.get(report.mood, 0) + 1
             moods.append(report.mood)
         if report.mood is not None or report.feedback_text is not None:
-            responses.append({
-                "user_id": str(uid),
-                "user_name": user_name,
-                "mood": report.mood,
-                "feedback": report.feedback_text,
-            })
+            responses.append(_mood_response(report, user_name, uid))
 
     anon = (
         await session.execute(
@@ -687,7 +694,7 @@ async def get_moods(session: AsyncSession, month: int, year: int) -> dict:
         "mood_distribution": dict(sorted(distribution.items())),
         "total_reports": len(rows),
         "total_responses": len(moods),
-        "average_mood": round(sum(moods) / len(moods), 2) if moods else None,
+        "average_mood": _avg(moods),
         "responses": responses,
         "anonymous_feedback": list(anon),
     }
@@ -710,12 +717,9 @@ async def get_moods_trend(
     for report, user_name, uid in rows:
         if report.mood is None and report.feedback_text is None:
             continue
-        by_month[period_map[report.reporting_period_id]].append({
-            "user_id": str(uid),
-            "user_name": user_name,
-            "mood": report.mood,
-            "feedback": report.feedback_text,
-        })
+        by_month[period_map[report.reporting_period_id]].append(
+            _mood_response(report, user_name, uid)
+        )
         if report.mood is not None:
             entry = moods_by_user.setdefault(
                 str(uid), {"user_name": user_name, "moods": []},
@@ -730,9 +734,7 @@ async def get_moods_trend(
             "month": m,
             "year": y,
             "label": date(y, m, 1).strftime("%b %Y"),
-            "average_mood": (
-                round(sum(month_moods) / len(month_moods), 2) if month_moods else None
-            ),
+            "average_mood": _avg(month_moods),
             "total_responses": len(month_moods),
             "responses": entries,
         })
@@ -743,7 +745,7 @@ async def get_moods_trend(
                 "user_id": uid,
                 "user_name": data["user_name"],
                 "responses": len(data["moods"]),
-                "average_mood": round(sum(data["moods"]) / len(data["moods"]), 2),
+                "average_mood": _avg(data["moods"]),
                 "min_mood": min(data["moods"]),
                 "max_mood": max(data["moods"]),
             }
