@@ -17,10 +17,11 @@ from app.modules.tracker.models import (
     NonStaffCostDB,
     ProgressReportDB,
     ReportDB,
-    ReportPartDB,
     ReportingPeriodDB,
+    ReportPartDB,
     TrackerProjectSettingsDB,
 )
+from app.modules.tracker.models.anonymous_feedback import AnonymousFeedbackDB
 from app.modules.tracker.models.postponement import InvoicePostponementDB
 
 
@@ -591,3 +592,160 @@ async def test_get_periods_report_counts(
     jan = result[0]
     assert jan["report_count"] == 2
     assert jan["confirmed_count"] == 1
+
+
+# ---- get_moods / get_moods_trend ----
+
+
+@pytest.mark.asyncio
+async def test_get_moods_named_responses_and_distribution(
+    db_session: AsyncSession,
+    period_jan: ReportingPeriodDB,
+    user_alice: UserDB,
+    user_bob: UserDB,
+) -> None:
+    db_session.add(ReportDB(
+        user_id=user_alice.id,
+        reporting_period_id=period_jan.id,
+        estimated=False,
+        mood=4,
+        feedback_text="Great month",
+    ))
+    db_session.add(ReportDB(
+        user_id=user_bob.id,
+        reporting_period_id=period_jan.id,
+        estimated=False,
+        mood=2,
+    ))
+    await db_session.commit()
+    from mcp_server.data.tracker import get_moods
+
+    result = await get_moods(db_session, month=1, year=2026)
+    assert result["mood_distribution"] == {4: 1, 2: 1}
+    assert result["total_responses"] == 2
+    assert result["average_mood"] == 3.0
+    by_name = {r["user_name"]: r for r in result["responses"]}
+    assert by_name["Alice Smith"]["mood"] == 4
+    assert by_name["Alice Smith"]["feedback"] == "Great month"
+    assert by_name["Bob Jones"]["mood"] == 2
+    assert by_name["Alice Smith"]["user_id"] == str(user_alice.id)
+
+
+@pytest.mark.asyncio
+async def test_get_moods_excludes_estimated_and_includes_anonymous(
+    db_session: AsyncSession,
+    period_jan: ReportingPeriodDB,
+    user_alice: UserDB,
+) -> None:
+    # Estimated report's mood must not count.
+    db_session.add(ReportDB(
+        user_id=user_alice.id,
+        reporting_period_id=period_jan.id,
+        estimated=True,
+        mood=1,
+    ))
+    db_session.add(AnonymousFeedbackDB(month=1, year=2026, text="anon note"))
+    await db_session.commit()
+    from mcp_server.data.tracker import get_moods
+
+    result = await get_moods(db_session, month=1, year=2026)
+    assert result["total_responses"] == 0
+    assert result["average_mood"] is None
+    assert result["anonymous_feedback"] == ["anon note"]
+
+
+@pytest.mark.asyncio
+async def test_get_moods_empty_month(db_session: AsyncSession) -> None:
+    from mcp_server.data.tracker import get_moods
+
+    result = await get_moods(db_session, month=7, year=2031)
+    assert result["total_reports"] == 0
+    assert result["responses"] == []
+
+
+@pytest_asyncio.fixture
+async def period_current(db_session: AsyncSession) -> ReportingPeriodDB:
+    """A period in the current month so trend (anchored to today) sees it."""
+    period = ReportingPeriodDB(
+        date=date.today().replace(day=1),
+        status="active",
+        base_rate=Decimal("175.00"),
+    )
+    db_session.add(period)
+    await db_session.flush()
+    return period
+
+
+@pytest.mark.asyncio
+async def test_get_moods_trend_user_summary_lowest_first(
+    db_session: AsyncSession,
+    period_current: ReportingPeriodDB,
+    user_alice: UserDB,
+    user_bob: UserDB,
+) -> None:
+    db_session.add(ReportDB(
+        user_id=user_alice.id,
+        reporting_period_id=period_current.id,
+        estimated=False,
+        mood=5,
+    ))
+    db_session.add(ReportDB(
+        user_id=user_bob.id,
+        reporting_period_id=period_current.id,
+        estimated=False,
+        mood=2,
+        feedback_text="rough one",
+    ))
+    await db_session.commit()
+    from mcp_server.data.tracker import get_moods_trend
+
+    result = await get_moods_trend(db_session, months=12)
+    assert result["window_months"] == 12
+    assert len(result["months"]) == 12
+    # Lowest average first — Bob (2) before Alice (5).
+    assert [u["user_name"] for u in result["user_summary"]] == ["Bob Jones", "Alice Smith"]
+    assert result["user_summary"][0]["average_mood"] == 2.0
+    assert result["user_summary"][0]["min_mood"] == 2
+
+    current = result["months"][-1]
+    assert current["total_responses"] == 2
+    moods = {r["user_name"]: r["mood"] for r in current["responses"]}
+    assert moods == {"Alice Smith": 5, "Bob Jones": 2}
+
+
+@pytest.mark.asyncio
+async def test_get_moods_trend_filters_by_user(
+    db_session: AsyncSession,
+    period_current: ReportingPeriodDB,
+    user_alice: UserDB,
+    user_bob: UserDB,
+) -> None:
+    db_session.add(ReportDB(
+        user_id=user_alice.id,
+        reporting_period_id=period_current.id,
+        estimated=False,
+        mood=4,
+    ))
+    db_session.add(ReportDB(
+        user_id=user_bob.id,
+        reporting_period_id=period_current.id,
+        estimated=False,
+        mood=1,
+    ))
+    await db_session.commit()
+    from mcp_server.data.tracker import get_moods_trend
+
+    result = await get_moods_trend(db_session, months=3, user_id=user_alice.id)
+    assert len(result["months"]) == 3
+    assert [u["user_name"] for u in result["user_summary"]] == ["Alice Smith"]
+    current = result["months"][-1]
+    assert [r["user_name"] for r in current["responses"]] == ["Alice Smith"]
+
+
+@pytest.mark.asyncio
+async def test_get_moods_trend_clamps_window(db_session: AsyncSession) -> None:
+    from mcp_server.data.tracker import MAX_TREND_MONTHS, get_moods_trend
+
+    result = await get_moods_trend(db_session, months=500)
+    assert result["window_months"] == MAX_TREND_MONTHS
+    assert len(result["months"]) == MAX_TREND_MONTHS

@@ -183,6 +183,60 @@ async def tracker_get_user_jira_issues(
     return _to_json(result)
 
 
+@mcp_requires(Action.ALL)
+async def tracker_get_moods(month: int, year: int) -> str:
+    """Get team mood data for one month (admin-only).
+
+    Mood is self-reported (1 = lowest, 5 = highest) when a person confirms
+    their monthly report. Returns JSON with the mood distribution, average,
+    response counts, and per-person responses (user_id, user_name, mood,
+    feedback text) — so individual moods ARE attributable here. Also includes
+    anonymous feedback texts, which are unattributable by design.
+
+    Args:
+        month: Calendar month (1-12).
+        year: Calendar year (e.g. 2026).
+    """
+    if not 1 <= month <= 12:
+        return _to_json({"error": f"Invalid month: {month}. Use 1-12."})
+
+    async with get_read_session() as session:
+        result = await tracker_data.get_moods(session, month=month, year=year)
+    return _to_json(result)
+
+
+@mcp_requires(Action.ALL)
+async def tracker_get_moods_trend(
+    months: int = 12,
+    user_id: str | None = None,
+) -> str:
+    """Get mood trend over the last N months, per person (admin-only).
+
+    Answers questions like "who has the lowest mood historically?" (see
+    user_summary, sorted lowest average first) or "how has X's mood evolved?"
+    (pass user_id to filter everything to one person). Returns JSON with:
+    months[] (average, response count, and named responses per month) and
+    user_summary[] (per-person average/min/max over the whole window).
+    Mood scale is 1 (lowest) to 5 (highest).
+
+    Args:
+        months: Window size in months, ending at the current month
+            (default 12, max 60).
+        user_id: Optional user UUID (from users_get_team) to filter to
+            one person.
+    """
+    uid: UUID | None = None
+    if user_id is not None:
+        try:
+            uid = UUID(user_id)
+        except ValueError:
+            return _to_json({"error": f"Invalid user_id: {user_id}"})
+
+    async with get_read_session() as session:
+        result = await tracker_data.get_moods_trend(session, months=months, user_id=uid)
+    return _to_json(result)
+
+
 def register_tracker_tools(server: FastMCP) -> None:
     """Register all Tracker tools on the given MCP server instance."""
     server.tool(annotations=READ_ONLY)(tracker_get_projects)
@@ -193,3 +247,6 @@ def register_tracker_tools(server: FastMCP) -> None:
     server.tool(annotations=READ_ONLY)(tracker_get_periods)
     # Reads live Jira, not our DB → open world.
     server.tool(annotations=READ_ONLY_OPEN_WORLD)(tracker_get_user_jira_issues)
+    # Admin-only (Action.ALL) — mood data is person-attributable.
+    server.tool(annotations=READ_ONLY)(tracker_get_moods)
+    server.tool(annotations=READ_ONLY)(tracker_get_moods_trend)

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from calendar import monthrange
 from collections import defaultdict
 from datetime import date
 from decimal import Decimal
@@ -23,10 +22,11 @@ from app.modules.tracker.models import (
     NonStaffCostDB,
     ProgressReportDB,
     ReportDB,
-    ReportPartDB,
     ReportingPeriodDB,
+    ReportPartDB,
     TrackerProjectSettingsDB,
 )
+from app.modules.tracker.models.anonymous_feedback import AnonymousFeedbackDB
 from app.modules.tracker.models.postponement import InvoicePostponementDB
 
 
@@ -600,3 +600,161 @@ async def get_user_jira_issues(
         return {"issues": [], "error": f"Jira connection failed: {e}"}
     finally:
         await client.close()
+
+
+# ---------------------------------------------------------------------------
+# 8. tracker_get_moods / tracker_get_moods_trend
+# ---------------------------------------------------------------------------
+
+MAX_TREND_MONTHS = 60
+
+_MOOD_SCALE = "1 (lowest) to 5 (highest)"
+
+
+def _months_back(n: int) -> list[tuple[int, int]]:
+    """The n (month, year) pairs up to and including the current month, oldest first."""
+    d = date.today().replace(day=1)
+    months: list[tuple[int, int]] = [(d.month, d.year)]
+    for _ in range(n - 1):
+        d = date(d.year - 1, 12, 1) if d.month == 1 else date(d.year, d.month - 1, 1)
+        months.append((d.month, d.year))
+    months.reverse()
+    return months
+
+
+async def _period_month_map(
+    session: AsyncSession, target: set[tuple[int, int]],
+) -> dict[UUID, tuple[int, int]]:
+    """period_id -> (month, year), restricted to the target months."""
+    rows = (await session.execute(select(ReportingPeriodDB.id, ReportingPeriodDB.date))).all()
+    return {pid: (d.month, d.year) for pid, d in rows if (d.month, d.year) in target}
+
+
+async def _mood_report_rows(
+    session: AsyncSession,
+    period_map: dict[UUID, tuple[int, int]],
+    user_id: UUID | None = None,
+) -> list[tuple[ReportDB, str, UUID]]:
+    """(report, user_name, user_id) for confirmed reports in the mapped periods."""
+    if not period_map:
+        return []
+    stmt = (
+        select(ReportDB, _user_full_name().label("user_name"), UserDB.id)
+        .join(UserDB, ReportDB.user_id == UserDB.id)
+        .where(
+            ReportDB.reporting_period_id.in_(period_map.keys()),
+            ReportDB.estimated.is_(False),
+        )
+    )
+    if user_id is not None:
+        stmt = stmt.where(ReportDB.user_id == user_id)
+    return list((await session.execute(stmt)).all())
+
+
+async def get_moods(session: AsyncSession, month: int, year: int) -> dict:
+    """Mood distribution + per-user responses + anonymous feedback for one month."""
+    period_map = await _period_month_map(session, {(month, year)})
+    rows = await _mood_report_rows(session, period_map)
+
+    distribution: dict[int, int] = {}
+    moods: list[int] = []
+    responses: list[dict] = []
+    for report, user_name, uid in rows:
+        if report.mood is not None:
+            distribution[report.mood] = distribution.get(report.mood, 0) + 1
+            moods.append(report.mood)
+        if report.mood is not None or report.feedback_text is not None:
+            responses.append({
+                "user_id": str(uid),
+                "user_name": user_name,
+                "mood": report.mood,
+                "feedback": report.feedback_text,
+            })
+
+    anon = (
+        await session.execute(
+            select(AnonymousFeedbackDB.text).where(
+                AnonymousFeedbackDB.month == month,
+                AnonymousFeedbackDB.year == year,
+            )
+        )
+    ).scalars().all()
+
+    return {
+        "month": month,
+        "year": year,
+        "mood_scale": _MOOD_SCALE,
+        "mood_distribution": dict(sorted(distribution.items())),
+        "total_reports": len(rows),
+        "total_responses": len(moods),
+        "average_mood": round(sum(moods) / len(moods), 2) if moods else None,
+        "responses": responses,
+        "anonymous_feedback": list(anon),
+    }
+
+
+async def get_moods_trend(
+    session: AsyncSession,
+    months: int = 12,
+    user_id: UUID | None = None,
+) -> dict:
+    """Per-month mood averages with named responses, plus a per-user summary
+    across the whole window (sorted lowest average first)."""
+    months = max(1, min(months, MAX_TREND_MONTHS))
+    target = _months_back(months)
+    period_map = await _period_month_map(session, set(target))
+    rows = await _mood_report_rows(session, period_map, user_id=user_id)
+
+    by_month: dict[tuple[int, int], list[dict]] = defaultdict(list)
+    moods_by_user: dict[str, dict] = {}
+    for report, user_name, uid in rows:
+        if report.mood is None and report.feedback_text is None:
+            continue
+        by_month[period_map[report.reporting_period_id]].append({
+            "user_id": str(uid),
+            "user_name": user_name,
+            "mood": report.mood,
+            "feedback": report.feedback_text,
+        })
+        if report.mood is not None:
+            entry = moods_by_user.setdefault(
+                str(uid), {"user_name": user_name, "moods": []},
+            )
+            entry["moods"].append(report.mood)
+
+    months_out = []
+    for m, y in target:
+        entries = by_month.get((m, y), [])
+        month_moods = [e["mood"] for e in entries if e["mood"] is not None]
+        months_out.append({
+            "month": m,
+            "year": y,
+            "label": date(y, m, 1).strftime("%b %Y"),
+            "average_mood": (
+                round(sum(month_moods) / len(month_moods), 2) if month_moods else None
+            ),
+            "total_responses": len(month_moods),
+            "responses": entries,
+        })
+
+    user_summary = sorted(
+        (
+            {
+                "user_id": uid,
+                "user_name": data["user_name"],
+                "responses": len(data["moods"]),
+                "average_mood": round(sum(data["moods"]) / len(data["moods"]), 2),
+                "min_mood": min(data["moods"]),
+                "max_mood": max(data["moods"]),
+            }
+            for uid, data in moods_by_user.items()
+        ),
+        key=lambda s: s["average_mood"],
+    )
+
+    return {
+        "window_months": months,
+        "mood_scale": _MOOD_SCALE,
+        "months": months_out,
+        "user_summary": user_summary,
+    }

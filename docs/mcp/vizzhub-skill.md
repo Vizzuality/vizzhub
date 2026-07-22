@@ -60,7 +60,7 @@ Playbook ── standalone (articles, linked by slug)
 - `users_get_team(functional_area="Frontend Developer")` filters by full name — not the short code
 - `dedication` is a decimal FTE value (e.g., 1.00 = full-time, 0.50 = half-time)
 
-### Tracker (7 tools)
+### Tracker (9 tools)
 
 | Tool | Use for | Key params |
 |------|---------|------------|
@@ -71,6 +71,8 @@ Playbook ── standalone (articles, linked by slug)
 | `tracker_get_project_progress(project_id)` | Completion % over time | `project_id` (UUID) |
 | `tracker_get_periods` | Reporting periods with status | `status` (unstarted/active/finished) |
 | `tracker_get_user_jira_issues(user_id, start_date, end_date)` | Jira issues assigned to a user | `user_id` (UUID), `start_date`/`end_date` (YYYY-MM-DD) |
+| `tracker_get_moods(month, year)` | Team mood for one month (admin-only) | `month` (1-12), `year` |
+| `tracker_get_moods_trend` | Per-person mood trend over N months (admin-only) | `months` (default 12, max 60), `user_id` (optional UUID) |
 
 **Returns:** `tracker_get_projects` → id, name, code, status, is_billable, currency, budget, start_date, end_date, project_manager, staff_cost, non_staff_cost, total_cost, burn_percentage, income. `tracker_get_project_detail` adds budget_lines (per FA), cost_summary with per-period breakdown, contract_rate, summary. `tracker_get_project_invoices` → id, code, amount, due_date, invoiced_on, milestone, observations, status (effective), stored_status, postpone_count, postponed_to. `tracker_get_user_jira_issues` → user email, issue_count, issues (key, summary, status, project_key, project_name, issue_type), site_url.
 
@@ -80,6 +82,7 @@ Playbook ── standalone (articles, linked by slug)
 - `burn_percentage` is null when budget is zero
 - `tracker_get_project_time(project_id, group_by="functional_area")` groups by role instead of person
 - Cost values are in the project's currency (check the `currency` field)
+- Mood is self-reported 1 (lowest) to 5 (highest) on report confirmation; named `responses` are person-attributable, `anonymous_feedback` is unattributable by design. "Who has the lowest mood historically" = first entry of `tracker_get_moods_trend`'s `user_summary` (sorted lowest average first)
 
 ### Scorecard (4 tools)
 

@@ -3,7 +3,7 @@
 import json
 from datetime import date
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
@@ -17,8 +17,8 @@ from app.modules.tracker.models import (
     InvoiceDB,
     ProgressReportDB,
     ReportDB,
-    ReportPartDB,
     ReportingPeriodDB,
+    ReportPartDB,
 )
 from mcp_server.data.base import override_session
 from mcp_server.server import create_mcp_server
@@ -353,3 +353,67 @@ async def test_tracker_get_user_jira_issues_jira_fails(db_session, seed_tracker)
     data = _parse_tool_result(result)
     assert "error" in data
     assert data["issues"] == []
+
+
+# tracker_get_moods / tracker_get_moods_trend
+
+
+@pytest_asyncio.fixture
+async def seed_moods(db_session: AsyncSession, seed_tracker: dict) -> dict:
+    """Add a mood to the seeded confirmed report (period 2026-01)."""
+    report = (await db_session.execute(
+        __import__("sqlalchemy").select(ReportDB)
+    )).scalars().first()
+    report.mood = 4
+    report.feedback_text = "Solid month"
+    await db_session.commit()
+    return seed_tracker
+
+
+@pytest.mark.asyncio
+async def test_tracker_get_moods(db_session, seed_moods) -> None:
+    server = create_mcp_server()
+    async with override_session(db_session):
+        result = await server.call_tool("tracker_get_moods", {"month": 1, "year": 2026})
+    data = _parse_tool_result(result)
+    assert data["average_mood"] == 4.0
+    assert data["responses"][0]["user_name"] == "Test User"
+    assert data["responses"][0]["feedback"] == "Solid month"
+
+
+@pytest.mark.asyncio
+async def test_tracker_get_moods_invalid_month(db_session, seed_moods) -> None:
+    server = create_mcp_server()
+    async with override_session(db_session):
+        result = await server.call_tool("tracker_get_moods", {"month": 13, "year": 2026})
+    data = _parse_tool_result(result)
+    assert "Invalid month" in data["error"]
+
+
+@pytest.mark.asyncio
+async def test_tracker_get_moods_trend_invalid_user(db_session, seed_moods) -> None:
+    server = create_mcp_server()
+    async with override_session(db_session):
+        result = await server.call_tool("tracker_get_moods_trend", {"user_id": "not-a-uuid"})
+    data = _parse_tool_result(result)
+    assert "Invalid user_id" in data["error"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("tool_name,args", [
+    ("tracker_get_moods", {"month": 1, "year": 2026}),
+    ("tracker_get_moods_trend", {}),
+])
+async def test_moods_tools_reject_non_admin(
+    db_session, seed_moods, restricted_user, tool_name, args,
+) -> None:
+    """Mood data is person-attributable — tracker:view alone must NOT unlock it."""
+    from mcp.server.fastmcp.exceptions import ToolError
+
+    from mcp_server.data.base import override_mcp_user
+
+    server = create_mcp_server()
+    async with override_session(db_session):
+        async with override_mcp_user(restricted_user):
+            with pytest.raises(ToolError, match=r"requires \*"):
+                await server.call_tool(tool_name, args)

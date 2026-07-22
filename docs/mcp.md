@@ -172,6 +172,33 @@ Reporting periods with report counts.
 
 **Returns:** JSON array of periods with `date`, `status`, `base_rate`, `report_count`, `confirmed_count`.
 
+### `tracker_get_moods`
+
+Team mood data for one month. **Admin-only** (`*` permission) — responses are
+person-attributable (mood is self-reported 1-5 on report confirmation).
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `month` | int | yes | Calendar month (1-12) |
+| `year` | int | yes | Calendar year |
+
+**Returns:** JSON with `mood_distribution`, `total_reports`, `total_responses`, `average_mood`, `responses` (per person: `user_id`, `user_name`, `mood`, `feedback`), and `anonymous_feedback` (unattributable texts).
+
+### `tracker_get_moods_trend`
+
+Mood trend over the last N months, per person. **Admin-only** (`*` permission).
+`user_summary` is sorted lowest average first, so "who has the lowest mood
+historically" is the first entry; pass `user_id` to follow one person.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `months` | int | no | Window size ending at the current month (default 12, max 60) |
+| `user_id` | string | no | Filter to one user (UUID from `users_get_team`) |
+
+**Returns:** JSON with `months[]` (`label`, `average_mood`, `total_responses`, named `responses[]`) and `user_summary[]` (`user_id`, `user_name`, `responses`, `average_mood`, `min_mood`, `max_mood`).
+
 ### `scorecard_get_project_scores`
 
 All scored projects with their latest overall score and dimension breakdown.
