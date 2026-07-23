@@ -74,6 +74,8 @@ export const portfolioApi = {
       if (filters.search) params.set('search', filters.search);
       if (filters.client_id) params.set('client_id', filters.client_id);
       if (filters.stage) params.set('stage', filters.stage);
+      if (filters.on_website !== undefined) params.set('on_website', String(filters.on_website));
+      if (filters.sort) params.set('sort', filters.sort);
       if (filters.page !== undefined) params.set('page', String(filters.page));
       if (filters.n !== undefined) params.set('n', String(filters.n));
       for (const id of filters.term_ids ?? []) params.append('term_ids', id);

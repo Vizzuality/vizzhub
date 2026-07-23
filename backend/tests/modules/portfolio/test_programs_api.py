@@ -382,7 +382,7 @@ async def test_index_is_paginated(viewer: AsyncClient, db_session: AsyncSession)
     assert body["total"] == 2
     assert body["pages"] == 2
     assert len(body["programs"]) == 1
-    assert body["programs"][0]["name"] == "Alpha Program"  # name order
+    assert body["programs"][0]["name"] == "Alpha Program"  # has a project → outranks Bare
 
     page2 = (await viewer.get("/api/portfolio/programs", params={"n": 1, "page": 2})).json()
     assert page2["programs"][0]["name"] == "Bare Program"
@@ -451,6 +451,66 @@ async def test_stage_filter(viewer: AsyncClient, db_session: AsyncSession) -> No
     body = resp.json()
     assert body["total"] == 1
     assert body["programs"][0]["name"] == "Piped Program"
+
+
+@pytest.mark.asyncio
+async def test_on_website_filter(viewer: AsyncClient, db_session: AsyncSession) -> None:
+    seed = await _seed_catalogue(db_session)
+    profile = (
+        await db_session.execute(
+            select(PortfolioProfileDB).where(PortfolioProfileDB.program_id == seed["prog"].id)
+        )
+    ).scalar_one()
+    profile.on_website = True
+    await db_session.commit()
+
+    on = (await viewer.get("/api/portfolio/programs", params={"on_website": "true"})).json()
+    assert [p["name"] for p in on["programs"]] == ["Alpha Program"]
+
+    # "no" also includes programs without a profile row (Bare Program)
+    off = (await viewer.get("/api/portfolio/programs", params={"on_website": "false"})).json()
+    assert [p["name"] for p in off["programs"]] == ["Bare Program"]
+
+    both = (await viewer.get("/api/portfolio/programs")).json()
+    assert both["total"] == 2
+
+
+@pytest.mark.asyncio
+async def test_sort_recent_default_orders_by_latest_project_created(
+    viewer: AsyncClient, db_session: AsyncSession
+) -> None:
+    seed = await _seed_catalogue(db_session)
+    # Give Bare Program a project created after Alpha's → Bare jumps first.
+    newer = ProjectDB(
+        name="Bare 2026",
+        is_billable=True,
+        is_absence=False,
+        status="live",
+        program_id=seed["bare"].id,
+    )
+    empty = ProgramDB(name="AAA Empty Program")  # no projects → last despite the name
+    db_session.add_all([newer, empty])
+    await db_session.commit()
+
+    default = (await viewer.get("/api/portfolio/programs")).json()
+    assert [p["name"] for p in default["programs"]] == [
+        "Bare Program",
+        "Alpha Program",
+        "AAA Empty Program",
+    ]
+
+    alpha = (await viewer.get("/api/portfolio/programs", params={"sort": "alpha"})).json()
+    assert [p["name"] for p in alpha["programs"]] == [
+        "AAA Empty Program",
+        "Alpha Program",
+        "Bare Program",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_sort_rejects_unknown_value(viewer: AsyncClient, db_session: AsyncSession) -> None:
+    resp = await viewer.get("/api/portfolio/programs", params={"sort": "bogus"})
+    assert resp.status_code == 400  # FastAPI validation mapped to 400 by global handler
 
 
 @pytest.mark.asyncio

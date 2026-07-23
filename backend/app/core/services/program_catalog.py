@@ -11,7 +11,7 @@ from collections import defaultdict
 from uuid import UUID
 
 import structlog
-from sqlalchemy import delete, exists, func, select
+from sqlalchemy import Select, delete, exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.client import ClientDB
@@ -153,6 +153,23 @@ async def _term_groups(db: AsyncSession, term_ids: list[UUID]) -> dict[UUID, set
     return groups
 
 
+def _apply_sort(query: Select, sort: str) -> Select:
+    """Non-search ordering. An active search keeps relevance ranking instead.
+
+    "recent" = latest project created inside the program, newest first;
+    programs with no projects sink to the end.
+    """
+    if sort == "alpha":
+        return query.order_by(ProgramDB.name)
+    last_created = (
+        select(func.max(ProjectDB.created_at))
+        .where(ProjectDB.program_id == ProgramDB.id)
+        .correlate(ProgramDB)
+        .scalar_subquery()
+    )
+    return query.order_by(last_created.desc().nulls_last(), ProgramDB.name)
+
+
 async def build_program_index(
     db: AsyncSession,
     *,
@@ -160,6 +177,8 @@ async def build_program_index(
     term_ids: list[UUID] | None = None,
     client_id: UUID | None = None,
     stage: str | None = None,
+    on_website: bool | None = None,
+    sort: str = "recent",
     page: int = 1,
     n: int = 24,
 ) -> ProgramIndexResponse:
@@ -169,6 +188,9 @@ async def build_program_index(
 
     if stage is not None:
         query = query.where(PortfolioProfileDB.stage == stage)
+    if on_website is not None:
+        # Programs without a profile row count as "not on website".
+        query = query.where(func.coalesce(PortfolioProfileDB.on_website, False).is_(on_website))
     if client_id is not None:
         query = query.where(
             exists(
@@ -212,7 +234,7 @@ async def build_program_index(
         )
     else:
         total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar_one()
-        query = query.order_by(ProgramDB.name)
+        query = _apply_sort(query, sort)
 
     pages = max(1, math.ceil(total / n))
     query = query.offset((page - 1) * n).limit(n)

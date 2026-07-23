@@ -180,8 +180,16 @@ async def list_programs(
             return resolved
         client_id = resolved
 
+    # Alphabetical keeps the tool's listing stable and predictable for LLMs
+    # (the web index defaults to newest-project-first).
     resp = await build_program_index(
-        session, term_ids=term_ids, client_id=client_id, stage=stage, page=page, n=limit
+        session,
+        term_ids=term_ids,
+        client_id=client_id,
+        stage=stage,
+        sort="alpha",
+        page=page,
+        n=limit,
     )
     programs = [_compact_program(p) for p in resp.programs]
     out = {"programs": programs, "total": resp.total, "pages": resp.pages, "page": page}

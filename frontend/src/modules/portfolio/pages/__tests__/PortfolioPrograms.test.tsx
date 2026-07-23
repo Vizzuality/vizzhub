@@ -138,6 +138,31 @@ describe('PortfolioPrograms', () => {
     expect(screen.getByText('All stages')).toBeInTheDocument();
   });
 
+  it('defaults to newest-first sort with no website filter', () => {
+    renderPage();
+    expect(screen.getByText('In website: all')).toBeInTheDocument();
+    expect(screen.getByText('Newest first')).toBeInTheDocument();
+    expect(mockUseProgramIndex).toHaveBeenCalledWith(
+      expect.objectContaining({ sort: 'recent', on_website: undefined }),
+    );
+  });
+
+  it('passes website filter and sort from the URL to the index query', () => {
+    renderPage({ initialEntries: ['/portfolio?website=yes&sort=alpha'] });
+    expect(mockUseProgramIndex).toHaveBeenCalledWith(
+      expect.objectContaining({ sort: 'alpha', on_website: true }),
+    );
+    expect(screen.getByText('In website: yes')).toBeInTheDocument();
+    expect(screen.getByText('Alphabetical')).toBeInTheDocument();
+  });
+
+  it('maps website=no to on_website false', () => {
+    renderPage({ initialEntries: ['/portfolio?website=no'] });
+    expect(mockUseProgramIndex).toHaveBeenCalledWith(
+      expect.objectContaining({ on_website: false }),
+    );
+  });
+
   it('shows pagination and navigates pages via URL state', () => {
     mockUseProgramIndex.mockReturnValue({
       data: { programs: [PROGRAM], total: 30, pages: 2 },

@@ -1,6 +1,6 @@
 """Program catalogue endpoints (F2). Read=portfolio:view, write=portfolio:manage."""
 
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 import structlog
@@ -44,11 +44,21 @@ async def program_index(
     term_ids: Annotated[list[UUID] | None, Query()] = None,
     client_id: Annotated[UUID | None, Query()] = None,
     stage: Annotated[str | None, Query()] = None,
+    on_website: Annotated[bool | None, Query()] = None,
+    sort: Annotated[Literal["recent", "alpha"], Query()] = "recent",
     page: Annotated[int, Query(ge=1)] = 1,
     n: Annotated[int, Query(ge=1, le=100)] = 24,
 ) -> ProgramIndexResponse:
     return await build_program_index(
-        db, search=search, term_ids=term_ids, client_id=client_id, stage=stage, page=page, n=n
+        db,
+        search=search,
+        term_ids=term_ids,
+        client_id=client_id,
+        stage=stage,
+        on_website=on_website,
+        sort=sort,
+        page=page,
+        n=n,
     )
 
 

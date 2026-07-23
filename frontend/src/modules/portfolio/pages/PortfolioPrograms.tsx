@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from '@/shared/components/ui/select';
 import { useProgramIndex, useUnassignedProjects, useStageOptions } from '../hooks/usePrograms';
+import type { ProgramSort } from '../types/portfolio';
 import { useTaxonomies } from '../hooks/useTaxonomies';
 import { ProgramCard } from '../components/ProgramCard';
 import { ProgramListRow } from '../components/ProgramListRow';
@@ -37,6 +38,8 @@ export default function PortfolioPrograms(): JSX.Element {
     terms: { defaultValue: '' }, // comma-joined term ids
     client: { defaultValue: '' },
     stage: { defaultValue: '' },
+    website: { defaultValue: '' }, // '' = all, 'yes', 'no'
+    sort: { defaultValue: 'recent' },
     page: { defaultValue: 1 },
   }));
   const { state, setState } = useUrlState(schema);
@@ -48,6 +51,8 @@ export default function PortfolioPrograms(): JSX.Element {
     term_ids: termIds.length ? termIds : undefined,
     client_id: state.client || undefined,
     stage: state.stage || undefined,
+    on_website: state.website === '' ? undefined : state.website === 'yes',
+    sort: state.sort as ProgramSort,
     page: state.page,
     n: PAGE_SIZE,
   });
@@ -78,7 +83,9 @@ export default function PortfolioPrograms(): JSX.Element {
     setState({ terms: next.join(','), page: 1 });
   };
 
-  const hasFilters = Boolean(state.search || termIds.length || state.client || state.stage);
+  const hasFilters = Boolean(
+    state.search || termIds.length || state.client || state.stage || state.website,
+  );
 
   if (isLoading) return <LoadingSpinner />;
   const programs = data?.programs ?? [];
@@ -118,13 +125,35 @@ export default function PortfolioPrograms(): JSX.Element {
             ))}
           </SelectContent>
         </Select>
+        <Select
+          value={state.website || 'all'}
+          onValueChange={(v) => setState({ website: v === 'all' ? '' : v, page: 1 })}
+        >
+          <SelectTrigger className="w-40" aria-label="Filter by website presence">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">In website: all</SelectItem>
+            <SelectItem value="yes">In website: yes</SelectItem>
+            <SelectItem value="no">In website: no</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={state.sort} onValueChange={(v) => setState({ sort: v, page: 1 })}>
+          <SelectTrigger className="w-40" aria-label="Sort programs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="recent">Newest first</SelectItem>
+            <SelectItem value="alpha">Alphabetical</SelectItem>
+          </SelectContent>
+        </Select>
         {hasFilters && (
           <Button
             variant="ghost"
             size="sm"
             onClick={() => {
               setLocalSearch('');
-              setState({ search: '', terms: '', client: '', stage: '', page: 1 });
+              setState({ search: '', terms: '', client: '', stage: '', website: '', page: 1 });
             }}
           >
             <X className="mr-1 h-3.5 w-3.5" />

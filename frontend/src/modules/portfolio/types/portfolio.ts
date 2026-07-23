@@ -154,11 +154,15 @@ export interface ProgramIndexResponse {
   pages: number;
 }
 
+export type ProgramSort = 'recent' | 'alpha';
+
 export interface ProgramIndexFilters {
   search?: string;
   term_ids?: string[];
   client_id?: string;
   stage?: string;
+  on_website?: boolean;
+  sort?: ProgramSort;
   page?: number;
   n?: number;
 }
