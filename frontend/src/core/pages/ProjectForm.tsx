@@ -190,6 +190,14 @@ function buildFormDefaults(
   };
 }
 
+function requiredMark(required: boolean): string {
+  return required ? ' *' : '';
+}
+
+function requiredWhenLive(required: boolean, message: string): (v: string) => boolean | string {
+  return (v) => !required || !!v.trim() || message;
+}
+
 function getSubmitButtonText(isPending: boolean, isEditMode: boolean): string {
   if (isPending) {
     return isEditMode ? 'Saving...' : 'Creating...';
@@ -645,7 +653,9 @@ export default function ProjectForm(): JSX.Element {
 
   // Integration requirements only bind live projects; proposals may stay blank.
   const isLive = currentStatus === 'live';
-  const needsSlackChannel = isLive && hasDependabotAlerts && !slackChannelId;
+  const jiraRequired = isLive && hasScorecard;
+  const githubRequired = isLive && hasDependabotAlerts;
+  const needsSlackChannel = githubRequired && !slackChannelId;
 
   const handleFormSubmit = (data: ProjectFormData): void => {
     setApiError(null);
@@ -1150,18 +1160,17 @@ export default function ProjectForm(): JSX.Element {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="jira_project_key" className="h-5 flex items-center">
-                        Jira Project Key{isLive && hasScorecard ? ' *' : ''}
+                        Jira Project Key{requiredMark(jiraRequired)}
                       </Label>
                       <Input
                         id="jira_project_key"
                         type="text"
                         placeholder="e.g., PROJ"
                         {...register('jira_project_key', {
-                          validate: (v) =>
-                            !isLive ||
-                            !hasScorecard ||
-                            !!v.trim() ||
+                          validate: requiredWhenLive(
+                            jiraRequired,
                             'Required when a live project has Scorecard enabled',
+                          ),
                         })}
                       />
                       {errors.jira_project_key && (
@@ -1170,7 +1179,7 @@ export default function ProjectForm(): JSX.Element {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="github_repo" className="h-5 flex items-center">
-                        GitHub Repository{isLive && hasDependabotAlerts ? ' *' : ''}
+                        GitHub Repository{requiredMark(githubRequired)}
                       </Label>
                       <Input
                         id="github_repo"
@@ -1178,11 +1187,10 @@ export default function ProjectForm(): JSX.Element {
                         placeholder="e.g., owner/repo"
                         {...register('github_repo', {
                           pattern: { value: /^$|^[^/]+\/[^/]+$/, message: 'Format: owner/repo' },
-                          validate: (v) =>
-                            !isLive ||
-                            !hasDependabotAlerts ||
-                            !!v.trim() ||
+                          validate: requiredWhenLive(
+                            githubRequired,
                             'Required when a live project has Dependabot Alerts enabled',
+                          ),
                         })}
                       />
                       {errors.github_repo && (
