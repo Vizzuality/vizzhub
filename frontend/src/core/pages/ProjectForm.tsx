@@ -506,13 +506,15 @@ export default function ProjectForm(): JSX.Element {
     }
   };
 
-  const needsSlackChannel = hasDependabotAlerts && !slackChannelId;
+  // Integration requirements only bind live projects; proposals may stay blank.
+  const isLive = currentStatus === 'live';
+  const needsSlackChannel = isLive && hasDependabotAlerts && !slackChannelId;
 
   const handleFormSubmit = (data: ProjectFormData): void => {
     setApiError(null);
 
     if (needsSlackChannel) {
-      setApiError('A Slack channel is required when Dependabot Alerts are enabled.');
+      setApiError('A Slack channel is required when a live project has Dependabot Alerts enabled.');
       return;
     }
 
@@ -753,8 +755,7 @@ export default function ProjectForm(): JSX.Element {
                     <div className="space-y-2 min-w-0">
                       <TooltipProvider>
                         <div className="h-5 flex items-center gap-2">
-                          <Label htmlFor="program_id">Program</Label>
-                          <span className="text-xs text-muted-foreground">(optional)</span>
+                          <Label htmlFor="program_id">Program *</Label>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
@@ -762,14 +763,18 @@ export default function ProjectForm(): JSX.Element {
                               </button>
                             </TooltipTrigger>
                             <TooltipContent side="top" className="max-w-xs">
-                              <p className="text-sm">Select if this project belongs to a program that includes several phases or contracts.</p>
+                              <p className="text-sm">Every project belongs to a program. Pick an existing one or create a new program for this project.</p>
                             </TooltipContent>
                           </Tooltip>
                         </div>
                       </TooltipProvider>
                       <div className="flex gap-3 items-start min-w-0">
-                        <NativeSelect id="program_id" className="flex-1 min-w-0" {...register('program_id')}>
-                          <option value="">None</option>
+                        <NativeSelect
+                          id="program_id"
+                          className="flex-1 min-w-0"
+                          {...register('program_id', { required: 'Program is required' })}
+                        >
+                          <option value="">Select a program…</option>
                           {programs.map((program) => (
                             <option key={program.id} value={program.id}>{program.name}</option>
                           ))}
@@ -798,6 +803,9 @@ export default function ProjectForm(): JSX.Element {
                           </Button>
                         )}
                       </div>
+                      {errors.program_id && (
+                        <p className="text-sm text-destructive">{errors.program_id.message}</p>
+                      )}
                       {showNewProgram && (
                         <div className="flex gap-2 items-center">
                           <Input
@@ -819,7 +827,7 @@ export default function ProjectForm(): JSX.Element {
                             disabled={!newProgramName.trim() || createProgramMutation.isPending}
                             onClick={async () => {
                               const created = await createProgramMutation.mutateAsync(newProgramName.trim());
-                              setValue('program_id', created.id);
+                              setValue('program_id', created.id, { shouldValidate: true, shouldDirty: true });
                               setNewProgramName('');
                               setShowNewProgram(false);
                             }}
@@ -1093,22 +1101,40 @@ export default function ProjectForm(): JSX.Element {
                 <CardContent className="pt-6 space-y-6">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="jira_project_key" className="h-5 flex items-center">Jira Project Key</Label>
+                      <Label htmlFor="jira_project_key" className="h-5 flex items-center">
+                        Jira Project Key{isLive && hasScorecard ? ' *' : ''}
+                      </Label>
                       <Input
                         id="jira_project_key"
                         type="text"
                         placeholder="e.g., PROJ"
-                        {...register('jira_project_key')}
+                        {...register('jira_project_key', {
+                          validate: (v) =>
+                            !isLive ||
+                            !hasScorecard ||
+                            !!v.trim() ||
+                            'Required when a live project has Scorecard enabled',
+                        })}
                       />
+                      {errors.jira_project_key && (
+                        <p className="text-sm text-destructive">{errors.jira_project_key.message}</p>
+                      )}
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="github_repo" className="h-5 flex items-center">GitHub Repository</Label>
+                      <Label htmlFor="github_repo" className="h-5 flex items-center">
+                        GitHub Repository{isLive && hasDependabotAlerts ? ' *' : ''}
+                      </Label>
                       <Input
                         id="github_repo"
                         type="text"
                         placeholder="e.g., owner/repo"
                         {...register('github_repo', {
                           pattern: { value: /^$|^[^/]+\/[^/]+$/, message: 'Format: owner/repo' },
+                          validate: (v) =>
+                            !isLive ||
+                            !hasDependabotAlerts ||
+                            !!v.trim() ||
+                            'Required when a live project has Dependabot Alerts enabled',
                         })}
                       />
                       {errors.github_repo && (

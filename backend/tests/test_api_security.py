@@ -14,6 +14,13 @@ Tests cover:
 import pytest
 from httpx import AsyncClient
 
+from tests.conftest import DEFAULT_PROGRAM_ID
+
+
+@pytest.fixture(autouse=True)
+def _seed_program(default_program: str) -> None:
+    """Projects require a program on create; seed the shared one for every test."""
+
 
 class TestProjectsSQLInjection:
     """SQL injection prevention tests for projects endpoints."""
@@ -35,6 +42,7 @@ class TestProjectsCascadeDelete:
         create_response = await client.post(
             "/api/projects",
             json={
+                "program_id": DEFAULT_PROGRAM_ID,
                 "name": "Project to Delete",
                 "code": "Project to Delete",
                 "jira_project_key": "TEST",
@@ -71,6 +79,7 @@ class TestProjectsInputValidation:
         create_response = await client.post(
             "/api/projects",
             json={
+                "program_id": DEFAULT_PROGRAM_ID,
                 "name": "Original Name",
                 "code": "ORIG",
                 "jira_project_key": "ORIG",
@@ -81,7 +90,7 @@ class TestProjectsInputValidation:
 
         update_response = await client.patch(
             f"/api/projects/{project_id}",
-            json={"name": "Updated Name", "code": "Updated Name"},
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Updated Name", "code": "Updated Name"},
         )
         assert update_response.status_code == 200
         data = update_response.json()
@@ -105,7 +114,11 @@ class TestCollectorsValidation:
         """Test that error occurs when project has no jira_project_key."""
         create_response = await client.post(
             "/api/projects",
-            json={"name": "Project Without Jira Key", "code": "Project Without Jira Key"},
+            json={
+                "program_id": DEFAULT_PROGRAM_ID,
+                "name": "Project Without Jira Key",
+                "code": "Project Without Jira Key",
+            },
         )
         project_id = create_response.json()["id"]
 
@@ -121,6 +134,7 @@ class TestCollectorsValidation:
         create_response = await client.post(
             "/api/projects",
             json={
+                "program_id": DEFAULT_PROGRAM_ID,
                 "name": "Project With Jira Key",
                 "code": "Project With Jira Key",
                 "jira_project_key": "TEST",
@@ -151,6 +165,7 @@ class TestCollectorsJQLInjection:
         create_response = await client.post(
             "/api/projects",
             json={
+                "program_id": DEFAULT_PROGRAM_ID,
                 "name": "Test Project",
                 "code": "Test Project",
                 "jira_project_key": jql_injection,
@@ -181,7 +196,12 @@ class TestMetricsValidation:
         """Test that invalid date format returns 422."""
         await client.post(
             "/api/projects",
-            json={"name": "Test Project", "code": "Test Project", "jira_project_key": "TEST"},
+            json={
+                "program_id": DEFAULT_PROGRAM_ID,
+                "name": "Test Project",
+                "code": "Test Project",
+                "jira_project_key": "TEST",
+            },
         )
 
         response = await client.post(
@@ -234,7 +254,11 @@ class TestScoresEdgeCases:
         """Test that no metrics returns 404 error."""
         create_response = await client.post(
             "/api/projects",
-            json={"name": "Project Without Metrics", "code": "Project Without Metrics"},
+            json={
+                "program_id": DEFAULT_PROGRAM_ID,
+                "name": "Project Without Metrics",
+                "code": "Project Without Metrics",
+            },
         )
         project_id = create_response.json()["id"]
 

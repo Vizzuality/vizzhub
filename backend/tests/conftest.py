@@ -219,6 +219,22 @@ async def db_session() -> AsyncGenerator[AsyncSession]:
     await engine.dispose()
 
 
+# Shared program for tests exercising project creation (program_id is required).
+DEFAULT_PROGRAM_ID = "00000000-0000-0000-0000-000000000777"
+
+
+@pytest_asyncio.fixture
+async def default_program(db_session: AsyncSession) -> str:
+    await db_session.execute(
+        text(
+            "INSERT INTO programs (id, name) VALUES (:id, 'Default Program') ON CONFLICT DO NOTHING"
+        ),
+        {"id": DEFAULT_PROGRAM_ID},
+    )
+    await db_session.commit()
+    return DEFAULT_PROGRAM_ID
+
+
 @pytest_asyncio.fixture
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
     async def override_get_db() -> AsyncGenerator[AsyncSession]:

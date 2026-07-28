@@ -111,6 +111,35 @@ def _apply_project_data(project: ProjectDB, data: ProjectCreateV2) -> None:
     project.client_id = data.client_id
 
 
+LIVE_GATE_FIELDS = {
+    "status",
+    "has_scorecard",
+    "has_dependabot_alerts",
+    "jira_project_key",
+    "github_repo",
+}
+
+
+def _require_live_integrations(project: ProjectDB) -> None:
+    """A live project must carry the integration fields its features consume.
+
+    Proposals may stay blank; the gate fires when a write leaves the project
+    live (create/replace, or a PATCH touching status or the involved fields).
+    """
+    if project.status != "live":
+        return
+    missing = []
+    if project.has_scorecard and not project.jira_project_key:
+        missing.append("Jira project key (required by Scorecard)")
+    if project.has_dependabot_alerts and not project.github_repo:
+        missing.append("GitHub repository (required by Dependabot alerts)")
+    if missing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"A live project needs: {'; '.join(missing)}",
+        )
+
+
 @dataclass
 class ProjectListFilters:
     search: str | None = None
@@ -229,13 +258,18 @@ async def list_project_managers(
     return [ProjectManagerOption(id=str(row.id), name=row.display_name) for row in result.all()]
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    responses={400: {"description": "Live project missing required integration fields"}},
+)
 @limiter.limit("20/minute")
 async def create_project(
     request: Request, project: ProjectCreateV2, admin: ProjectManager, db: DBSession
 ) -> ProjectResponse:
     db_project = ProjectDB()
     _apply_project_data(db_project, project)
+    _require_live_integrations(db_project)
     db.add(db_project)
     await db.flush()
     await db.refresh(db_project)
@@ -302,7 +336,10 @@ async def get_project(
     )
 
 
-@router.put("/{project_id}")
+@router.put(
+    "/{project_id}",
+    responses={400: {"description": "Live project missing required integration fields"}},
+)
 @limiter.limit("30/minute")
 async def replace_project(
     request: Request,
@@ -315,6 +352,7 @@ async def replace_project(
     project = await get_project_or_404(db, project_id)
     old_budget, old_start, old_end = project.budget, project.start_date, project.end_date
     _apply_project_data(project, data)
+    _require_live_integrations(project)
     await db.flush()
     result = await provision_project_accrual(db, project=project)
     await db.refresh(project)
@@ -333,7 +371,10 @@ async def replace_project(
     return _project_to_response(project)
 
 
-@router.patch("/{project_id}")
+@router.patch(
+    "/{project_id}",
+    responses={400: {"description": "Live project missing required integration fields"}},
+)
 @limiter.limit("30/minute")
 async def update_project(
     request: Request,
@@ -377,6 +418,11 @@ async def update_project(
         if field == "jira_project_key" and value:
             value = value.upper()
         setattr(project, field, value)
+    # Gate only when the patch touches the involved fields, so unrelated
+    # patches (e.g. portfolio program unassign) still work on legacy live
+    # projects that predate the requirement.
+    if LIVE_GATE_FIELDS & update_data.keys():
+        _require_live_integrations(project)
     await db.flush()
     await db.refresh(project)
     result = await provision_project_accrual(db, project=project)

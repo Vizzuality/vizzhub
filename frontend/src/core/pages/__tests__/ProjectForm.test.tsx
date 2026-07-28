@@ -21,8 +21,8 @@ const projectNoDependabot = {
   id: 'project-123',
   name: 'Test Project',
   code: 'TST.001',
-  program_id: null,
-  program_name: null,
+  program_id: 'prog-1',
+  program_name: 'Program Alpha',
   is_billable: true,
   has_scorecard: true,
   has_dependabot_alerts: false,
@@ -78,12 +78,27 @@ function renderEdit(projectId = 'project-123'): ReturnType<typeof render> {
   );
 }
 
+async function selectProgram(user: ReturnType<typeof userEvent.setup>): Promise<void> {
+  // Program is mandatory; wait for the options request to settle before selecting.
+  await waitFor(() => {
+    const select = screen.getByLabelText(/program \*/i);
+    expect(within(select).getAllByRole('option').map((o) => o.textContent)).toContain(
+      'Program Alpha',
+    );
+  });
+  await user.selectOptions(screen.getByLabelText(/program \*/i), 'prog-1');
+}
+
 async function fillRequiredFields(
   user: ReturnType<typeof userEvent.setup>,
   overrides: { name?: string; code?: string; budget?: string } = {},
 ): Promise<void> {
   await user.type(screen.getByLabelText(/name \*/i), overrides.name ?? 'Test Project');
   await user.type(screen.getByLabelText(/code \*/i), overrides.code ?? 'TST.001');
+  await selectProgram(user);
+  // Default status is live with Scorecard/Dependabot on → jira + github required.
+  await user.type(screen.getByLabelText(/jira project key/i), 'TST');
+  await user.type(screen.getByLabelText(/github repository/i), 'org/tst');
   await user.type(
     screen.getByLabelText(/Budget in original currency/i),
     overrides.budget ?? '50000',
@@ -237,8 +252,69 @@ describe('ProjectForm', () => {
       await user.click(screen.getByRole('button', { name: /create project/i }));
 
       expect(
-        await screen.findByText(/slack channel is required when dependabot alerts are enabled/i),
+        await screen.findByText(
+          /slack channel is required when a live project has dependabot alerts enabled/i,
+        ),
       ).toBeInTheDocument();
+    });
+
+    it('requires a program before submitting', async () => {
+      const user = userEvent.setup();
+      renderCreate();
+      await screen.findByText('New Project');
+
+      await user.type(screen.getByLabelText(/name \*/i), 'Test');
+      await user.type(screen.getByLabelText(/code \*/i), 'TST');
+      await user.click(screen.getByRole('button', { name: /create project/i }));
+
+      expect(await screen.findByText('Program is required')).toBeInTheDocument();
+    });
+
+    it('requires jira and github for live projects with scorecard/dependabot enabled', async () => {
+      const user = userEvent.setup();
+      renderCreate();
+      await screen.findByText('New Project');
+
+      await user.type(screen.getByLabelText(/name \*/i), 'Test');
+      await user.type(screen.getByLabelText(/code \*/i), 'TST');
+      await selectProgram(user);
+      await user.click(screen.getByRole('button', { name: /create project/i }));
+
+      expect(
+        await screen.findByText(/required when a live project has scorecard enabled/i),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/required when a live project has dependabot alerts enabled/i),
+      ).toBeInTheDocument();
+    });
+
+    it('allows blank jira/github when status is proposal', async () => {
+      const user = userEvent.setup();
+
+      server.use(
+        http.get(`${BASE}/admin/integrations/status`, () =>
+          HttpResponse.json(slackDisconnected),
+        ),
+      );
+
+      renderCreate();
+      await screen.findByText('New Project');
+
+      await user.type(screen.getByLabelText(/name \*/i), 'Blank Proposal');
+      await user.type(screen.getByLabelText(/code \*/i), 'BLK');
+      await selectProgram(user);
+      await user.type(screen.getByLabelText(/Budget in original currency/i), '50000');
+      fireEvent.change(screen.getByLabelText(/start date/i), { target: { value: '2026-01-01' } });
+      fireEvent.change(screen.getByLabelText(/end date/i), { target: { value: '2026-12-31' } });
+      await user.selectOptions(screen.getByLabelText(/status/i), 'proposal');
+
+      await user.click(screen.getByRole('button', { name: /create project/i }));
+
+      // No jira/github validation errors — flow reaches the proposal dialog
+      expect(await screen.findByText('Save as Proposal?')).toBeInTheDocument();
+      expect(
+        screen.queryByText(/required when a live project/i),
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -723,6 +799,8 @@ describe('ProjectForm', () => {
       await user.click(screen.getByLabelText('Dependabot Alerts'));
       await user.type(screen.getByLabelText(/^Name/i), 'P1');
       await user.type(screen.getByLabelText(/^Code/i), 'P.1');
+      await selectProgram(user);
+      await user.type(screen.getByLabelText(/jira project key/i), 'P1');
       await user.type(screen.getByLabelText(/Budget in original currency/i), '1000');
       await user.type(screen.getByLabelText(/Start Date/i), '2026-01-01');
       await user.type(screen.getByLabelText(/End Date/i), '2026-12-31');
@@ -748,6 +826,8 @@ describe('ProjectForm', () => {
       await user.click(screen.getByLabelText('Dependabot Alerts'));
       await user.type(screen.getByLabelText(/^Name/i), 'P1');
       await user.type(screen.getByLabelText(/^Code/i), 'P.1');
+      await selectProgram(user);
+      await user.type(screen.getByLabelText(/jira project key/i), 'P1');
       await user.type(screen.getByLabelText(/Budget in original currency/i), '1000');
       await user.type(screen.getByLabelText(/Start Date/i), '2026-01-01');
       await user.type(screen.getByLabelText(/End Date/i), '2026-12-31');

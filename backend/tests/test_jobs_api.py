@@ -5,6 +5,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import AsyncClient
 
+from tests.conftest import DEFAULT_PROGRAM_ID
+
+
+@pytest.fixture(autouse=True)
+def _seed_program(default_program: str) -> None:
+    """Projects require a program on create; seed the shared one for every test."""
+
 
 class TestJobsAPI:
     """Tests for Jobs API endpoints."""
@@ -22,6 +29,7 @@ class TestJobsAPI:
         project_response = await client.post(
             "/api/projects",
             json={
+                "program_id": DEFAULT_PROGRAM_ID,
                 "name": "Test Project",
                 "code": "TST",
                 "jira_project_key": "TEST",
@@ -63,7 +71,7 @@ class TestJobsAPI:
         """Create capture history job fails with invalid date range."""
         project_response = await client.post(
             "/api/projects",
-            json={"name": "Test Project", "code": "Test Project"},
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Test Project", "code": "Test Project"},
         )
         project_id = project_response.json()["id"]
 
@@ -95,7 +103,7 @@ class TestJobsAPI:
         """Get job returns job details."""
         project_response = await client.post(
             "/api/projects",
-            json={"name": "Test Project", "code": "Test Project"},
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Test Project", "code": "Test Project"},
         )
         project_id = project_response.json()["id"]
 

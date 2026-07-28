@@ -12,7 +12,12 @@ from app.core.models.project import ProjectDB
 from app.core.models.role import RoleDB
 from app.core.permissions.roles import ROLE_PERMISSIONS
 from app.main import app
-from tests.conftest import seed_roles
+from tests.conftest import DEFAULT_PROGRAM_ID, seed_roles
+
+
+@pytest.fixture(autouse=True)
+def _seed_program(default_program: str) -> None:
+    """Projects require a program on create; seed the shared one for every test."""
 
 
 def _user_permissions() -> list[str]:
@@ -65,7 +70,12 @@ class TestRegularUserDenied:
     async def test_user_cannot_create_project(self, client: AsyncClient):
         resp = await client.post(
             "/api/projects",
-            json={"name": "New", "code": "NEW", "status": "active"},
+            json={
+                "program_id": DEFAULT_PROGRAM_ID,
+                "name": "New",
+                "code": "NEW",
+                "status": "active",
+            },
         )
         assert resp.status_code == 403
 
@@ -106,7 +116,7 @@ class TestManagerAccess:
     async def test_manager_can_create_project(self, client: AsyncClient):
         resp = await client.post(
             "/api/projects",
-            json={"name": "Manager Project", "code": "MGR"},
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Manager Project", "code": "MGR"},
         )
         assert resp.status_code in (200, 201)
 

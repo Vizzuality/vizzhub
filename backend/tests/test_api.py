@@ -3,6 +3,13 @@
 import pytest
 from httpx import AsyncClient
 
+from tests.conftest import DEFAULT_PROGRAM_ID
+
+
+@pytest.fixture(autouse=True)
+def _seed_program(default_program: str) -> None:
+    """Projects require a program on create; seed the shared one for every test."""
+
 
 class TestHealthCheck:
     @pytest.mark.asyncio
@@ -19,6 +26,7 @@ class TestCreateProject:
         response = await client.post(
             "/api/projects",
             json={
+                "program_id": DEFAULT_PROGRAM_ID,
                 "name": "Test Project",
                 "code": "TST.001",
                 "jira_project_key": "TEST",
@@ -40,6 +48,7 @@ class TestCreateProject:
         response = await client.post(
             "/api/projects",
             json={
+                "program_id": DEFAULT_PROGRAM_ID,
                 "name": "Dated Project",
                 "code": "TST",
                 "start_date": "2026-01-01",
@@ -57,7 +66,11 @@ class TestCreateProject:
         """Create project with only required name field."""
         response = await client.post(
             "/api/projects",
-            json={"name": "Minimal Project", "code": "Minimal Project"},
+            json={
+                "program_id": DEFAULT_PROGRAM_ID,
+                "name": "Minimal Project",
+                "code": "Minimal Project",
+            },
         )
         assert response.status_code == 201
         data = response.json()
@@ -70,7 +83,7 @@ class TestCreateProject:
         """Creating project with empty name should return 422."""
         response = await client.post(
             "/api/projects",
-            json={"name": "", "code": "TST"},
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "", "code": "TST"},
         )
         assert response.status_code == 400
         data = response.json()
@@ -91,6 +104,7 @@ class TestCreateProject:
         response = await client.post(
             "/api/projects",
             json={
+                "program_id": DEFAULT_PROGRAM_ID,
                 "name": "Test Project",
                 "code": "TST",
                 "github_repo": "invalid-format",
@@ -106,6 +120,7 @@ class TestCreateProject:
         response = await client.post(
             "/api/projects",
             json={
+                "program_id": DEFAULT_PROGRAM_ID,
                 "name": "Test Project",
                 "code": "TST",
                 "github_repo": "org/repo/extra",
@@ -118,7 +133,7 @@ class TestCreateProject:
         """Name exceeding 255 characters should return 422."""
         response = await client.post(
             "/api/projects",
-            json={"name": "x" * 256, "code": "TST"},
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "x" * 256, "code": "TST"},
         )
         assert response.status_code == 400
 
@@ -127,8 +142,14 @@ class TestListProjects:
     @pytest.mark.asyncio
     async def test_list_projects_returns_all(self, client: AsyncClient) -> None:
         """List all projects returns correct count."""
-        await client.post("/api/projects", json={"name": "Project 1", "code": "Project 1"})
-        await client.post("/api/projects", json={"name": "Project 2", "code": "Project 2"})
+        await client.post(
+            "/api/projects",
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Project 1", "code": "Project 1"},
+        )
+        await client.post(
+            "/api/projects",
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Project 2", "code": "Project 2"},
+        )
 
         response = await client.get("/api/projects")
         assert response.status_code == 200
@@ -152,7 +173,12 @@ class TestGetProject:
         """Get single project by ID."""
         create_response = await client.post(
             "/api/projects",
-            json={"name": "Test Project", "code": "Test Project", "jira_project_key": "TEST"},
+            json={
+                "program_id": DEFAULT_PROGRAM_ID,
+                "name": "Test Project",
+                "code": "Test Project",
+                "jira_project_key": "TEST",
+            },
         )
         project_id = create_response.json()["id"]
 
@@ -187,6 +213,7 @@ class TestUpdateProject:
         create_response = await client.post(
             "/api/projects",
             json={
+                "program_id": DEFAULT_PROGRAM_ID,
                 "name": "Original Name",
                 "code": "TST",
                 "jira_project_key": "ORIG",
@@ -197,7 +224,7 @@ class TestUpdateProject:
 
         response = await client.patch(
             f"/api/projects/{project_id}",
-            json={"name": "Updated Name", "code": "Updated Name"},
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Updated Name", "code": "Updated Name"},
         )
         assert response.status_code == 200
         data = response.json()
@@ -210,13 +237,18 @@ class TestUpdateProject:
         """PATCH can update all fields at once."""
         create_response = await client.post(
             "/api/projects",
-            json={"name": "Original Name", "code": "Original Name"},
+            json={
+                "program_id": DEFAULT_PROGRAM_ID,
+                "name": "Original Name",
+                "code": "Original Name",
+            },
         )
         project_id = create_response.json()["id"]
 
         response = await client.patch(
             f"/api/projects/{project_id}",
             json={
+                "program_id": DEFAULT_PROGRAM_ID,
                 "name": "New Name",
                 "code": "TST",
                 "jira_project_key": "NEW",
@@ -235,7 +267,7 @@ class TestUpdateProject:
         fake_uuid = "00000000-0000-0000-0000-000000000000"
         response = await client.patch(
             f"/api/projects/{fake_uuid}",
-            json={"name": "Updated Name", "code": "Updated Name"},
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Updated Name", "code": "Updated Name"},
         )
         assert response.status_code == 404
 
@@ -244,7 +276,7 @@ class TestUpdateProject:
         """PATCH with invalid github_repo returns 422."""
         create_response = await client.post(
             "/api/projects",
-            json={"name": "Test Project", "code": "Test Project"},
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Test Project", "code": "Test Project"},
         )
         project_id = create_response.json()["id"]
 
@@ -259,7 +291,7 @@ class TestUpdateProject:
         """PATCH with empty name returns 422."""
         create_response = await client.post(
             "/api/projects",
-            json={"name": "Test Project", "code": "Test Project"},
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Test Project", "code": "Test Project"},
         )
         project_id = create_response.json()["id"]
 
@@ -274,7 +306,7 @@ class TestUpdateProject:
         """PATCH with empty body returns project unchanged."""
         create_response = await client.post(
             "/api/projects",
-            json={"name": "Test Project", "code": "Test Project"},
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Test Project", "code": "Test Project"},
         )
         project_id = create_response.json()["id"]
 
@@ -294,6 +326,7 @@ class TestReplaceProject:
         create_response = await client.post(
             "/api/projects",
             json={
+                "program_id": DEFAULT_PROGRAM_ID,
                 "name": "Original Project",
                 "code": "TST",
                 "jira_project_key": "ORIG",
@@ -305,6 +338,7 @@ class TestReplaceProject:
         response = await client.put(
             f"/api/projects/{project_id}",
             json={
+                "program_id": DEFAULT_PROGRAM_ID,
                 "name": "Replaced Project",
                 "code": "TST",
                 "jira_project_key": "REPL",
@@ -327,6 +361,7 @@ class TestReplaceProject:
         create_response = await client.post(
             "/api/projects",
             json={
+                "program_id": DEFAULT_PROGRAM_ID,
                 "name": "Original",
                 "code": "TST",
                 "jira_project_key": "ORIG",
@@ -339,7 +374,7 @@ class TestReplaceProject:
 
         response = await client.put(
             f"/api/projects/{project_id}",
-            json={"name": "Only Name", "code": "Only Name"},
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Only Name", "code": "Only Name"},
         )
         assert response.status_code == 200
         data = response.json()
@@ -355,7 +390,7 @@ class TestReplaceProject:
         fake_uuid = "00000000-0000-0000-0000-000000000000"
         response = await client.put(
             f"/api/projects/{fake_uuid}",
-            json={"name": "New Name", "code": "New Name"},
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "New Name", "code": "New Name"},
         )
         assert response.status_code == 404
 
@@ -364,7 +399,7 @@ class TestReplaceProject:
         """PUT without name returns 422."""
         create_response = await client.post(
             "/api/projects",
-            json={"name": "Test", "code": "Test"},
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Test", "code": "Test"},
         )
         project_id = create_response.json()["id"]
 
@@ -381,7 +416,7 @@ class TestDeleteProject:
         """Delete existing project returns 204."""
         create_response = await client.post(
             "/api/projects",
-            json={"name": "To Delete", "code": "To Delete"},
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "To Delete", "code": "To Delete"},
         )
         project_id = create_response.json()["id"]
 
@@ -401,9 +436,13 @@ class TestDeleteProject:
     @pytest.mark.asyncio
     async def test_delete_project_removes_from_list(self, client: AsyncClient) -> None:
         """Deleted project no longer appears in list."""
-        await client.post("/api/projects", json={"name": "Project 1", "code": "Project 1"})
+        await client.post(
+            "/api/projects",
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Project 1", "code": "Project 1"},
+        )
         create_response = await client.post(
-            "/api/projects", json={"name": "Project 2", "code": "Project 2"}
+            "/api/projects",
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Project 2", "code": "Project 2"},
         )
         project_id = create_response.json()["id"]
 

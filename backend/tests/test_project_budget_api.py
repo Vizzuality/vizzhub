@@ -10,6 +10,13 @@ from uuid import uuid4
 import pytest
 from httpx import AsyncClient
 
+from tests.conftest import DEFAULT_PROGRAM_ID
+
+
+@pytest.fixture(autouse=True)
+def _seed_program(default_program: str) -> None:
+    """Projects require a program on create; seed the shared one for every test."""
+
 
 @pytest.fixture
 def _ensure_scoring_config(scoring_config):
@@ -26,7 +33,11 @@ class TestProjectBudgetEndpoint:
         budget: float | None = None,
     ) -> dict:
         """Helper to create a project and return its data."""
-        payload: dict = {"name": "Budget Test Project", "code": "BTP.001"}
+        payload: dict = {
+            "program_id": DEFAULT_PROGRAM_ID,
+            "name": "Budget Test Project",
+            "code": "BTP.001",
+        }
         if budget is not None:
             payload["budget"] = budget
         resp = await client.post("/api/projects", json=payload)

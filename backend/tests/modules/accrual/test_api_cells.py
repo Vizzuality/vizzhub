@@ -12,6 +12,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import TokenData, get_current_user
+from tests.conftest import DEFAULT_PROGRAM_ID
+
+
+@pytest.fixture(autouse=True)
+def _seed_program(default_program: str) -> None:
+    """Projects require a program on create; seed the shared one for every test."""
+
+
 from app.core.models.user import UserDB
 from app.database import get_db
 from app.main import app
@@ -323,6 +331,7 @@ async def test_grid_returns_lines_and_cells(
     p = await client.post(
         "/api/projects",
         json={
+            "program_id": DEFAULT_PROGRAM_ID,
             "name": "Grid Test",
             "code": "TEST.AC.GRID1",
             "currency": "USD",
@@ -461,8 +470,11 @@ async def test_grid_filter_by_status(
     live = await client.post(
         "/api/projects",
         json={
+            "program_id": DEFAULT_PROGRAM_ID,
             "name": "Live one",
             "code": "TEST.AC.GRID.LIVE",
+            "has_scorecard": False,
+            "has_dependabot_alerts": False,
             "currency": "USD",
             "status": "live",
             "budget": 1000,
@@ -473,6 +485,7 @@ async def test_grid_filter_by_status(
     prop = await client.post(
         "/api/projects",
         json={
+            "program_id": DEFAULT_PROGRAM_ID,
             "name": "Proposal",
             "code": "TEST.AC.GRID.PROP",
             "currency": "USD",
@@ -638,6 +651,7 @@ async def test_grid_flags_dates_diverged(
     diverged_proj = await client.post(
         "/api/projects",
         json={
+            "program_id": DEFAULT_PROGRAM_ID,
             "name": "Diverged",
             "code": "TEST.AC.DIV",
             "currency": "euro",
@@ -649,6 +663,7 @@ async def test_grid_flags_dates_diverged(
     matching_proj = await client.post(
         "/api/projects",
         json={
+            "program_id": DEFAULT_PROGRAM_ID,
             "name": "Matching",
             "code": "TEST.AC.MATCH",
             "currency": "euro",
@@ -660,6 +675,7 @@ async def test_grid_flags_dates_diverged(
     sibling_a = await client.post(
         "/api/projects",
         json={
+            "program_id": DEFAULT_PROGRAM_ID,
             "name": "Sibling A",
             "code": "TEST.AC.SIBA",
             "currency": "euro",
@@ -671,6 +687,7 @@ async def test_grid_flags_dates_diverged(
     sibling_b = await client.post(
         "/api/projects",
         json={
+            "program_id": DEFAULT_PROGRAM_ID,
             "name": "Sibling B",
             "code": "TEST.AC.SIBB",
             "currency": "euro",
@@ -728,6 +745,7 @@ async def test_grid_excel_line_never_flagged_dates_diverged(
     excel_proj = await client.post(
         "/api/projects",
         json={
+            "program_id": DEFAULT_PROGRAM_ID,
             "name": "Excel Divergent",
             "code": "TEST.AC.XLS",
             "currency": "euro",

@@ -11,6 +11,13 @@ import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy import text
 
+from tests.conftest import DEFAULT_PROGRAM_ID
+
+
+@pytest.fixture(autouse=True)
+def _seed_program(default_program: str) -> None:
+    """Projects require a program on create; seed the shared one for every test."""
+
 
 @pytest_asyncio.fixture
 async def pm_user(db_session) -> dict:
@@ -35,7 +42,13 @@ class TestJiraProjectKeyUppercase:
     async def test_create_uppercases_key(self, client: AsyncClient) -> None:
         """POST /projects should uppercase jira_project_key."""
         response = await client.post(
-            "/api/projects", json={"name": "Test", "code": "Test", "jira_project_key": "fip"}
+            "/api/projects",
+            json={
+                "program_id": DEFAULT_PROGRAM_ID,
+                "name": "Test",
+                "code": "Test",
+                "jira_project_key": "fip",
+            },
         )
         assert response.status_code == 201
         assert response.json()["jira_project_key"] == "FIP"
@@ -43,7 +56,9 @@ class TestJiraProjectKeyUppercase:
     @pytest.mark.asyncio
     async def test_create_preserves_none(self, client: AsyncClient) -> None:
         """POST /projects should preserve None for jira_project_key."""
-        response = await client.post("/api/projects", json={"name": "Test", "code": "Test"})
+        response = await client.post(
+            "/api/projects", json={"program_id": DEFAULT_PROGRAM_ID, "name": "Test", "code": "Test"}
+        )
         assert response.status_code == 201
         assert response.json()["jira_project_key"] is None
 
@@ -54,6 +69,7 @@ class TestJiraProjectKeyUppercase:
             response = await client.post(
                 "/api/projects",
                 json={
+                    "program_id": DEFAULT_PROGRAM_ID,
                     "name": f"Test {input_key}",
                     "code": f"T{input_key}",
                     "jira_project_key": input_key,
@@ -83,7 +99,10 @@ class TestProjectPagination:
     async def test_pagination_navigation(self, client: AsyncClient) -> None:
         """Page navigation returns correct slices."""
         for i in range(5):
-            await client.post("/api/projects", json={"name": f"Project {i}", "code": f"P{i}"})
+            await client.post(
+                "/api/projects",
+                json={"program_id": DEFAULT_PROGRAM_ID, "name": f"Project {i}", "code": f"P{i}"},
+            )
 
         response = await client.get("/api/projects", params={"page_size": 2, "page": 1})
         data = response.json()
@@ -98,8 +117,18 @@ class TestProjectPagination:
     @pytest.mark.asyncio
     async def test_search_case_insensitive(self, client: AsyncClient) -> None:
         """Search filters by name case-insensitively."""
-        await client.post("/api/projects", json={"name": "Alpha Bravo", "code": "Alpha Bravo"})
-        await client.post("/api/projects", json={"name": "Charlie Delta", "code": "Charlie Delta"})
+        await client.post(
+            "/api/projects",
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Alpha Bravo", "code": "Alpha Bravo"},
+        )
+        await client.post(
+            "/api/projects",
+            json={
+                "program_id": DEFAULT_PROGRAM_ID,
+                "name": "Charlie Delta",
+                "code": "Charlie Delta",
+            },
+        )
 
         response = await client.get("/api/projects", params={"search": "alpha"})
         data = response.json()
@@ -109,8 +138,14 @@ class TestProjectPagination:
     @pytest.mark.asyncio
     async def test_search_escapes_wildcards(self, client: AsyncClient) -> None:
         """Search with SQL wildcards should not match everything."""
-        await client.post("/api/projects", json={"name": "Alpha", "code": "Alpha"})
-        await client.post("/api/projects", json={"name": "Bravo", "code": "Bravo"})
+        await client.post(
+            "/api/projects",
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Alpha", "code": "Alpha"},
+        )
+        await client.post(
+            "/api/projects",
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Bravo", "code": "Bravo"},
+        )
 
         response = await client.get("/api/projects", params={"search": "%"})
         assert response.json()["total"] == 0
@@ -121,9 +156,20 @@ class TestProjectPagination:
     @pytest.mark.asyncio
     async def test_status_filter(self, client: AsyncClient) -> None:
         """Status filter returns only matching projects."""
-        resp = await client.post("/api/projects", json={"name": "Active", "code": "Active"})
+        resp = await client.post(
+            "/api/projects",
+            json={
+                "program_id": DEFAULT_PROGRAM_ID,
+                "name": "Active",
+                "code": "Active",
+                "jira_project_key": "ACT",
+                "github_repo": "org/active",
+            },
+        )
         pid = resp.json()["id"]
-        await client.post("/api/projects", json={"name": "Done", "code": "Done"})
+        await client.post(
+            "/api/projects", json={"program_id": DEFAULT_PROGRAM_ID, "name": "Done", "code": "Done"}
+        )
         await client.patch(f"/api/projects/{pid}", json={"status": "live"})
 
         response = await client.get("/api/projects", params={"status": "live"})
@@ -136,11 +182,21 @@ class TestProjectPagination:
         """Date range filter returns matching projects."""
         await client.post(
             "/api/projects",
-            json={"name": "Early", "code": "Early", "start_date": "2025-01-15"},
+            json={
+                "program_id": DEFAULT_PROGRAM_ID,
+                "name": "Early",
+                "code": "Early",
+                "start_date": "2025-01-15",
+            },
         )
         await client.post(
             "/api/projects",
-            json={"name": "Late", "code": "Late", "start_date": "2025-06-15"},
+            json={
+                "program_id": DEFAULT_PROGRAM_ID,
+                "name": "Late",
+                "code": "Late",
+                "start_date": "2025-06-15",
+            },
         )
 
         response = await client.get(
@@ -156,15 +212,30 @@ class TestProjectPagination:
         """Multiple filters combine with AND logic."""
         await client.post(
             "/api/projects",
-            json={"name": "Alpha Active", "code": "Alpha Active", "start_date": "2025-03-01"},
+            json={
+                "program_id": DEFAULT_PROGRAM_ID,
+                "name": "Alpha Active",
+                "code": "Alpha Active",
+                "start_date": "2025-03-01",
+            },
         )
         await client.post(
             "/api/projects",
-            json={"name": "Alpha Old", "code": "Alpha Old", "start_date": "2024-01-01"},
+            json={
+                "program_id": DEFAULT_PROGRAM_ID,
+                "name": "Alpha Old",
+                "code": "Alpha Old",
+                "start_date": "2024-01-01",
+            },
         )
         await client.post(
             "/api/projects",
-            json={"name": "Bravo Active", "code": "Bravo Active", "start_date": "2025-03-01"},
+            json={
+                "program_id": DEFAULT_PROGRAM_ID,
+                "name": "Bravo Active",
+                "code": "Bravo Active",
+                "start_date": "2025-03-01",
+            },
         )
 
         response = await client.get(
@@ -181,8 +252,13 @@ class TestProjectPagination:
     @pytest.mark.asyncio
     async def test_sort_asc(self, client: AsyncClient) -> None:
         """Sort by name ascending."""
-        await client.post("/api/projects", json={"name": "Zulu", "code": "Zulu"})
-        await client.post("/api/projects", json={"name": "Alpha", "code": "Alpha"})
+        await client.post(
+            "/api/projects", json={"program_id": DEFAULT_PROGRAM_ID, "name": "Zulu", "code": "Zulu"}
+        )
+        await client.post(
+            "/api/projects",
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Alpha", "code": "Alpha"},
+        )
 
         response = await client.get("/api/projects", params={"sort": "name", "order": "asc"})
         data = response.json()
@@ -192,8 +268,13 @@ class TestProjectPagination:
     @pytest.mark.asyncio
     async def test_sort_desc(self, client: AsyncClient) -> None:
         """Sort by name descending."""
-        await client.post("/api/projects", json={"name": "Alpha", "code": "Alpha"})
-        await client.post("/api/projects", json={"name": "Zulu", "code": "Zulu"})
+        await client.post(
+            "/api/projects",
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Alpha", "code": "Alpha"},
+        )
+        await client.post(
+            "/api/projects", json={"program_id": DEFAULT_PROGRAM_ID, "name": "Zulu", "code": "Zulu"}
+        )
 
         response = await client.get("/api/projects", params={"sort": "name", "order": "desc"})
         data = response.json()
@@ -203,7 +284,9 @@ class TestProjectPagination:
     @pytest.mark.asyncio
     async def test_invalid_sort_ignored(self, client: AsyncClient) -> None:
         """Invalid sort field falls back to created_at."""
-        await client.post("/api/projects", json={"name": "Test", "code": "Test"})
+        await client.post(
+            "/api/projects", json={"program_id": DEFAULT_PROGRAM_ID, "name": "Test", "code": "Test"}
+        )
 
         response = await client.get("/api/projects", params={"sort": "invalid_field"})
         assert response.status_code == 200
@@ -211,7 +294,10 @@ class TestProjectPagination:
     @pytest.mark.asyncio
     async def test_empty_results(self, client: AsyncClient) -> None:
         """Search with no matches returns empty items."""
-        await client.post("/api/projects", json={"name": "Alpha", "code": "Alpha"})
+        await client.post(
+            "/api/projects",
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Alpha", "code": "Alpha"},
+        )
 
         response = await client.get("/api/projects", params={"search": "nonexistent"})
         data = response.json()
@@ -223,7 +309,10 @@ class TestProjectPagination:
     async def test_pagination_metadata(self, client: AsyncClient) -> None:
         """Pagination metadata is accurate."""
         for i in range(7):
-            await client.post("/api/projects", json={"name": f"Project {i}", "code": f"P{i}"})
+            await client.post(
+                "/api/projects",
+                json={"program_id": DEFAULT_PROGRAM_ID, "name": f"Project {i}", "code": f"P{i}"},
+            )
 
         response = await client.get("/api/projects", params={"page_size": 3, "page": 2})
         data = response.json()
@@ -237,7 +326,10 @@ class TestProjectPagination:
     async def test_search_resets_pagination_context(self, client: AsyncClient) -> None:
         """Searching while on page 2 returns from beginning of results."""
         for i in range(5):
-            await client.post("/api/projects", json={"name": f"Project {i}", "code": f"P{i}"})
+            await client.post(
+                "/api/projects",
+                json={"program_id": DEFAULT_PROGRAM_ID, "name": f"Project {i}", "code": f"P{i}"},
+            )
 
         response = await client.get(
             "/api/projects", params={"search": "Project", "page": 1, "page_size": 2}
@@ -254,8 +346,14 @@ class TestLightweightMode:
     @pytest.mark.asyncio
     async def test_lightweight_returns_summaries(self, client: AsyncClient) -> None:
         """Lightweight mode returns id and name only."""
-        await client.post("/api/projects", json={"name": "Project A", "code": "Project A"})
-        await client.post("/api/projects", json={"name": "Project B", "code": "Project B"})
+        await client.post(
+            "/api/projects",
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Project A", "code": "Project A"},
+        )
+        await client.post(
+            "/api/projects",
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Project B", "code": "Project B"},
+        )
 
         response = await client.get("/api/projects", params={"lightweight": "true"})
         assert response.status_code == 200
@@ -270,8 +368,13 @@ class TestLightweightMode:
     @pytest.mark.asyncio
     async def test_lightweight_sorted_by_name(self, client: AsyncClient) -> None:
         """Lightweight results are sorted alphabetically by name."""
-        await client.post("/api/projects", json={"name": "Zulu", "code": "Zulu"})
-        await client.post("/api/projects", json={"name": "Alpha", "code": "Alpha"})
+        await client.post(
+            "/api/projects", json={"program_id": DEFAULT_PROGRAM_ID, "name": "Zulu", "code": "Zulu"}
+        )
+        await client.post(
+            "/api/projects",
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Alpha", "code": "Alpha"},
+        )
 
         response = await client.get("/api/projects", params={"lightweight": "true"})
         data = response.json()
@@ -302,6 +405,7 @@ class TestOriginalBudgetProvisioning:
         resp = await client.post(
             "/api/projects",
             json={
+                "program_id": DEFAULT_PROGRAM_ID,
                 "name": "Acme",
                 "code": "ACME.1",
                 "currency": "dollar",
@@ -328,7 +432,12 @@ class TestOriginalBudgetProvisioning:
         """
         created = await client.post(
             "/api/projects",
-            json={"name": "Keep", "code": "KEEP.1", "budget": 50000},
+            json={
+                "program_id": DEFAULT_PROGRAM_ID,
+                "name": "Keep",
+                "code": "KEEP.1",
+                "budget": 50000,
+            },
         )
         assert created.status_code == 201, created.text
         project_id = created.json()["id"]
@@ -337,6 +446,7 @@ class TestOriginalBudgetProvisioning:
         resp = await client.put(
             f"/api/projects/{project_id}",
             json={
+                "program_id": DEFAULT_PROGRAM_ID,
                 "name": "Keep",
                 "code": "KEEP.1",
                 "currency": "GBP",
@@ -391,6 +501,135 @@ class TestBudgetPreview:
         assert resp.json() == {"budget_eur": None}
 
 
+class TestLiveIntegrationGate:
+    """Live projects need jira/github when scorecard/dependabot are enabled."""
+
+    @pytest.mark.asyncio
+    async def test_create_requires_program(self, client: AsyncClient) -> None:
+        resp = await client.post("/api/projects", json={"name": "Orphan", "code": "ORP"})
+        assert resp.status_code == 400  # FastAPI validation mapped to 400 by global handler
+
+    @pytest.mark.asyncio
+    async def test_create_live_without_jira_rejected(self, client: AsyncClient) -> None:
+        resp = await client.post(
+            "/api/projects",
+            json={
+                "program_id": DEFAULT_PROGRAM_ID,
+                "name": "Live no jira",
+                "code": "LNJ",
+                "status": "live",
+                "github_repo": "org/repo",
+            },
+        )
+        assert resp.status_code == 400
+        assert "Jira project key" in resp.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_create_live_without_github_rejected(self, client: AsyncClient) -> None:
+        resp = await client.post(
+            "/api/projects",
+            json={
+                "program_id": DEFAULT_PROGRAM_ID,
+                "name": "Live no repo",
+                "code": "LNR",
+                "status": "live",
+                "jira_project_key": "LNR",
+            },
+        )
+        assert resp.status_code == 400
+        assert "GitHub repository" in resp.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_create_proposal_with_blank_fields_allowed(self, client: AsyncClient) -> None:
+        resp = await client.post(
+            "/api/projects",
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Prop", "code": "PROP"},
+        )
+        assert resp.status_code == 201
+        assert resp.json()["status"] == "proposal"
+
+    @pytest.mark.asyncio
+    async def test_create_live_with_toggles_off_allowed(self, client: AsyncClient) -> None:
+        resp = await client.post(
+            "/api/projects",
+            json={
+                "program_id": DEFAULT_PROGRAM_ID,
+                "name": "Live plain",
+                "code": "LPL",
+                "status": "live",
+                "has_scorecard": False,
+                "has_dependabot_alerts": False,
+            },
+        )
+        assert resp.status_code == 201
+
+    @pytest.mark.asyncio
+    async def test_transition_to_live_without_fields_rejected(self, client: AsyncClient) -> None:
+        created = await client.post(
+            "/api/projects",
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Prop2", "code": "PROP2"},
+        )
+        pid = created.json()["id"]
+        resp = await client.patch(f"/api/projects/{pid}", json={"status": "live"})
+        assert resp.status_code == 400
+        detail = resp.json()["detail"]
+        assert "Jira project key" in detail and "GitHub repository" in detail
+
+    @pytest.mark.asyncio
+    async def test_transition_to_live_with_fields_in_same_patch_ok(
+        self, client: AsyncClient
+    ) -> None:
+        created = await client.post(
+            "/api/projects",
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Prop3", "code": "PROP3"},
+        )
+        pid = created.json()["id"]
+        resp = await client.patch(
+            f"/api/projects/{pid}",
+            json={"status": "live", "jira_project_key": "P3", "github_repo": "org/p3"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "live"
+
+    @pytest.mark.asyncio
+    async def test_unrelated_patch_on_legacy_live_project_still_works(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        """Legacy live projects missing the fields accept patches that don't touch the gate."""
+        await db_session.execute(
+            text(
+                "INSERT INTO projects (id, name, status, has_scorecard, currency, is_billable, "
+                "is_absence, has_dependabot_alerts, has_budget_alerts) "
+                "VALUES (gen_random_uuid(), 'Legacy', 'live', true, 'euro', true, false, "
+                "false, false)"
+            )
+        )
+        result = await db_session.execute(text("SELECT id FROM projects WHERE name = 'Legacy'"))
+        pid = str(result.one().id)
+        await db_session.commit()
+        resp = await client.patch(f"/api/projects/{pid}", json={"program_id": None})
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_blanking_jira_on_live_scorecard_project_rejected(
+        self, client: AsyncClient
+    ) -> None:
+        created = await client.post(
+            "/api/projects",
+            json={
+                "program_id": DEFAULT_PROGRAM_ID,
+                "name": "Live full",
+                "code": "LFU",
+                "status": "live",
+                "jira_project_key": "LFU",
+                "github_repo": "org/lfu",
+            },
+        )
+        pid = created.json()["id"]
+        resp = await client.patch(f"/api/projects/{pid}", json={"jira_project_key": None})
+        assert resp.status_code == 400
+
+
 class TestProjectManagerFilter:
     """Test project_manager_id filter and /project-managers endpoint."""
 
@@ -410,9 +649,16 @@ class TestProjectManagerFilter:
         """Returns only users assigned as PM on at least one project."""
         await client.post(
             "/api/projects",
-            json={"name": "PM Project", "code": "PMP", "project_manager_id": pm_user["id"]},
+            json={
+                "program_id": DEFAULT_PROGRAM_ID,
+                "name": "PM Project",
+                "code": "PMP",
+                "project_manager_id": pm_user["id"],
+            },
         )
-        await client.post("/api/projects", json={"name": "No PM", "code": "NP"})
+        await client.post(
+            "/api/projects", json={"program_id": DEFAULT_PROGRAM_ID, "name": "No PM", "code": "NP"}
+        )
 
         response = await client.get("/api/projects/project-managers")
         assert response.status_code == 200
@@ -430,9 +676,17 @@ class TestProjectManagerFilter:
         """project_manager_id filter returns only matching projects."""
         await client.post(
             "/api/projects",
-            json={"name": "Managed", "code": "MAN", "project_manager_id": pm_user["id"]},
+            json={
+                "program_id": DEFAULT_PROGRAM_ID,
+                "name": "Managed",
+                "code": "MAN",
+                "project_manager_id": pm_user["id"],
+            },
         )
-        await client.post("/api/projects", json={"name": "Unmanaged", "code": "UNM"})
+        await client.post(
+            "/api/projects",
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Unmanaged", "code": "UNM"},
+        )
 
         response = await client.get(
             "/api/projects",

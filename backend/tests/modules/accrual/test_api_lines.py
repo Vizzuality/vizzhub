@@ -18,6 +18,13 @@ from app.main import app
 from app.modules.accrual.models.accrual_cell import AccrualCellDB, CellSource
 from app.modules.accrual.models.accrual_line import AccrualLineDB, LineSource
 from app.modules.accrual.models.accrual_line_project import AccrualLineProjectDB
+from tests.conftest import DEFAULT_PROGRAM_ID
+
+
+@pytest.fixture(autouse=True)
+def _seed_program(default_program: str) -> None:
+    """Projects require a program on create; seed the shared one for every test."""
+
 
 _DEV_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 
@@ -33,7 +40,12 @@ async def _ensure_dev_user(db_session: AsyncSession) -> None:
 async def _make_project(client: AsyncClient, code: str) -> str:
     resp = await client.post(
         "/api/projects",
-        json={"name": f"P {code}", "code": code, "currency": "USD"},
+        json={
+            "program_id": DEFAULT_PROGRAM_ID,
+            "name": f"P {code}",
+            "code": code,
+            "currency": "USD",
+        },
     )
     assert resp.status_code in (200, 201), resp.text
     return resp.json()["id"]
@@ -72,7 +84,9 @@ async def test_create_line_window_validation(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_get_line_detail_and_404(client: AsyncClient) -> None:
-    create = await client.post("/api/accrual/lines", json={"name": "L", "value_eur": 50})
+    create = await client.post(
+        "/api/accrual/lines", json={"program_id": DEFAULT_PROGRAM_ID, "name": "L", "value_eur": 50}
+    )
     line_id = create.json()["id"]
     ok = await client.get(f"/api/accrual/lines/{line_id}")
     assert ok.status_code == 200
@@ -86,13 +100,18 @@ async def test_get_line_detail_and_404(client: AsyncClient) -> None:
 async def test_update_line_partial(client: AsyncClient) -> None:
     create = await client.post(
         "/api/accrual/lines",
-        json={"name": "Old", "value_eur": 100, "currency": "USD"},
+        json={"program_id": DEFAULT_PROGRAM_ID, "name": "Old", "value_eur": 100, "currency": "USD"},
     )
     line_id = create.json()["id"]
 
     resp = await client.patch(
         f"/api/accrual/lines/{line_id}",
-        json={"name": "Renamed", "value_eur": 999, "window_start": "2027-01-01"},
+        json={
+            "program_id": DEFAULT_PROGRAM_ID,
+            "name": "Renamed",
+            "value_eur": 999,
+            "window_start": "2027-01-01",
+        },
     )
     assert resp.status_code == 200, resp.text
     body = resp.json()
@@ -118,7 +137,7 @@ async def test_update_line_window_validation(client: AsyncClient) -> None:
 async def test_update_line_404(client: AsyncClient) -> None:
     resp = await client.patch(
         "/api/accrual/lines/00000000-0000-0000-0000-0000000000ff",
-        json={"name": "X"},
+        json={"program_id": DEFAULT_PROGRAM_ID, "name": "X"},
     )
     assert resp.status_code == 404, resp.text
 
@@ -165,7 +184,9 @@ async def test_delete_line_404(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_link_and_unlink_project(client: AsyncClient, db_session: AsyncSession) -> None:
-    create = await client.post("/api/accrual/lines", json={"name": "L", "value_eur": 100})
+    create = await client.post(
+        "/api/accrual/lines", json={"program_id": DEFAULT_PROGRAM_ID, "name": "L", "value_eur": 100}
+    )
     line_id = create.json()["id"]
     pid = await _make_project(client, "TEST.LN.LNK1")
 
@@ -187,7 +208,9 @@ async def test_link_and_unlink_project(client: AsyncClient, db_session: AsyncSes
 
 @pytest.mark.asyncio
 async def test_unlink_project_not_linked_404(client: AsyncClient) -> None:
-    create = await client.post("/api/accrual/lines", json={"name": "L", "value_eur": 100})
+    create = await client.post(
+        "/api/accrual/lines", json={"program_id": DEFAULT_PROGRAM_ID, "name": "L", "value_eur": 100}
+    )
     line_id = create.json()["id"]
     pid = await _make_project(client, "TEST.LN.UNL1")
     resp = await client.delete(f"/api/accrual/lines/{line_id}/projects/{pid}")
@@ -256,7 +279,9 @@ async def test_patch_line_clears_rate(client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_patch_line_rejects_non_positive_rate(client: AsyncClient) -> None:
     """A rate of 0 (or negative) must be rejected with 400 (Pydantic → global handler)."""
-    create = await client.post("/api/accrual/lines", json={"name": "L", "value_eur": 100})
+    create = await client.post(
+        "/api/accrual/lines", json={"program_id": DEFAULT_PROGRAM_ID, "name": "L", "value_eur": 100}
+    )
     assert create.status_code == 201, create.text
     line_id = create.json()["id"]
 
