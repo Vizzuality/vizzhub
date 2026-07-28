@@ -194,6 +194,21 @@ function requiredMark(required: boolean): string {
   return required ? ' *' : '';
 }
 
+// Integration requirements only bind live projects; proposals may stay blank.
+function liveRequirements(
+  status: ProjectStatus,
+  hasScorecard: boolean,
+  hasDependabotAlerts: boolean,
+  slackChannelId: string,
+): { jiraRequired: boolean; githubRequired: boolean; needsSlackChannel: boolean } {
+  const isLive = status === 'live';
+  return {
+    jiraRequired: isLive && hasScorecard,
+    githubRequired: isLive && hasDependabotAlerts,
+    needsSlackChannel: isLive && hasDependabotAlerts && !slackChannelId,
+  };
+}
+
 function requiredWhenLive(required: boolean, message: string): (v: string) => boolean | string {
   return (v) => !required || !!v.trim() || message;
 }
@@ -651,11 +666,12 @@ export default function ProjectForm(): JSX.Element {
     }
   };
 
-  // Integration requirements only bind live projects; proposals may stay blank.
-  const isLive = currentStatus === 'live';
-  const jiraRequired = isLive && hasScorecard;
-  const githubRequired = isLive && hasDependabotAlerts;
-  const needsSlackChannel = githubRequired && !slackChannelId;
+  const { jiraRequired, githubRequired, needsSlackChannel } = liveRequirements(
+    currentStatus,
+    hasScorecard,
+    hasDependabotAlerts,
+    slackChannelId,
+  );
 
   const handleFormSubmit = (data: ProjectFormData): void => {
     setApiError(null);
