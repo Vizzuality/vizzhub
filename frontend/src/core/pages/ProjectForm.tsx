@@ -83,7 +83,6 @@ import {
   Loader2,
   Plus,
   Info,
-  X,
   Check,
   ChevronsUpDown,
 } from 'lucide-react';
@@ -314,7 +313,10 @@ export default function ProjectForm(): JSX.Element {
   const { data: project, isLoading: isLoadingProject, isError: isProjectError } =
     useProject(id ?? '');
   const { data: programsData } = usePrograms();
-  const programs: ProgramSummary[] = programsData ?? [];
+  const programs: ProgramSummary[] = useMemo(
+    () => [...(programsData ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
+    [programsData],
+  );
   const createProgramMutation = useCreateProgram();
   const { data: currentMetrics } = useCurrentPeriodMetrics(id ?? '');
 
@@ -464,10 +466,10 @@ export default function ProjectForm(): JSX.Element {
     startDate ?? '',
   );
   const currentStatus = watch('status');
-  const currentProgramId = watch('program_id');
   const currentManagerId = watch('project_manager_id');
   const [pmOpen, setPmOpen] = useState(false);
   const [clientOpen, setClientOpen] = useState(false);
+  const [programOpen, setProgramOpen] = useState(false);
   const currentClientId = watch('client_id');
   const { data: clientOptions = [] } = useClientOptions();
 
@@ -771,28 +773,55 @@ export default function ProjectForm(): JSX.Element {
                         </div>
                       </TooltipProvider>
                       <div className="flex gap-3 items-start min-w-0">
-                        <NativeSelect
-                          id="program_id"
-                          className="flex-1 min-w-0"
-                          {...register('program_id', { required: 'Program is required' })}
-                        >
-                          <option value="">Select a program…</option>
-                          {programs.map((program) => (
-                            <option key={program.id} value={program.id}>{program.name}</option>
-                          ))}
-                        </NativeSelect>
-                        {!showNewProgram && currentProgramId && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setValue('program_id', '')}
-                            className="shrink-0 h-10 w-10 text-muted-foreground hover:text-foreground"
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
-                        )}
-                        {!showNewProgram && !currentProgramId && (
+                        <Controller
+                          name="program_id"
+                          control={control}
+                          rules={{ required: 'Program is required' }}
+                          render={({ field }) => (
+                            <Popover open={programOpen} onOpenChange={setProgramOpen}>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  id="program_id"
+                                  variant="outline"
+                                  role="combobox"
+                                  aria-expanded={programOpen}
+                                  className="flex-1 min-w-0 justify-between font-normal"
+                                >
+                                  <span className="truncate">
+                                    {field.value
+                                      ? programs.find((p) => p.id === field.value)?.name ?? 'Unknown'
+                                      : 'Select a program…'}
+                                  </span>
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                                <Command>
+                                  <CommandInput placeholder="Search programs..." />
+                                  <CommandList>
+                                    <CommandEmpty>No program found.</CommandEmpty>
+                                    <CommandGroup>
+                                      {programs.map((program) => (
+                                        <CommandItem
+                                          key={program.id}
+                                          value={program.name}
+                                          onSelect={() => {
+                                            field.onChange(program.id);
+                                            setProgramOpen(false);
+                                          }}
+                                        >
+                                          <Check className={cn('mr-2 h-4 w-4', field.value === program.id ? 'opacity-100' : 'opacity-0')} />
+                                          <span className="truncate">{program.name}</span>
+                                        </CommandItem>
+                                      ))}
+                                    </CommandGroup>
+                                  </CommandList>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
+                          )}
+                        />
+                        {!showNewProgram && (
                           <Button
                             type="button"
                             variant="ghost"

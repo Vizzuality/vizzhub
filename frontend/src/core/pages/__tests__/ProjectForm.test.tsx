@@ -79,14 +79,9 @@ function renderEdit(projectId = 'project-123'): ReturnType<typeof render> {
 }
 
 async function selectProgram(user: ReturnType<typeof userEvent.setup>): Promise<void> {
-  // Program is mandatory; wait for the options request to settle before selecting.
-  await waitFor(() => {
-    const select = screen.getByLabelText(/program \*/i);
-    expect(within(select).getAllByRole('option').map((o) => o.textContent)).toContain(
-      'Program Alpha',
-    );
-  });
-  await user.selectOptions(screen.getByLabelText(/program \*/i), 'prog-1');
+  // Program is mandatory; the field is a searchable combobox (Popover/Command).
+  await user.click(screen.getByRole('combobox', { name: /program \*/i }));
+  await user.click(await screen.findByRole('option', { name: 'Program Alpha' }));
 }
 
 async function fillRequiredFields(
@@ -751,15 +746,19 @@ describe('ProjectForm', () => {
   });
 
   describe('Create Mode — Program Selection', () => {
-    it('renders program dropdown with loaded programs', async () => {
+    it('renders program combobox with searchable loaded programs', async () => {
+      const user = userEvent.setup();
       renderCreate();
       await screen.findByText('New Project');
 
-      await waitFor(() => {
-        const programSelect = screen.getByLabelText(/program/i);
-        const options = within(programSelect).getAllByRole('option');
-        expect(options.map((o) => o.textContent)).toContain('Program Alpha');
-      });
+      await user.click(screen.getByRole('combobox', { name: /program \*/i }));
+      expect(await screen.findByRole('option', { name: 'Program Alpha' })).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Search programs...')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('option', { name: 'Program Alpha' }));
+      expect(screen.getByRole('combobox', { name: /program \*/i })).toHaveTextContent(
+        'Program Alpha',
+      );
     });
 
     it('shows inline program creation form', async () => {
