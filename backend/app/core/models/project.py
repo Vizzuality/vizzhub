@@ -11,6 +11,8 @@ from sqlalchemy.sql import func
 
 from app.database import Base
 
+_ON_DELETE_SET_NULL = "SET NULL"
+
 
 class ProjectStatus(str, Enum):
     """Project lifecycle status."""
@@ -72,12 +74,12 @@ class ProjectDB(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     program_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
-        ForeignKey("programs.id", ondelete="SET NULL"),
+        ForeignKey("programs.id", ondelete=_ON_DELETE_SET_NULL),
         nullable=True,
     )
     client_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
-        ForeignKey("clients.id", ondelete="SET NULL"),
+        ForeignKey("clients.id", ondelete=_ON_DELETE_SET_NULL),
         nullable=True,
     )
     code: Mapped[str | None] = mapped_column(String(100), nullable=True)
@@ -100,7 +102,7 @@ class ProjectDB(Base):
     slack_channel_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
     project_manager_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="SET NULL"),
+        ForeignKey("users.id", ondelete=_ON_DELETE_SET_NULL),
         nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

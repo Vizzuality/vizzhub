@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useNavigationGuard } from '@/core/contexts/NavigationGuardContext';
-import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { useForm, useFieldArray, Controller, type Control } from 'react-hook-form';
 import type {
   BudgetPreviewResponse,
   ProjectCreate,
@@ -270,12 +270,12 @@ function HeaderActions({
   isPending,
   onMarkFinished,
   onReopen,
-}: {
+}: Readonly<{
   currentStatus: string;
   isPending: boolean;
   onMarkFinished: () => void;
   onReopen: () => void;
-}): JSX.Element | null {
+}>): JSX.Element | null {
   if (currentStatus === 'finished') {
     return (
       <Button
@@ -301,6 +301,142 @@ function HeaderActions({
       <CheckCircle className="w-4 h-4 mr-2 text-score-green" />
       {isPending ? 'Updating...' : 'Mark as Finished'}
     </Button>
+  );
+}
+
+function ProgramField({
+  control,
+  programs,
+  errorMessage,
+  isCreating,
+  onCreateProgram,
+}: Readonly<{
+  control: Control<ProjectFormData>;
+  programs: ProgramSummary[];
+  errorMessage?: string;
+  isCreating: boolean;
+  onCreateProgram: (name: string) => Promise<void>;
+}>): JSX.Element {
+  const [open, setOpen] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [newName, setNewName] = useState('');
+
+  const closeNew = (): void => {
+    setShowNew(false);
+    setNewName('');
+  };
+
+  return (
+    <div>
+      <div className="space-y-2 min-w-0">
+        <TooltipProvider>
+          <div className="h-5 flex items-center gap-2">
+            <Label htmlFor="program_id">Program *</Label>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
+                  <Info className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs">
+                <p className="text-sm">Every project belongs to a program. Pick an existing one or create a new program for this project.</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </TooltipProvider>
+        <div className="flex gap-3 items-start min-w-0">
+          <Controller
+            name="program_id"
+            control={control}
+            rules={{ required: 'Program is required' }}
+            render={({ field }) => (
+              <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="program_id"
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={open}
+                    className="flex-1 min-w-0 justify-between font-normal"
+                  >
+                    <span className="truncate">
+                      {field.value
+                        ? programs.find((p) => p.id === field.value)?.name ?? 'Unknown'
+                        : 'Select a program…'}
+                    </span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search programs..." />
+                    <CommandList>
+                      <CommandEmpty>No program found.</CommandEmpty>
+                      <CommandGroup>
+                        {programs.map((program) => (
+                          <CommandItem
+                            key={program.id}
+                            value={program.name}
+                            onSelect={() => {
+                              field.onChange(program.id);
+                              setOpen(false);
+                            }}
+                          >
+                            <Check className={cn('mr-2 h-4 w-4', field.value === program.id ? 'opacity-100' : 'opacity-0')} />
+                            <span className="truncate">{program.name}</span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            )}
+          />
+          {!showNew && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowNew(true)}
+              className="shrink-0 text-muted-foreground hover:text-foreground"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              New
+            </Button>
+          )}
+        </div>
+        {errorMessage && <p className="text-sm text-destructive">{errorMessage}</p>}
+        {showNew && (
+          <div className="flex gap-2 items-center">
+            <Input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Program name"
+              className="flex-1"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') closeNew();
+              }}
+            />
+            <Button
+              type="button"
+              size="sm"
+              disabled={!newName.trim() || isCreating}
+              onClick={async () => {
+                await onCreateProgram(newName.trim());
+                closeNew();
+              }}
+            >
+              {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={closeNew}>
+              Cancel
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -359,8 +495,6 @@ export default function ProjectForm(): JSX.Element {
   const [hasScorecard, setHasScorecard] = useState<boolean>(true);
   const [hasDependabotAlerts, setHasDependabotAlerts] = useState<boolean>(true);
   const [hasBudgetAlerts, setHasBudgetAlerts] = useState<boolean>(true);
-  const [showNewProgram, setShowNewProgram] = useState(false);
-  const [newProgramName, setNewProgramName] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [proposalDialogOpen, setProposalDialogOpen] = useState(false);
   const [pendingSubmitData, setPendingSubmitData] = useState<ProjectFormData | null>(null);
@@ -469,7 +603,6 @@ export default function ProjectForm(): JSX.Element {
   const currentManagerId = watch('project_manager_id');
   const [pmOpen, setPmOpen] = useState(false);
   const [clientOpen, setClientOpen] = useState(false);
-  const [programOpen, setProgramOpen] = useState(false);
   const currentClientId = watch('client_id');
   const { data: clientOptions = [] } = useClientOptions();
 
@@ -755,132 +888,16 @@ export default function ProjectForm(): JSX.Element {
                   </div>
 
                   {/* Row 2: Program */}
-                  <div>
-                    <div className="space-y-2 min-w-0">
-                      <TooltipProvider>
-                        <div className="h-5 flex items-center gap-2">
-                          <Label htmlFor="program_id">Program *</Label>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
-                                <Info className="h-3.5 w-3.5" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="max-w-xs">
-                              <p className="text-sm">Every project belongs to a program. Pick an existing one or create a new program for this project.</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                      </TooltipProvider>
-                      <div className="flex gap-3 items-start min-w-0">
-                        <Controller
-                          name="program_id"
-                          control={control}
-                          rules={{ required: 'Program is required' }}
-                          render={({ field }) => (
-                            <Popover open={programOpen} onOpenChange={setProgramOpen}>
-                              <PopoverTrigger asChild>
-                                <Button
-                                  id="program_id"
-                                  variant="outline"
-                                  role="combobox"
-                                  aria-expanded={programOpen}
-                                  className="flex-1 min-w-0 justify-between font-normal"
-                                >
-                                  <span className="truncate">
-                                    {field.value
-                                      ? programs.find((p) => p.id === field.value)?.name ?? 'Unknown'
-                                      : 'Select a program…'}
-                                  </span>
-                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                                <Command>
-                                  <CommandInput placeholder="Search programs..." />
-                                  <CommandList>
-                                    <CommandEmpty>No program found.</CommandEmpty>
-                                    <CommandGroup>
-                                      {programs.map((program) => (
-                                        <CommandItem
-                                          key={program.id}
-                                          value={program.name}
-                                          onSelect={() => {
-                                            field.onChange(program.id);
-                                            setProgramOpen(false);
-                                          }}
-                                        >
-                                          <Check className={cn('mr-2 h-4 w-4', field.value === program.id ? 'opacity-100' : 'opacity-0')} />
-                                          <span className="truncate">{program.name}</span>
-                                        </CommandItem>
-                                      ))}
-                                    </CommandGroup>
-                                  </CommandList>
-                                </Command>
-                              </PopoverContent>
-                            </Popover>
-                          )}
-                        />
-                        {!showNewProgram && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setShowNewProgram(true)}
-                            className="shrink-0 text-muted-foreground hover:text-foreground"
-                          >
-                            <Plus className="w-4 h-4 mr-1" />
-                            New
-                          </Button>
-                        )}
-                      </div>
-                      {errors.program_id && (
-                        <p className="text-sm text-destructive">{errors.program_id.message}</p>
-                      )}
-                      {showNewProgram && (
-                        <div className="flex gap-2 items-center">
-                          <Input
-                            value={newProgramName}
-                            onChange={(e) => setNewProgramName(e.target.value)}
-                            placeholder="Program name"
-                            className="flex-1"
-                            autoFocus
-                            onKeyDown={(e) => {
-                              if (e.key === 'Escape') {
-                                setShowNewProgram(false);
-                                setNewProgramName('');
-                              }
-                            }}
-                          />
-                          <Button
-                            type="button"
-                            size="sm"
-                            disabled={!newProgramName.trim() || createProgramMutation.isPending}
-                            onClick={async () => {
-                              const created = await createProgramMutation.mutateAsync(newProgramName.trim());
-                              setValue('program_id', created.id, { shouldValidate: true, shouldDirty: true });
-                              setNewProgramName('');
-                              setShowNewProgram(false);
-                            }}
-                          >
-                            {createProgramMutation.isPending ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              'Create'
-                            )}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => { setShowNewProgram(false); setNewProgramName(''); }}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <ProgramField
+                    control={control}
+                    programs={programs}
+                    errorMessage={errors.program_id?.message}
+                    isCreating={createProgramMutation.isPending}
+                    onCreateProgram={async (name) => {
+                      const created = await createProgramMutation.mutateAsync(name);
+                      setValue('program_id', created.id, { shouldValidate: true, shouldDirty: true });
+                    }}
+                  />
 
                   {/* Row 3: Project Manager, Status */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
