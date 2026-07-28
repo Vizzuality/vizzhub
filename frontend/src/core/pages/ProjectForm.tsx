@@ -378,7 +378,9 @@ export default function ProjectForm(): JSX.Element {
     defaultValues: {
       name: '',
       code: '',
-      status: 'live',
+      // New projects start as proposal (integration fields may stay blank);
+      // the live gate kicks in when the status is switched.
+      status: 'proposal',
       currency: 'dollar',
       program_id: '',
       project_manager_id: '',

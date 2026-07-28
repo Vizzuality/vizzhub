@@ -96,7 +96,7 @@ async function fillRequiredFields(
   await user.type(screen.getByLabelText(/name \*/i), overrides.name ?? 'Test Project');
   await user.type(screen.getByLabelText(/code \*/i), overrides.code ?? 'TST.001');
   await selectProgram(user);
-  // Default status is live with Scorecard/Dependabot on → jira + github required.
+  // Filled so tests may switch the status to live without tripping the gate.
   await user.type(screen.getByLabelText(/jira project key/i), 'TST');
   await user.type(screen.getByLabelText(/github repository/i), 'org/tst');
   await user.type(
@@ -186,6 +186,7 @@ describe('ProjectForm', () => {
       const options = within(statusSelect).getAllByRole('option');
       expect(options).toHaveLength(3);
       expect(options.map((o) => o.textContent)).toEqual(['Proposal', 'Live', 'Finished']);
+      expect(statusSelect).toHaveValue('proposal'); // new projects default to proposal
     });
   });
 
@@ -248,6 +249,7 @@ describe('ProjectForm', () => {
       await screen.findByText('New Project');
 
       await fillRequiredFields(user, { name: 'Test', code: 'TST' });
+      await user.selectOptions(screen.getByLabelText(/status/i), 'live');
 
       await user.click(screen.getByRole('button', { name: /create project/i }));
 
@@ -278,6 +280,7 @@ describe('ProjectForm', () => {
       await user.type(screen.getByLabelText(/name \*/i), 'Test');
       await user.type(screen.getByLabelText(/code \*/i), 'TST');
       await selectProgram(user);
+      await user.selectOptions(screen.getByLabelText(/status/i), 'live');
       await user.click(screen.getByRole('button', { name: /create project/i }));
 
       expect(
@@ -333,7 +336,7 @@ describe('ProjectForm', () => {
 
       await fillRequiredFields(user, { name: 'Test Proposal', code: 'TST' });
 
-      // Set status to proposal (default is live)
+      // Proposal is the default status for new projects
       await user.selectOptions(screen.getByLabelText(/status/i), 'proposal');
 
       // Turn off Dependabot to avoid Slack validation
@@ -395,6 +398,8 @@ describe('ProjectForm', () => {
       await screen.findByText('New Project');
 
       await fillRequiredFields(user, { name: 'New Test Project', code: 'NTP-001' });
+      // Live create path (proposal default would route through the dialog)
+      await user.selectOptions(screen.getByLabelText(/status/i), 'live');
 
       // Turn off Dependabot to skip Slack validation
       await user.click(screen.getByLabelText('Dependabot Alerts'));
@@ -800,6 +805,7 @@ describe('ProjectForm', () => {
       await user.type(screen.getByLabelText(/^Name/i), 'P1');
       await user.type(screen.getByLabelText(/^Code/i), 'P.1');
       await selectProgram(user);
+      await user.selectOptions(screen.getByLabelText(/status/i), 'live');
       await user.type(screen.getByLabelText(/jira project key/i), 'P1');
       await user.type(screen.getByLabelText(/Budget in original currency/i), '1000');
       await user.type(screen.getByLabelText(/Start Date/i), '2026-01-01');
