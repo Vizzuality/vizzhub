@@ -7,18 +7,9 @@ import {
   getYearOptions,
   getMonthsSinceStart,
   formatRelativeTime,
-  MONTH_NAMES,
 } from '../dateUtils';
 
 describe('dateUtils', () => {
-  describe('MONTH_NAMES', () => {
-    it('contains 12 short month names', () => {
-      expect(MONTH_NAMES).toHaveLength(12);
-      expect(MONTH_NAMES[0]).toBe('Jan');
-      expect(MONTH_NAMES[11]).toBe('Dec');
-    });
-  });
-
   describe('formatPeriod', () => {
     it('formats period as "Mon YYYY"', () => {
       expect(formatPeriod(2024, 1)).toBe('Jan 2024');

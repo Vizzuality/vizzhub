@@ -9,12 +9,6 @@ export interface Period {
 }
 
 /**
- * Short month names for display.
- * @deprecated Use MONTHS_SHORT from constants/dates instead
- */
-export const MONTH_NAMES = MONTHS_SHORT;
-
-/**
  * Format a period as "Mon YYYY" (e.g., "Jan 2024").
  */
 export function formatPeriod(year: number, month: number): string {
