@@ -10,15 +10,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.models.project import ProjectDB
 from app.modules.accrual.models.accrual_period import AccrualPeriodDB
 from app.modules.accrual.services import period_service
-from app.modules.accrual.services.importer.parser import SpreadsheetRow  # noqa: F401
 
 
 async def bootstrap_periods(
     db: AsyncSession,
-    rows: list[SpreadsheetRow],  # noqa: ARG001 — kept for API compatibility
     *,
     current_year: int | None = None,
-) -> list:
+) -> list[AccrualPeriodDB]:
     """Create one accrual period (year boundary) per year spanned by billable DB projects.
 
     Periods are empty lifecycle markers (no fx_rates), so this just needs
@@ -41,7 +39,7 @@ async def bootstrap_periods(
     min_year = min(min(p.start_date.year for p in projects), current_year)
     years = list(range(min_year, current_year + 1))
 
-    created = []
+    created: list[AccrualPeriodDB] = []
     for y in years:
         existing = (
             await db.execute(

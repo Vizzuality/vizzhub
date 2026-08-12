@@ -43,6 +43,8 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       return raw ? JSON.parse(raw) : {};
     } catch (e) {
+      // Corrupt JSON or unavailable localStorage: fall back to default state.
+      console.warn('playbook-nav: could not restore nav state', e);
       return {};
     }
   }

@@ -29,10 +29,10 @@ router = APIRouter()
 
 async def _get_parent_group_title(db: DBSession, node_id: UUID) -> str | None:
     """Get the title of the parent group for a page node."""
-    Parent = aliased(IsoDocNodeDB)
+    parent = aliased(IsoDocNodeDB)
     result = await db.execute(
-        select(Parent.title)
-        .join(IsoDocNodeDB, IsoDocNodeDB.parent_id == Parent.id)
+        select(parent.title)
+        .join(IsoDocNodeDB, IsoDocNodeDB.parent_id == parent.id)
         .where(IsoDocNodeDB.id == node_id)
     )
     return result.scalar_one_or_none()
@@ -101,7 +101,7 @@ async def search_metadata(
     clause: Annotated[str | None, Query()] = None,
     status: Annotated[str | None, Query()] = None,
 ) -> list[MetadataSearchResult]:
-    ParentNode = aliased(IsoDocNodeDB)
+    parent_node = aliased(IsoDocNodeDB)
     query = (
         select(
             IsoDocNodeDB.id.label("node_id"),
@@ -109,11 +109,11 @@ async def search_metadata(
             IsoDocMetadataDB.code,
             IsoDocMetadataDB.standard,
             IsoDocMetadataDB.clauses,
-            ParentNode.title.label("category"),
+            parent_node.title.label("category"),
             IsoDocMetadataDB.status,
         )
         .join(IsoDocMetadataDB, IsoDocMetadataDB.node_id == IsoDocNodeDB.id)
-        .outerjoin(ParentNode, ParentNode.id == IsoDocNodeDB.parent_id)
+        .outerjoin(parent_node, parent_node.id == IsoDocNodeDB.parent_id)
     )
 
     if not is_iso_docs_editor(user):
@@ -122,7 +122,7 @@ async def search_metadata(
     if standard:
         query = query.where(IsoDocMetadataDB.standard.any(standard))
     if category:
-        query = query.where(ParentNode.title == category)
+        query = query.where(parent_node.title == category)
     if clause:
         query = query.where(IsoDocMetadataDB.clauses.any(clause))
     if status:

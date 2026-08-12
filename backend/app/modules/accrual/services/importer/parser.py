@@ -14,6 +14,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from openpyxl import load_workbook
+from openpyxl.worksheet.worksheet import Worksheet
 
 
 @dataclass
@@ -63,6 +64,61 @@ def _code_prefix(code: str | None) -> str | None:
     return stripped if stripped and stripped != norm else None
 
 
+def _coerce_date(v: object) -> date | None:
+    if v is None:
+        return None
+    return v.date() if hasattr(v, "date") else v  # type: ignore[return-value]
+
+
+def _month_columns(ws: Worksheet) -> dict[int, tuple[int, int]]:
+    """Map column index -> (year, month) from header rows 5/6 (monthly cols start at 13)."""
+    columns: dict[int, tuple[int, int]] = {}
+    for c in range(13, ws.max_column + 1):
+        y = ws.cell(row=5, column=c).value
+        m = ws.cell(row=6, column=c).value
+        if isinstance(y, (int, float)) and isinstance(m, (int, float)):
+            columns[c] = (int(y), int(m))
+    return columns
+
+
+def _monthly_amounts(
+    ws: Worksheet, r: int, columns: dict[int, tuple[int, int]]
+) -> dict[tuple[int, int], Decimal]:
+    monthly: dict[tuple[int, int], Decimal] = {}
+    for c, (y, m) in columns.items():
+        v = ws.cell(row=r, column=c).value
+        if isinstance(v, (int, float)):
+            monthly[(y, m)] = Decimal(str(v)).quantize(Decimal("0.01"))
+    return monthly
+
+
+def _parse_data_row(
+    ws: Worksheet, r: int, columns: dict[int, tuple[int, int]]
+) -> SpreadsheetRow | None:
+    """Parse one data row; None when the row is blank or has no rate."""
+    type_v = ws.cell(row=r, column=1).value
+    if not type_v:
+        return None
+    rate_v = ws.cell(row=r, column=7).value
+    if rate_v is None:
+        return None
+
+    code_v = ws.cell(row=r, column=3).value
+    return SpreadsheetRow(
+        type=str(type_v),
+        code=str(code_v) if code_v else None,
+        pm=ws.cell(row=r, column=4).value,
+        name=ws.cell(row=r, column=5).value,
+        value=Decimal(str(ws.cell(row=r, column=6).value or 0)),
+        rate=Decimal(str(rate_v)),
+        value_eur=Decimal(str(ws.cell(row=r, column=8).value or 0)),
+        start_date=_coerce_date(ws.cell(row=r, column=9).value),
+        end_date=_coerce_date(ws.cell(row=r, column=10).value),
+        duration=ws.cell(row=r, column=11).value,
+        monthly=_monthly_amounts(ws, r, columns),
+    )
+
+
 def parse_spreadsheet(path: Path) -> list[SpreadsheetRow]:
     """Parse the CEO's accrual workbook into structured rows.
 
@@ -71,54 +127,13 @@ def parse_spreadsheet(path: Path) -> list[SpreadsheetRow]:
     """
     wb = load_workbook(path, data_only=True)
     ws = wb["Sales"]
-
-    year_by_col: dict[int, int] = {}
-    month_by_col: dict[int, int] = {}
-    for c in range(13, ws.max_column + 1):
-        y = ws.cell(row=5, column=c).value
-        m = ws.cell(row=6, column=c).value
-        if isinstance(y, (int, float)) and isinstance(m, (int, float)):
-            year_by_col[c] = int(y)
-            month_by_col[c] = int(m)
+    columns = _month_columns(ws)
 
     rows: list[SpreadsheetRow] = []
     for r in range(7, ws.max_row + 1):
-        type_v = ws.cell(row=r, column=1).value
-        if not type_v:
-            continue
-        rate_v = ws.cell(row=r, column=7).value
-        if rate_v is None:
-            continue
-
-        monthly: dict[tuple[int, int], Decimal] = {}
-        for c, y in year_by_col.items():
-            m = month_by_col[c]
-            v = ws.cell(row=r, column=c).value
-            if isinstance(v, (int, float)):
-                monthly[(y, m)] = Decimal(str(v)).quantize(Decimal("0.01"))
-
-        def _date(v: object) -> date | None:
-            if v is None:
-                return None
-            return v.date() if hasattr(v, "date") else v  # type: ignore[return-value]
-
-        rows.append(
-            SpreadsheetRow(
-                type=str(type_v),
-                code=str(ws.cell(row=r, column=3).value)
-                if ws.cell(row=r, column=3).value
-                else None,
-                pm=ws.cell(row=r, column=4).value,
-                name=ws.cell(row=r, column=5).value,
-                value=Decimal(str(ws.cell(row=r, column=6).value or 0)),
-                rate=Decimal(str(rate_v)),
-                value_eur=Decimal(str(ws.cell(row=r, column=8).value or 0)),
-                start_date=_date(ws.cell(row=r, column=9).value),
-                end_date=_date(ws.cell(row=r, column=10).value),
-                duration=ws.cell(row=r, column=11).value,
-                monthly=monthly,
-            )
-        )
+        row = _parse_data_row(ws, r, columns)
+        if row is not None:
+            rows.append(row)
     return rows
 
 
@@ -146,30 +161,30 @@ def consolidate_duplicate_rows(rows: list[SpreadsheetRow]) -> list[SpreadsheetRo
     for key, group in by_code.items():
         if key is None or len(group) == 1:
             consolidated.extend(group)
-            continue
-        total_value = sum((r.value for r in group), Decimal("0"))
-        total_value_eur = sum((r.value_eur for r in group), Decimal("0"))
-        monthly: dict[tuple[int, int], Decimal] = defaultdict(lambda: Decimal("0"))
-        for r in group:
-            for ym, amount in r.monthly.items():
-                monthly[ym] += amount
-        starts = [r.start_date for r in group if r.start_date]
-        ends = [r.end_date for r in group if r.end_date]
-        head = group[0]
-        consolidated.append(
-            SpreadsheetRow(
-                type=head.type,
-                code=head.code,
-                pm=head.pm,
-                name=(head.name or "")
-                + f" (+{len(group) - 1} amendment{'s' if len(group) > 2 else ''})",
-                value=total_value,
-                rate=head.rate,
-                value_eur=total_value_eur,
-                start_date=min(starts) if starts else None,
-                end_date=max(ends) if ends else None,
-                duration=None,
-                monthly=dict(monthly),
-            )
-        )
+        else:
+            consolidated.append(_merge_group(group))
     return consolidated
+
+
+def _merge_group(group: list[SpreadsheetRow]) -> SpreadsheetRow:
+    """Merge a duplicate-code group into one synthetic row (see consolidate_duplicate_rows)."""
+    monthly: dict[tuple[int, int], Decimal] = defaultdict(lambda: Decimal("0"))
+    for r in group:
+        for ym, amount in r.monthly.items():
+            monthly[ym] += amount
+    starts = [r.start_date for r in group if r.start_date]
+    ends = [r.end_date for r in group if r.end_date]
+    head = group[0]
+    return SpreadsheetRow(
+        type=head.type,
+        code=head.code,
+        pm=head.pm,
+        name=(head.name or "") + f" (+{len(group) - 1} amendment{'s' if len(group) > 2 else ''})",
+        value=sum((r.value for r in group), Decimal("0")),
+        rate=head.rate,
+        value_eur=sum((r.value_eur for r in group), Decimal("0")),
+        start_date=min(starts) if starts else None,
+        end_date=max(ends) if ends else None,
+        duration=None,
+        monthly=dict(monthly),
+    )

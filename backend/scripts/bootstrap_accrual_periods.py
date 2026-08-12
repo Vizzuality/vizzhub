@@ -60,7 +60,7 @@ async def main(min_year_arg: int | None) -> None:
         existing_result = await db.execute(
             select(AccrualPeriodDB.start_date).order_by(AccrualPeriodDB.start_date)
         )
-        existing = {d for d in existing_result.scalars().all()}
+        existing = set(existing_result.scalars().all())
         logger.info(
             "bootstrap_starting",
             min_year=min_year,

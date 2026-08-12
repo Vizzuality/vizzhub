@@ -78,7 +78,5 @@ export const PROJECTS_HUB_ITEMS: readonly SubItem[] = [
 
 /** Portfolio is permission-gated; sidebar and hub tab bar share this filter. */
 export function projectsHubItems(showPortfolio: boolean): readonly SubItem[] {
-  return showPortfolio
-    ? PROJECTS_HUB_ITEMS
-    : PROJECTS_HUB_ITEMS.filter((item) => item.to !== '/portfolio');
+  return PROJECTS_HUB_ITEMS.filter((item) => showPortfolio || item.to !== '/portfolio');
 }

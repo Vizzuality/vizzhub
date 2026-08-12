@@ -15,9 +15,11 @@ export interface EVMData {
   percent_planned: number;
 }
 
+export type ComplaintAnswer = 'yes' | 'no' | '-';
+
 export interface PMSatisfaction {
-  delivery_complaints: 'yes' | 'no' | '-';
-  design_complaints: 'yes' | 'no' | '-';
+  delivery_complaints: ComplaintAnswer;
+  design_complaints: ComplaintAnswer;
   overall_estimation?: number;
 }
 
@@ -98,8 +100,8 @@ export interface MetricsCreate {
     diagrams_updated: boolean;
   };
   pm_satisfaction?: {
-    delivery_complaints: 'yes' | 'no' | '-';
-    design_complaints: 'yes' | 'no' | '-';
+    delivery_complaints: ComplaintAnswer;
+    design_complaints: ComplaintAnswer;
     overall_estimation?: number;
   };
   client_survey?: {
@@ -138,9 +140,9 @@ export interface MetricsWithScores {
   scores: FinalScore;
   evm_data?: EVMData;
   milestones?: Milestone[];
-  jira_defects?: MetricsCreate['jira_defects'];
-  flow_metrics?: MetricsCreate['flow_metrics'];
-  github_metrics?: MetricsCreate['github_metrics'];
+  jira_defects?: NonNullable<MetricsCreate['jira_defects']>;
+  flow_metrics?: NonNullable<MetricsCreate['flow_metrics']>;
+  github_metrics?: NonNullable<MetricsCreate['github_metrics']>;
   test_maturity?: TestMaturity;
   architecture?: Architecture;
   pm_satisfaction?: PMSatisfaction;

@@ -188,6 +188,6 @@ async def fetch_github_content(url: str, token: str | None = None) -> str | None
             if not encoded:
                 return None
             return base64.b64decode(encoded).decode("utf-8")
-    except (httpx.HTTPError, ValueError, UnicodeDecodeError) as exc:
+    except (httpx.HTTPError, ValueError) as exc:
         logger.warning("devstack_content_fetch_failed", url=url, error=str(exc))
         return None

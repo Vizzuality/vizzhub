@@ -8,7 +8,7 @@ interface UrlCodec<T> {
 
 export const urlCodecs = {
   string: { encode: (v: string): string => v, decode: (r: string): string => r } as UrlCodec<string>,
-  number: { encode: (v: number): string => String(v), decode: (r: string): number => Number(r) } as UrlCodec<number>,
+  number: { encode: String, decode: Number } as UrlCodec<number>,
   boolean: { encode: (v: boolean): string => (v ? '1' : '0'), decode: (r: string): boolean => r === '1' } as UrlCodec<boolean>,
 };
 

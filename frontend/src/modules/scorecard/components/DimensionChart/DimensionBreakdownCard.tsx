@@ -122,7 +122,7 @@ function RadarTooltipContent({ active, payload }: Readonly<RadarTooltipProps>): 
 }
 
 function getCssVar(name: string, fallback: string): string {
-  if (typeof globalThis.window === 'undefined') return fallback;
+  if (globalThis.window === undefined) return fallback;
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 }
 

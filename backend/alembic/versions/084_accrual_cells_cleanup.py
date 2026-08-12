@@ -40,6 +40,9 @@ DRIFT_KINDS = (
     "missing_tracker",
 )
 
+_PROJECTS_ID = "projects.id"
+_ON_DELETE_SET_NULL = "SET NULL"
+
 
 def upgrade() -> None:
     # 1. Drop any orphan cells that were never keyed to a line (legacy
@@ -72,7 +75,7 @@ def downgrade() -> None:
         sa.Column(
             "project_id",
             postgresql.UUID(as_uuid=True),
-            sa.ForeignKey("projects.id", ondelete="CASCADE"),
+            sa.ForeignKey(_PROJECTS_ID, ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column("weight", sa.Numeric(6, 4), nullable=False, server_default="1.0"),
@@ -80,7 +83,7 @@ def downgrade() -> None:
         sa.Column(
             "created_by",
             postgresql.UUID(as_uuid=True),
-            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            sa.ForeignKey("users.id", ondelete=_ON_DELETE_SET_NULL),
             nullable=True,
         ),
         sa.Column(
@@ -105,7 +108,7 @@ def downgrade() -> None:
         sa.Column(
             "project_id",
             postgresql.UUID(as_uuid=True),
-            sa.ForeignKey("projects.id", ondelete="CASCADE"),
+            sa.ForeignKey(_PROJECTS_ID, ondelete="CASCADE"),
             nullable=True,
         ),
         sa.Column("excel_code", sa.Text(), nullable=True),
@@ -120,7 +123,7 @@ def downgrade() -> None:
         sa.Column(
             "resolved_by",
             postgresql.UUID(as_uuid=True),
-            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            sa.ForeignKey("users.id", ondelete=_ON_DELETE_SET_NULL),
             nullable=True,
         ),
         sa.Column(
@@ -132,7 +135,7 @@ def downgrade() -> None:
         sa.Column(
             "import_run_id",
             postgresql.UUID(as_uuid=True),
-            sa.ForeignKey("accrual_import_runs.id", ondelete="SET NULL"),
+            sa.ForeignKey("accrual_import_runs.id", ondelete=_ON_DELETE_SET_NULL),
             nullable=True,
         ),
     )
@@ -167,7 +170,7 @@ def downgrade() -> None:
         sa.Column(
             "project_id",
             postgresql.UUID(as_uuid=True),
-            sa.ForeignKey("projects.id", ondelete="CASCADE"),
+            sa.ForeignKey(_PROJECTS_ID, ondelete="CASCADE"),
             nullable=True,
         ),
     )

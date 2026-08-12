@@ -35,6 +35,9 @@ depends_on: str | Sequence[str] | None = None
 DRIFT_KINDS = ("date_extend", "date_shrink", "value_drift", "status_stale", "missing_excel", "missing_tracker")
 CELL_SOURCES = ("excel", "team_budget", "manual")
 
+_USERS_ID = "users.id"
+_ON_DELETE_SET_NULL = "SET NULL"
+
 
 def upgrade() -> None:
     # 1. accrual_import_run — audit trail per importer execution.
@@ -62,7 +65,7 @@ def upgrade() -> None:
         sa.Column(
             "triggered_by",
             postgresql.UUID(as_uuid=True),
-            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            sa.ForeignKey(_USERS_ID, ondelete=_ON_DELETE_SET_NULL),
             nullable=True,
         ),
     )
@@ -137,7 +140,7 @@ def upgrade() -> None:
         sa.Column(
             "created_by",
             postgresql.UUID(as_uuid=True),
-            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            sa.ForeignKey(_USERS_ID, ondelete=_ON_DELETE_SET_NULL),
             nullable=True,
         ),
         sa.Column(
@@ -178,7 +181,7 @@ def upgrade() -> None:
         sa.Column(
             "resolved_by",
             postgresql.UUID(as_uuid=True),
-            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            sa.ForeignKey(_USERS_ID, ondelete=_ON_DELETE_SET_NULL),
             nullable=True,
         ),
         sa.Column(
@@ -190,7 +193,7 @@ def upgrade() -> None:
         sa.Column(
             "import_run_id",
             postgresql.UUID(as_uuid=True),
-            sa.ForeignKey("accrual_import_runs.id", ondelete="SET NULL"),
+            sa.ForeignKey("accrual_import_runs.id", ondelete=_ON_DELETE_SET_NULL),
             nullable=True,
         ),
     )

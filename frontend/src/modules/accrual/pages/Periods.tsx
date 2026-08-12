@@ -7,12 +7,12 @@ import type { AccrualPeriod } from '@/modules/accrual/types/accrual';
 
 /** The CEO's rates are the source of truth; ECB usd_rate is shown only as a fallback. */
 function PeriodRates({ period }: { readonly period: AccrualPeriod }): JSX.Element {
-  const entries = Object.entries(period.fx_rates ?? {});
+  const entries = Object.entries(period.fx_rates ?? {})
+    .sort(([a], [b]) => a.localeCompare(b));
   if (entries.length > 0) {
     return (
       <span className="tabular-nums">
         {entries
-          .sort(([a], [b]) => a.localeCompare(b))
           .map(([cur, rate]) => `${cur} ${Number(rate).toFixed(4)}`)
           .join(' · ')}
       </span>

@@ -22,7 +22,6 @@ interface UserPickerProps {
   readonly onSelect: (name: string) => void;
   readonly onCancel?: () => void;
   readonly defaultOpen?: boolean;
-  readonly className?: string;
   readonly align?: 'start' | 'center' | 'end';
   readonly triggerClassName?: string;
 }

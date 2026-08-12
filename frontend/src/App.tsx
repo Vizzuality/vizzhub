@@ -11,7 +11,7 @@ import ScorecardProjects from './modules/scorecard/pages/Projects';
 import ProjectDetail from './modules/scorecard/pages/ProjectDetail';
 import GlobalDashboard from './modules/scorecard/pages/GlobalDashboard';
 import Admin from './core/pages/Admin';
-import ISO from './modules/iso/pages/ISO';
+import IsoPage from './modules/iso/pages/ISO';
 import ISOSnapshots from './modules/iso/pages/ISOSnapshots';
 import ISOSnapshotDetail from './modules/iso/pages/ISOSnapshotDetail';
 import { LoginPage } from './core/pages/LoginPage';
@@ -174,7 +174,7 @@ function AppRoutes(): JSX.Element {
             {AdminCoreRoutes()}
             {AdminTrackerRoutes()}
           </Route>
-          <Route path="/iso" element={<ISO />}>
+          <Route path="/iso" element={<IsoPage />}>
             <Route path="snapshots" element={<ISOSnapshots />} />
             <Route path="snapshots/:id" element={<ISOSnapshotDetail />} />
           </Route>
@@ -274,7 +274,7 @@ function AppRoutes(): JSX.Element {
           </Route>
           <Route path="/iso/docs" element={<IsoDocs />} />
           <Route element={<PermissionRoute require={Action.ISO_VIEW} />}>
-            <Route path="/iso" element={<ISO />}>
+            <Route path="/iso" element={<IsoPage />}>
               <Route path="snapshots" element={<ISOSnapshots />} />
               <Route path="snapshots/:id" element={<ISOSnapshotDetail />} />
             </Route>

@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 
-_PARENS = re.compile(r"\(.*?\)")
+_PARENS = re.compile(r"\([^)]*\)")
 _YEAR = re.compile(r"\b(?:19|20)\d{2}\b")
 _NON_ALNUM = re.compile(r"[^a-z0-9]+")
 

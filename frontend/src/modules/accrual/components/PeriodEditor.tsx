@@ -24,8 +24,20 @@ interface PeriodEditorProps {
 }
 
 interface RateRow {
+  id: string;
   currency: string;
   rate: string;
+}
+
+let rateRowSeq = 0;
+function nextRowId(): string {
+  rateRowSeq += 1;
+  return `rate-row-${rateRowSeq}`;
+}
+
+function submitLabel(pending: boolean, isEdit: boolean): string {
+  if (pending) return 'Saving…';
+  return isEdit ? 'Save rates' : 'Open period';
 }
 
 function firstOfCurrentMonth(): string {
@@ -36,7 +48,7 @@ function firstOfCurrentMonth(): string {
 function ratesToRows(fx: Record<string, string> | undefined): RateRow[] {
   return Object.entries(fx ?? {})
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([currency, rate]) => ({ currency, rate }));
+    .map(([currency, rate]) => ({ id: nextRowId(), currency, rate }));
 }
 
 function rowsToRates(rows: RateRow[]): Record<string, string> {
@@ -65,7 +77,8 @@ export function PeriodEditor({
 
   const setRow = (i: number, patch: Partial<RateRow>): void =>
     setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
-  const addRow = (): void => setRows((rs) => [...rs, { currency: '', rate: '' }]);
+  const addRow = (): void =>
+    setRows((rs) => [...rs, { id: nextRowId(), currency: '', rate: '' }]);
   const removeRow = (i: number): void => setRows((rs) => rs.filter((_, idx) => idx !== i));
 
   const handleSubmit = async (): Promise<void> => {
@@ -112,7 +125,7 @@ export function PeriodEditor({
               <p className="text-sm text-muted-foreground">No rates yet — ECB fallback applies.</p>
             )}
             {rows.map((row, i) => (
-              <div key={i} className="flex items-center gap-2">
+              <div key={row.id} className="flex items-center gap-2">
                 <Input
                   aria-label={`Currency ${i + 1}`}
                   className="w-24 uppercase"
@@ -155,7 +168,7 @@ export function PeriodEditor({
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={pending}>
-            {pending ? 'Saving…' : isEdit ? 'Save rates' : 'Open period'}
+            {submitLabel(pending, isEdit)}
           </Button>
         </DialogFooter>
       </DialogContent>

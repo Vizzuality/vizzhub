@@ -107,7 +107,7 @@ async def _collect(db: AsyncSession, year: int | None) -> tuple[list[int], list[
         rows = await db.execute(
             select(ClientDB.id, ClientDB.name).where(ClientDB.id.in_(client_ids))
         )
-        client_names = {cid: name for cid, name in rows.all()}
+        client_names = dict(rows.all())
 
     metrics: list[_ProjectMetric] = []
     for p in in_scope:
@@ -157,10 +157,7 @@ async def build_project_leaderboard(
     return ProjectLeaderboard(available_years=available_years, rows=rows)
 
 
-async def build_client_leaderboard(
-    db: AsyncSession, *, year: int | None = None
-) -> ClientLeaderboard:
-    available_years, metrics = await _collect(db, year)
+def _aggregate_by_client(metrics: list[_ProjectMetric]) -> dict[tuple[str | None, str], dict]:
     agg: dict[tuple[str | None, str], dict] = defaultdict(
         lambda: {"count": 0, "profit_eur": 0.0, "budget_eur": 0.0, "has_eur": False, "delays": []}
     )
@@ -173,19 +170,26 @@ async def build_client_leaderboard(
             e["profit_eur"] += m.profit_eur
             e["budget_eur"] += m.budget_eur
             e["has_eur"] = True
+    return agg
 
-    rows: list[ClientRow] = []
-    for (cid, cname), e in agg.items():
-        margin = (e["profit_eur"] / e["budget_eur"] * 100) if e["budget_eur"] else None
-        rows.append(
-            ClientRow(
-                client_id=cid,
-                client_name=cname,
-                project_count=e["count"],
-                profit_eur=round(e["profit_eur"], 2) if e["has_eur"] else None,
-                margin_pct=round(margin, 2) if margin is not None else None,
-                delay_months=round(sum(e["delays"]) / len(e["delays"]), 1) if e["delays"] else None,
-            )
-        )
+
+def _client_row(cid: str | None, cname: str, e: dict) -> ClientRow:
+    margin = (e["profit_eur"] / e["budget_eur"] * 100) if e["budget_eur"] else None
+    return ClientRow(
+        client_id=cid,
+        client_name=cname,
+        project_count=e["count"],
+        profit_eur=round(e["profit_eur"], 2) if e["has_eur"] else None,
+        margin_pct=round(margin, 2) if margin is not None else None,
+        delay_months=round(sum(e["delays"]) / len(e["delays"]), 1) if e["delays"] else None,
+    )
+
+
+async def build_client_leaderboard(
+    db: AsyncSession, *, year: int | None = None
+) -> ClientLeaderboard:
+    available_years, metrics = await _collect(db, year)
+    agg = _aggregate_by_client(metrics)
+    rows = [_client_row(cid, cname, e) for (cid, cname), e in agg.items()]
     logger.info("portfolio_client_leaderboard_built", year=year, rows=len(rows))
     return ClientLeaderboard(available_years=available_years, rows=rows)
