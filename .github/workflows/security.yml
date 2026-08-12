@@ -48,7 +48,7 @@ jobs:
           cache: pip
 
       - name: Install Semgrep
-        run: pip install --only-binary :all: semgrep==1.163.0
+        run: 'pip install --only-binary=:all: semgrep==1.163.0'
 
       - name: Run Semgrep (PR diff-aware)
         if: github.event_name == 'pull_request'
