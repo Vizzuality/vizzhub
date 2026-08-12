@@ -47,14 +47,14 @@ jobs:
           python-version: '3.13'
       - name: Install dependencies
         working-directory: backend
-        run: uv sync --frozen --all-groups
+        run: uv sync --frozen --all-groups --no-build
       - name: Run tests
         working-directory: backend
         env:
           DATABASE_URL: postgresql+asyncpg://scorecard:scorecard-ci@localhost:5432/scorecard
           TEST_DATABASE_URL: postgresql+asyncpg://scorecard:scorecard-ci@localhost:5432/scorecard
           DEBUG: "true"
-        run: uv run pytest -n auto
+        run: uv run --no-sync pytest -n auto
 
   frontend-test:
     name: Frontend Tests
@@ -70,7 +70,7 @@ jobs:
       - name: Install and test
         working-directory: frontend
         run: |
-          npm ci
+          npm ci --ignore-scripts
           npm test -- --run
 
   build-and-push:

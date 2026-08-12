@@ -9,7 +9,7 @@ WORKDIR /app
 
 # Install dependencies
 COPY package*.json ./
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 # Build arguments for environment variables
 ARG VITE_API_URL
@@ -35,11 +35,9 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Create non-root user first
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-
-# Install serve for static file serving
-RUN npm install -g serve
+# Create non-root user and install serve for static file serving
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup \
+    && npm install -g --ignore-scripts serve@14.2.6
 
 # Copy built files with secure permissions (read-only)
 # --chmod=555 = r-xr-xr-x (read+execute for dirs, no write)
