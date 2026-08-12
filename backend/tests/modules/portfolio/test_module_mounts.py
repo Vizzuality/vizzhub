@@ -31,7 +31,7 @@ def test_taxonomies_route_registered() -> None:
     """GET /api/taxonomies must be registered as a route on the app."""
     from app.main import app
 
-    paths = {getattr(r, "path", None) for r in app.routes}
-    assert "/api/taxonomies" in paths, (
-        f"/api/taxonomies not found in routes: {sorted(p for p in paths if p)}"
-    )
+    # OpenAPI is the stable route-introspection surface; app.routes nests
+    # included routers in private wrappers since starlette 1.x.
+    paths = set(app.openapi()["paths"])
+    assert "/api/taxonomies" in paths, f"/api/taxonomies not found in routes: {sorted(paths)}"
