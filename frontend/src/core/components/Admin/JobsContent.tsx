@@ -128,7 +128,11 @@ interface ChannelConfigProps {
   channelLabel: string;
 }
 
-function ChannelConfig({ jobName, channelId, channelLabel }: ChannelConfigProps): JSX.Element {
+function ChannelConfig({
+  jobName,
+  channelId,
+  channelLabel,
+}: Readonly<ChannelConfigProps>): JSX.Element {
   const [selectedChannel, setSelectedChannel] = useState<string>('');
   const updateChannel = useUpdateScheduledJobChannel();
 
@@ -201,7 +205,11 @@ interface ScheduledJobRowProps {
   isTriggering: boolean;
 }
 
-function ScheduledJobRow({ job, onTrigger, isTriggering }: ScheduledJobRowProps): JSX.Element {
+function ScheduledJobRow({
+  job,
+  onTrigger,
+  isTriggering,
+}: Readonly<ScheduledJobRowProps>): JSX.Element {
   const [isExpanded, setIsExpanded] = useState(false);
   const lastRun = job.last_run;
   const hasLastRun = lastRun !== null;

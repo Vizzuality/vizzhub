@@ -36,6 +36,7 @@ export default function ChartControls({
             <UITooltip>
               <TooltipTrigger asChild>
                 <button
+                  type="button"
                   onClick={onToggleLine}
                   className={cn(
                     'p-1 rounded transition-colors',
@@ -56,6 +57,7 @@ export default function ChartControls({
             <UITooltip>
               <TooltipTrigger asChild>
                 <button
+                  type="button"
                   onClick={onToggleBar}
                   className={cn(
                     'p-1 rounded transition-colors',
@@ -77,6 +79,7 @@ export default function ChartControls({
               <UITooltip>
                 <TooltipTrigger asChild>
                   <button
+                    type="button"
                     onClick={onToggleExpand}
                     className={cn(
                       'p-1 rounded transition-colors',
@@ -104,7 +107,7 @@ export default function ChartControls({
         <TooltipProvider>
           <UITooltip>
             <TooltipTrigger asChild>
-              <button className="p-1 text-muted-foreground hover:text-foreground transition-colors">
+              <button type="button" className="p-1 text-muted-foreground hover:text-foreground transition-colors">
                 <Info className="h-4 w-4" />
               </button>
             </TooltipTrigger>

@@ -58,7 +58,7 @@ export default function ArchitectureCard({
   isPending,
   historicalData,
   editable = true,
-}: ArchitectureCardProps): JSX.Element {
+}: Readonly<ArchitectureCardProps>): JSX.Element {
   return (
     <EditableMetricCard<Record<ChecklistKey, boolean>>
       historicalData={historicalData}

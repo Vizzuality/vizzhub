@@ -117,6 +117,7 @@ export default function GlobalMetricCard({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
+                          type="button"
                           onClick={toggleExpand}
                           className={cn(
                             'p-1 rounded transition-colors',
@@ -138,6 +139,7 @@ export default function GlobalMetricCard({
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
+                        type="button"
                         onClick={toggleTrend}
                         className={cn(
                           'p-1 rounded transition-colors',

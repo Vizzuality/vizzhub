@@ -7,7 +7,7 @@ import SubIndicatorCard from '../SubIndicatorCard';
 import { getHistoricalData } from '@/utils/chartUtils';
 import type { DoraLevel, FinalScore, Metrics, Indicators, MetricsWithScores, Dimension } from '../../types';
 
-function LevelBadge({ level }: { level: DoraLevel }): JSX.Element {
+function LevelBadge({ level }: Readonly<{ level: DoraLevel }>): JSX.Element {
   return (
     <span
       className={cn(
@@ -54,7 +54,7 @@ function DORANoDataCard({ title, description, message, badge }: DORANoDataCardPr
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <button className="text-muted-foreground hover:text-foreground transition-colors">
+                <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
                   <Info className="h-4 w-4" />
                 </button>
               </TooltipTrigger>
@@ -113,7 +113,7 @@ export default function DORASection({
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <button className="text-muted-foreground hover:text-foreground transition-colors">
+                    <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
                       <Info className="h-4 w-4" />
                     </button>
                   </TooltipTrigger>

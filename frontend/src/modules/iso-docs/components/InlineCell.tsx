@@ -60,7 +60,11 @@ function getConditionalColor(
   return ranges.find((r) => num >= r.min && num <= r.max) ?? null;
 }
 
-function ColorBadge({ text, color, label }: { text: string; color: string; label?: string }): JSX.Element {
+function ColorBadge({
+  text,
+  color,
+  label,
+}: Readonly<{ text: string; color: string; label?: string }>): JSX.Element {
   return (
     <span
       className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold"
@@ -103,7 +107,11 @@ function MarkdownLinks({ value }: { readonly value: string }): JSX.Element {
   return <>{parts}</>;
 }
 
-function TextOrLink({ value, col, wrap }: { value: string; col: ColumnDef; wrap?: boolean }): JSX.Element {
+function TextOrLink({
+  value,
+  col,
+  wrap,
+}: Readonly<{ value: string; col: ColumnDef; wrap?: boolean }>): JSX.Element {
   if (value.includes('](')) {
     return <span className={wrap ? 'block whitespace-pre-wrap' : 'block'}><MarkdownLinks value={value} /></span>;
   }
@@ -125,7 +133,11 @@ function TextOrLink({ value, col, wrap }: { value: string; col: ColumnDef; wrap?
   return <span className={wrap ? 'block whitespace-pre-wrap' : 'block truncate'}>{value}</span>;
 }
 
-function DisplayValue({ value, col, wrap }: { value: unknown; col: ColumnDef; wrap?: boolean }): JSX.Element {
+function DisplayValue({
+  value,
+  col,
+  wrap,
+}: Readonly<{ value: unknown; col: ColumnDef; wrap?: boolean }>): JSX.Element {
   if (value === null || value === undefined || value === '') {
     return <span className="text-muted-foreground">-</span>;
   }

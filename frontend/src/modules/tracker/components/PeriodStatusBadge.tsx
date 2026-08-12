@@ -6,7 +6,9 @@ interface PeriodStatusBadgeProps {
   status: ReportingPeriod['status'];
 }
 
-export default function PeriodStatusBadge({ status }: PeriodStatusBadgeProps): JSX.Element {
+export default function PeriodStatusBadge({
+  status,
+}: Readonly<PeriodStatusBadgeProps>): JSX.Element {
   return (
     <Badge variant="outline" className={PERIOD_STATUS_COLORS[status]}>
       {status}

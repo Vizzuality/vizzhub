@@ -110,7 +110,7 @@ export default function MilestonesCard({
   isExpanded,
   onToggle,
   historicalData,
-}: MilestonesCardProps): JSX.Element {
+}: Readonly<MilestonesCardProps>): JSX.Element {
   const [showTrend, setShowTrend] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const milestonesTargetPct = milestonesTarget * 100;
@@ -130,6 +130,7 @@ export default function MilestonesCard({
   return (
     <div className="p-4 bg-muted/50 rounded-lg border text-left">
       <button
+        type="button"
         onClick={onToggle}
         className="w-full text-left hover:opacity-80 transition-opacity"
       >
@@ -145,6 +146,7 @@ export default function MilestonesCard({
             {hasHistoricalData && (
               <>
                 <button
+                  type="button"
                   onClick={handleTrendClick}
                   className={cn(
                     'p-1 rounded transition-colors',
@@ -160,6 +162,7 @@ export default function MilestonesCard({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
+                          type="button"
                           onClick={handleExpandClick}
                           className={cn(
                             'p-1 rounded transition-colors',

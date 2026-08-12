@@ -25,7 +25,7 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
+export function AuthProvider({ children }: Readonly<AuthProviderProps>): JSX.Element {
   const [authState, setAuthState] = useState<AuthState>(DEFAULT_AUTH_STATE);
   const [isImpersonating, setIsImpersonating] = useState<boolean>(false);
 

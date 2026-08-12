@@ -1,5 +1,3 @@
-import { getScoreColor } from '@/shared/components/ui/timeline-chart';
-import { formatPeriod, formatShortPeriod, periodKey } from '@/utils/dateUtils';
 import { TIMELINE_MONTHS } from './constants';
 import type { Period } from './types';
 
@@ -21,7 +19,11 @@ export function generateGlobalMonthRange(monthsBack: number = TIMELINE_MONTHS): 
   return periods;
 }
 
-export { formatPeriod as formatPeriodLabel, formatShortPeriod, periodKey };
+export {
+  formatPeriod as formatPeriodLabel,
+  formatShortPeriod,
+  periodKey,
+} from '@/utils/dateUtils';
 
 // Re-export shared getScoreColor as getTimelineScoreColor for backwards compatibility
-export const getTimelineScoreColor = getScoreColor;
+export { getScoreColor as getTimelineScoreColor } from '@/shared/components/ui/timeline-chart';

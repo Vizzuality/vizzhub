@@ -28,7 +28,7 @@ interface ImpersonateDialogProps {
 export function ImpersonateDialog({
   open,
   onOpenChange,
-}: ImpersonateDialogProps): JSX.Element {
+}: Readonly<ImpersonateDialogProps>): JSX.Element {
   const { data: users, isLoading } = useUsers();
   const auth = useAuth();
   const [search, setSearch] = useState('');

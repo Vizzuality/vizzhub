@@ -99,6 +99,7 @@ function TagInput({
             >
               {v}
               <button
+                type="button"
                 className="ml-0.5 hover:text-destructive"
                 onClick={() => onChange(values.filter((x) => x !== v))}
               >

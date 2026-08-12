@@ -58,7 +58,7 @@ export function IndicatorScoreDisplay({
   indicatorValue,
   target,
   textSize = 'lg',
-}: IndicatorScoreDisplayProps): JSX.Element {
+}: Readonly<IndicatorScoreDisplayProps>): JSX.Element {
   const targetNormalized = target === null ? null : target / 100;
 
   return (
@@ -91,7 +91,7 @@ export function KPIDisplay({
   format = 'percentage',
   comparison = 'gte',
   unit,
-}: KPIDisplayProps): JSX.Element {
+}: Readonly<KPIDisplayProps>): JSX.Element {
   const formatValue = (): string => {
     if (target === null) return '—';
     const prefix = comparison === 'gte' ? '≥' : '≤';

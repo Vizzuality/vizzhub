@@ -69,7 +69,7 @@ export default function TestMaturityCard({
   isPending,
   historicalData,
   editable = true,
-}: TestMaturityCardProps): JSX.Element {
+}: Readonly<TestMaturityCardProps>): JSX.Element {
   return (
     <EditableMetricCard<Partial<Record<TestTypeKey, number>>>
       historicalData={historicalData}

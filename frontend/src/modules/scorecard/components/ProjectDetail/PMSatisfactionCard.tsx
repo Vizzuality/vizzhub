@@ -50,7 +50,7 @@ export default function PMSatisfactionCard({
   isPending,
   historicalData,
   editable = true,
-}: PMSatisfactionCardProps): JSX.Element {
+}: Readonly<PMSatisfactionCardProps>): JSX.Element {
   return (
     <EditableMetricCard<PMSatisfactionFormData>
       historicalData={historicalData}

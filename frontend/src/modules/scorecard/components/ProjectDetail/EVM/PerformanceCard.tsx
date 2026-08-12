@@ -143,7 +143,11 @@ function TrendToggleButton({ isActive, onToggle }: TrendToggleButtonProps): JSX.
     ? 'text-primary bg-primary/10'
     : 'text-muted-foreground hover:text-foreground';
   return (
-    <button onClick={onToggle} className={cn('p-1 rounded transition-colors', buttonClass)}>
+    <button
+      type="button"
+      onClick={onToggle}
+      className={cn('p-1 rounded transition-colors', buttonClass)}
+    >
       <TrendingUp className="h-3 w-3" />
     </button>
   );
@@ -165,7 +169,11 @@ function ExpandToggleButton({ isExpanded, onToggle }: ExpandToggleButtonProps): 
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <button onClick={onToggle} className={cn('p-1 rounded transition-colors', buttonClass)}>
+          <button
+            type="button"
+            onClick={onToggle}
+            className={cn('p-1 rounded transition-colors', buttonClass)}
+          >
             <Icon className="h-3 w-3" />
           </button>
         </TooltipTrigger>
@@ -280,7 +288,7 @@ interface SPICardProps {
   historicalData?: HistoricalDataPoint[];
 }
 
-export function SPICard({ evmData, getTarget, historicalData }: SPICardProps): JSX.Element {
+export function SPICard({ evmData, getTarget, historicalData }: Readonly<SPICardProps>): JSX.Element {
   const target = getTarget('target_spi') ?? 0.8;
   const value = evmData.percent_planned > 0
     ? evmData.percent_completed / evmData.percent_planned
@@ -305,7 +313,7 @@ interface CPICardProps {
   historicalData?: HistoricalDataPoint[];
 }
 
-export function CPICard({ evmData, getTarget, historicalData }: CPICardProps): JSX.Element {
+export function CPICard({ evmData, getTarget, historicalData }: Readonly<CPICardProps>): JSX.Element {
   const target = getTarget('target_cpi') ?? 0.8;
   const value = evmData.cost_to_date > 0
     ? (evmData.budget_total * evmData.percent_completed) / evmData.cost_to_date

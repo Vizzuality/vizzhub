@@ -6,7 +6,7 @@ interface EVCardProps {
   children: React.ReactNode;
 }
 
-export default function EVCard({ label, tooltip, children }: EVCardProps): JSX.Element {
+export default function EVCard({ label, tooltip, children }: Readonly<EVCardProps>): JSX.Element {
   return (
     <div className="p-4 bg-muted/50 rounded-lg border">
       <div className="flex items-center gap-2 mb-1">

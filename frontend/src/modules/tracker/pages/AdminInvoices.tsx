@@ -80,6 +80,7 @@ function SortButton({
   const Icon = isActive ? activeIcon : ArrowUpDown;
   return (
     <button
+      type="button"
       onClick={() => onClick(field)}
       className={cn(
         'flex items-center gap-1 px-2 py-1 text-sm font-medium rounded-md transition-colors',
@@ -221,6 +222,7 @@ export default function AdminInvoices(): JSX.Element {
             ] as const).map((opt) => (
               <button
                 key={opt.value}
+                type="button"
                 onClick={() => setState({ status: opt.value, page: '1' })}
                 className={cn(
                   'px-2 py-1 text-sm font-medium rounded-md transition-colors',

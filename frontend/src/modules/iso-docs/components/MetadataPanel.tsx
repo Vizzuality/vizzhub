@@ -82,6 +82,7 @@ export function MetadataPanel({ metadata, onEdit }: MetadataPanelProps): JSX.Ele
           <>
             <Separator />
             <button
+              type="button"
               className="flex items-center gap-0.5 text-muted-foreground hover:text-foreground"
               onClick={onEdit}
             >
@@ -110,6 +111,7 @@ export function MetadataPanel({ metadata, onEdit }: MetadataPanelProps): JSX.Ele
           <>
             <Separator />
             <button
+              type="button"
               className="flex items-center gap-0.5 hover:text-foreground"
               onClick={() => setChangelogOpen(!changelogOpen)}
             >
@@ -126,6 +128,7 @@ export function MetadataPanel({ metadata, onEdit }: MetadataPanelProps): JSX.Ele
           <>
             <Separator />
             <button
+              type="button"
               className="flex items-center gap-0.5 hover:text-foreground"
               onClick={() => setInstructionsOpen(!instructionsOpen)}
             >

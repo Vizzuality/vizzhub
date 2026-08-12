@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/components/ui/select';
-import { MONTH_NAMES } from '@/utils/dateUtils';
+import { MONTHS_SHORT } from '@/shared/constants/dates';
 
 interface ProjectDialogsProps {
   projectName: string;
@@ -36,7 +36,7 @@ export default function ProjectDialogs({
   showFinishDialog,
   onFinishDialogChange,
   onConfirmFinish,
-}: ProjectDialogsProps): JSX.Element {
+}: Readonly<ProjectDialogsProps>): JSX.Element {
   const now = new Date();
   const [finishMonth, setFinishMonth] = useState(now.getMonth() + 1);
   const [finishYear, setFinishYear] = useState(now.getFullYear());
@@ -94,7 +94,7 @@ export default function ProjectDialogs({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {MONTH_NAMES.map((name, idx) => (
+                      {MONTHS_SHORT.map((name, idx) => (
                         <SelectItem key={name} value={String(idx + 1)}>
                           {name}
                         </SelectItem>

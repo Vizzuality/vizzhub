@@ -42,7 +42,7 @@ export function ParameterSection({
   onValueChange,
   onNotesChange,
   showSumValidation = false,
-}: ParameterSectionProps): JSX.Element {
+}: Readonly<ParameterSectionProps>): JSX.Element {
   const sum = showSumValidation
     ? parameters.reduce((acc, param) => {
         const edited = editedValues.get(param.name);

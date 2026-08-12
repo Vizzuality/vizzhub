@@ -603,6 +603,7 @@ function PostponementTimeline({
               <AlertDialog open={open} onOpenChange={setOpen}>
                 <AlertDialogTrigger asChild>
                   <button
+                    type="button"
                     className="text-muted-foreground hover:text-destructive transition-colors p-0.5 shrink-0"
                     title="Remove latest postponement"
                     disabled={deleting}

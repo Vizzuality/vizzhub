@@ -55,7 +55,7 @@ export default function SubIndicatorCard({
   chartColor = 'var(--chart-1)',
   badge,
   dimension,
-}: SubIndicatorCardProps): JSX.Element {
+}: Readonly<SubIndicatorCardProps>): JSX.Element {
   const [showTrend, setShowTrend] = useState(false);
   const [chartMode, setChartMode] = useState<'line' | 'bar'>('line');
   const [expanded, setExpanded] = useState(false);

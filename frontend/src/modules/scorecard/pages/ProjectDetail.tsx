@@ -9,7 +9,8 @@ import { useProjectMetrics, useUpdateGovernance, useUpdatePMSatisfaction, useUpd
 import { useCapturePeriod } from '../hooks/usePeriodCapture';
 import { useConfigParameters } from '../hooks/useConfig';
 import { useProjectSnapshots } from '../hooks/useSnapshots';
-import { getMonthsSinceStart, MONTH_NAMES } from '@/utils/dateUtils';
+import { getMonthsSinceStart } from '@/utils/dateUtils';
+import { MONTHS_SHORT } from '@/shared/constants/dates';
 import ScoreCard from '../components/ScoreCard/ScoreCard';
 import DimensionChart from '../components/DimensionChart/DimensionChart';
 import type { SnapshotType, Dimension } from '../types';
@@ -217,7 +218,7 @@ export default function ProjectDetail(): JSX.Element {
               You are about to modify metrics for{' '}
               <strong>
                 {selectedPeriod
-                  ? `${MONTH_NAMES[selectedPeriod.month - 1]} ${selectedPeriod.year}`
+                  ? `${MONTHS_SHORT[selectedPeriod.month - 1]} ${selectedPeriod.year}`
                   : 'this period'}
               </strong>. This is a past period and changes may affect historical reports.
             </AlertDialogDescription>

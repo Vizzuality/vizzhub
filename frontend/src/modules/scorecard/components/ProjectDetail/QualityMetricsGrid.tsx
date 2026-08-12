@@ -109,7 +109,7 @@ function vulnerabilityBadge(highVulns: number | null, hasDependabotAlerts: boole
   return undefined;
 }
 
-function MutedCard({ title, dimension, description, message }: { title: string; dimension: Dimension; description: string; message: string }): JSX.Element {
+function MutedCard({ title, dimension, description, message }: Readonly<{ title: string; dimension: Dimension; description: string; message: string }>): JSX.Element {
   return (
     <Card className="opacity-60">
       <CardHeader className="pb-2">
@@ -132,7 +132,7 @@ function MutedCard({ title, dimension, description, message }: { title: string; 
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <button className="text-muted-foreground hover:text-foreground transition-colors">
+                <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
                   <Info className="h-4 w-4" />
                 </button>
               </TooltipTrigger>

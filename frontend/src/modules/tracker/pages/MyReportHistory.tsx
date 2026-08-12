@@ -13,10 +13,10 @@ import { formatPeriodDate } from '../utils/constants';
 function PeriodReportRow({
   period,
   userEmail,
-}: {
+}: Readonly<{
   period: ReportingPeriod;
   userEmail: string;
-}): JSX.Element | null {
+}>): JSX.Element | null {
   const { data: reports } = useReports(period.id);
   const myReport = reports?.find((r) => r.user_email === userEmail);
 

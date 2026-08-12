@@ -1,9 +1,7 @@
-import { TIMELINE_CHART_COLORS } from '@/shared/components/ui/timeline-chart';
-
 export const TIMELINE_MONTHS = 36;
 
 // Re-export the shared timeline colors for backwards compatibility
-export const TIMELINE_COLORS = TIMELINE_CHART_COLORS;
+export { TIMELINE_CHART_COLORS as TIMELINE_COLORS } from '@/shared/components/ui/timeline-chart';
 
 // Re-export dimension constants from shared component
 export {

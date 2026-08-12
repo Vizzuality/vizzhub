@@ -83,7 +83,7 @@ export default function EVMForm({
   onSubmit,
   onCancel,
   isLoading = false,
-}: EVMFormProps): JSX.Element {
+}: Readonly<EVMFormProps>): JSX.Element {
   const {
     register,
     handleSubmit,

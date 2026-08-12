@@ -115,6 +115,7 @@ export default function Projects(): JSX.Element {
     const isActive = sortField === field;
     return (
       <button
+        type="button"
         onClick={() => handleSort(field)}
         className={cn(
           "flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
@@ -249,6 +250,7 @@ export default function Projects(): JSX.Element {
               ] as const).map((option) => (
                 <button
                   key={option.value}
+                  type="button"
                   onClick={() => setStatusFilter(option.value as StatusFilter)}
                   className={cn(
                     "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
@@ -290,6 +292,7 @@ export default function Projects(): JSX.Element {
           <div className="flex items-center gap-2 md:ml-auto">
             <div className="flex items-center border rounded-lg p-1">
               <button
+                type="button"
                 onClick={() => handleViewModeChange('list')}
                 className={cn(
                   "p-1.5 rounded transition-colors",
@@ -300,6 +303,7 @@ export default function Projects(): JSX.Element {
                 <List className="w-4 h-4" />
               </button>
               <button
+                type="button"
                 onClick={() => handleViewModeChange('grid')}
                 className={cn(
                   "p-1.5 rounded transition-colors",

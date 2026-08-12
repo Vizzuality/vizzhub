@@ -5,7 +5,7 @@ interface InfoTooltipProps {
   children: React.ReactNode;
 }
 
-export default function InfoTooltip({ children }: InfoTooltipProps): JSX.Element {
+export default function InfoTooltip({ children }: Readonly<InfoTooltipProps>): JSX.Element {
   return (
     <TooltipProvider>
       <Tooltip>

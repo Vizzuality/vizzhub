@@ -39,7 +39,7 @@ export default function MilestonesList({
   onDirtyChange,
   onValuesChange,
   readOnly = false,
-}: MilestonesListProps): JSX.Element {
+}: Readonly<MilestonesListProps>): JSX.Element {
   if (isEditing) {
     return (
       <MilestonesForm

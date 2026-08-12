@@ -129,6 +129,7 @@ export default function GlobalScoreCard({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
+                    type="button"
                     onClick={toggleTrend}
                     className={cn(
                       'p-1.5 rounded-md transition-colors',
@@ -150,6 +151,7 @@ export default function GlobalScoreCard({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
+                      type="button"
                       onClick={toggleExpand}
                       className={cn(
                         'p-1.5 rounded-md transition-colors',

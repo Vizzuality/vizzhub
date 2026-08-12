@@ -173,6 +173,7 @@ function GroupChildren({
       {nodes.map((child) => (
         <button
           key={child.id}
+          type="button"
           className="flex items-center gap-2 w-full text-left px-3 py-2 rounded hover:bg-muted text-sm"
           onClick={() => onSelect(child.id)}
         >

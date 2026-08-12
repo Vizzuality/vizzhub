@@ -212,6 +212,7 @@ export function MetadataFilters({
               {textResults?.map((r) => (
                 <button
                   key={r.node_id}
+                  type="button"
                   className="flex items-start gap-2 w-full text-left px-2 py-1.5 rounded text-sm hover:bg-muted"
                   onClick={() => onSelect(r.node_id)}
                 >
@@ -236,6 +237,7 @@ export function MetadataFilters({
               {metadataResults?.map((r) => (
                 <button
                   key={r.node_id}
+                  type="button"
                   className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded text-sm hover:bg-muted"
                   onClick={() => onSelect(r.node_id)}
                 >

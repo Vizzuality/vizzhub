@@ -35,14 +35,14 @@ async def _build_response(db, period: AccrualPeriodDB) -> AccrualPeriod:
     return response
 
 
-@router.get("", response_model=list[AccrualPeriod])
+@router.get("")
 async def list_periods(db: DBSession, _: PeriodAdmin) -> list[AccrualPeriod]:
     result = await db.execute(select(AccrualPeriodDB).order_by(AccrualPeriodDB.start_date.desc()))
     periods = list(result.scalars().all())
     return [await _build_response(db, p) for p in periods]
 
 
-@router.get("/current", response_model=AccrualPeriod | None)
+@router.get("/current")
 async def get_current(db: DBSession, _: PeriodAdmin) -> AccrualPeriod | None:
     period = await period_service.get_current_period(db)
     return await _build_response(db, period) if period else None
@@ -50,7 +50,6 @@ async def get_current(db: DBSession, _: PeriodAdmin) -> AccrualPeriod | None:
 
 @router.post(
     "",
-    response_model=AccrualPeriod,
     status_code=status.HTTP_201_CREATED,
     responses={409: {"description": "Duplicate start_date or constraint violation"}},
 )
@@ -73,7 +72,6 @@ async def create_period(
 
 @router.patch(
     "/{period_id}",
-    response_model=AccrualPeriod,
     responses={404: {"description": "Period not found"}},
 )
 async def update_period(

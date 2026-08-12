@@ -15,7 +15,7 @@ import PeriodStatusBadge from '../components/PeriodStatusBadge';
 import type { ReportingPeriod } from '../types/tracker';
 import { formatPeriodDate } from '../utils/constants';
 
-function PeriodActions({ period }: { period: ReportingPeriod }): JSX.Element {
+function PeriodActions({ period }: Readonly<{ period: ReportingPeriod }>): JSX.Element {
   const activate = useActivatePeriod();
   const finish = useFinishPeriod();
   const reactivate = useReactivatePeriod();

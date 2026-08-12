@@ -66,7 +66,7 @@ export default function ClientSurveyCard({
   getWeight,
   historicalData,
   editable = true,
-}: ClientSurveyCardProps): JSX.Element {
+}: Readonly<ClientSurveyCardProps>): JSX.Element {
   const isLiveProject = projectStatus === 'live';
   const isDisabled = isLiveProject || !editable;
 

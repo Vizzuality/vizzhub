@@ -18,14 +18,14 @@ export const MONTH_NAMES = MONTHS_SHORT;
  * Format a period as "Mon YYYY" (e.g., "Jan 2024").
  */
 export function formatPeriod(year: number, month: number): string {
-  return `${MONTH_NAMES[month - 1]} ${year}`;
+  return `${MONTHS_SHORT[month - 1]} ${year}`;
 }
 
 /**
  * Format a period as "Mon 'YY" (e.g., "Jan '24").
  */
 export function formatShortPeriod(year: number, month: number): string {
-  return `${MONTH_NAMES[month - 1]} '${String(year).slice(2)}`;
+  return `${MONTHS_SHORT[month - 1]} '${String(year).slice(2)}`;
 }
 
 /**

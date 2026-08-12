@@ -34,7 +34,7 @@ export default function StrategicImpactCard({
   onSave,
   isPending,
   editable = true,
-}: StrategicImpactCardProps): JSX.Element {
+}: Readonly<StrategicImpactCardProps>): JSX.Element {
   return (
     <EditableMetricCard<StrategicImpact>
       dimension="Value"

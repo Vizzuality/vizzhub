@@ -160,6 +160,7 @@ export default function DimensionBreakdownCard({
         return (
           <button
             key={key}
+            type="button"
             onClick={() => onToggleDimension?.(dimension)}
             className={cn(
               'flex items-center gap-1.5 text-[10px] transition-opacity',
@@ -213,6 +214,7 @@ export default function DimensionBreakdownCard({
               <UITooltip>
                 <TooltipTrigger asChild>
                   <button
+                    type="button"
                     onClick={toggleTrend}
                     className={cn(
                       'p-1.5 rounded-md transition-colors',
@@ -234,6 +236,7 @@ export default function DimensionBreakdownCard({
                 <UITooltip>
                   <TooltipTrigger asChild>
                     <button
+                      type="button"
                       onClick={toggleExpand}
                       className={cn(
                         'p-1.5 rounded-md transition-colors',

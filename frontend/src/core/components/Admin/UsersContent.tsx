@@ -61,6 +61,7 @@ function SortButton({
   const Icon = isActive ? activeIcon : ArrowUpDown;
   return (
     <button
+      type="button"
       onClick={() => onClick(field)}
       className={cn(
         'flex items-center gap-1 px-2 py-1 text-sm font-medium rounded-md transition-colors',
@@ -286,6 +287,7 @@ export function UsersContent(): JSX.Element {
                   </td>
                   <td className="p-3">
                     <button
+                      type="button"
                       className="flex items-center gap-2 group"
                       onClick={() => {
                         if (isCurrentUser) return;

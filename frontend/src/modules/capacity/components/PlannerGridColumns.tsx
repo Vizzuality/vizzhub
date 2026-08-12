@@ -172,6 +172,7 @@ function NameCellRenderer({
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <button
+              type="button"
               className="shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity"
             >
               <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />

@@ -1,11 +1,6 @@
-import type {
-  DocNode,
-  ReorderItem,
-  VersionListItem,
-  VersionDetail,
-} from '@/shared/types/doc';
+import type { DocNode } from '@/shared/types/doc';
 
-export type { ReorderItem, VersionListItem, VersionDetail };
+export type { ReorderItem, VersionListItem, VersionDetail } from '@/shared/types/doc';
 
 export interface PlaybookNode extends DocNode {
   is_public: boolean;

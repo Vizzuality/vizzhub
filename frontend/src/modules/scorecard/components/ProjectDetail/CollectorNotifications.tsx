@@ -20,7 +20,7 @@ export default function CollectorNotifications({
   isSuccess,
   dismissedSuccess,
   onDismissSuccess,
-}: CollectorNotificationsProps): JSX.Element | null {
+}: Readonly<CollectorNotificationsProps>): JSX.Element | null {
   const hasNotification = error || (isSuccess && !dismissedSuccess);
 
   if (!hasNotification) return null;
@@ -71,6 +71,7 @@ export default function CollectorNotifications({
                 Metrics collected successfully! Scores are being calculated...
               </span>
               <button
+                type="button"
                 onClick={onDismissSuccess}
                 className="text-score-green hover:text-score-green/70"
               >

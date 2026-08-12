@@ -30,7 +30,7 @@ export default function MilestonesForm({
   isLoading = false,
   onDirtyChange,
   onValuesChange,
-}: MilestonesFormProps): JSX.Element {
+}: Readonly<MilestonesFormProps>): JSX.Element {
   const {
     register,
     control,

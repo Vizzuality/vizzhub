@@ -27,7 +27,7 @@ export default function GovernanceCard({
   isPending,
   historicalData,
   editable = true,
-}: GovernanceCardProps): JSX.Element {
+}: Readonly<GovernanceCardProps>): JSX.Element {
   return (
     <EditableMetricCard<number>
       historicalData={historicalData}

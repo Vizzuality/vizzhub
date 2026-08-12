@@ -96,6 +96,7 @@ export default function ScoreCard({
               <UITooltip>
                 <TooltipTrigger asChild>
                   <button
+                    type="button"
                     onClick={() => {
                       setShowChart(!showChart);
                       if (showChart) setExpanded(false);
@@ -120,6 +121,7 @@ export default function ScoreCard({
                 <UITooltip>
                   <TooltipTrigger asChild>
                     <button
+                      type="button"
                       onClick={() => setExpanded(!expanded)}
                       className={cn(
                         'p-1.5 rounded-md transition-colors',
@@ -173,6 +175,7 @@ export default function ScoreCard({
         </div>
         {hasFilters && onResetFilters && (
           <button
+            type="button"
             onClick={onResetFilters}
             className="mt-3 flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors mx-auto"
           >

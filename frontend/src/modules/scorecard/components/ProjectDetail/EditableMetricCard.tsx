@@ -52,7 +52,11 @@ function ChartToggleButton({
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <button onClick={onToggle} className={cn('p-1 rounded transition-colors', buttonClass)}>
+          <button
+            type="button"
+            onClick={onToggle}
+            className={cn('p-1 rounded transition-colors', buttonClass)}
+          >
             {icon}
           </button>
         </TooltipTrigger>
@@ -80,7 +84,11 @@ function ExpandButton({ isExpanded, onToggle }: ExpandButtonProps): JSX.Element 
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <button onClick={onToggle} className={cn('p-1 rounded transition-colors', buttonClass)}>
+          <button
+            type="button"
+            onClick={onToggle}
+            className={cn('p-1 rounded transition-colors', buttonClass)}
+          >
             <Icon className="h-4 w-4" />
           </button>
         </TooltipTrigger>
@@ -356,7 +364,7 @@ export default function EditableMetricCard<T>({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button className="p-1 text-muted-foreground hover:text-foreground transition-colors">
+                  <button type="button" className="p-1 text-muted-foreground hover:text-foreground transition-colors">
                     <Info className="h-4 w-4" />
                   </button>
                 </TooltipTrigger>

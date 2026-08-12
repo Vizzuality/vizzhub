@@ -30,6 +30,7 @@ function VersionRow({
 }>): JSX.Element {
   return (
     <button
+      type="button"
       className="flex items-center justify-between w-full text-left py-2.5 px-3 rounded hover:bg-muted text-sm"
       onClick={onClick}
     >
@@ -93,6 +94,7 @@ export function VersionHistoryDialog({
             {isPreview ? (
               <div className="flex items-center gap-2">
                 <button
+                  type="button"
                   className="text-muted-foreground hover:text-foreground"
                   onClick={() => setPreviewVersion(null)}
                 >

@@ -1,6 +1,12 @@
-import type { DocNode, DocNodeType, DocTreeNode, ReorderItem, VersionListItem, VersionDetail } from '@/shared/types/doc';
+import type { DocNode, DocNodeType } from '@/shared/types/doc';
 
-export type { DocNodeType, DocTreeNode as IsoDocTreeNode, ReorderItem, VersionListItem, VersionDetail };
+export type { DocNodeType };
+export type {
+  DocTreeNode as IsoDocTreeNode,
+  ReorderItem,
+  VersionListItem,
+  VersionDetail,
+} from '@/shared/types/doc';
 
 export type IsoDocNode = DocNode;
 
