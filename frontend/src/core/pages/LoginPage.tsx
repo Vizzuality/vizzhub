@@ -7,6 +7,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { useAuth } from '../hooks/useAuth';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
+import { safeRedirectPath } from '@/utils/safeRedirect';
 
 export function LoginPage(): JSX.Element {
   const { login, isAuthenticated, isLoading } = useAuth();
@@ -15,7 +16,7 @@ export function LoginPage(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
 
   const from = (location.state as { from?: { pathname: string; search: string } })?.from;
-  const redirectTo = from ? `${from.pathname}${from.search}` : '/';
+  const redirectTo = safeRedirectPath(from && `${from.pathname}${from.search}`);
 
   useEffect(() => {
     if (isAuthenticated) {
