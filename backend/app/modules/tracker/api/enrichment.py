@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.project import ProjectDB
 from app.core.models.user import UserDB
+from app.core.sql_helpers import format_user_display_name
 from app.modules.tracker.models.report import ReportDB
 from app.modules.tracker.models.report_part import ReportPartDB
 from app.modules.tracker.schemas.report import ReportResponse
@@ -25,7 +26,11 @@ def _build_report_response(
         estimated=report.estimated,
         mood=report.mood,
         feedback_text=report.feedback_text,
-        user_name=user.name if user else None,
+        user_name=(
+            format_user_display_name(user.first_name, user.last_name, user.name, user.email)
+            if user
+            else None
+        ),
         user_email=user.email if user else None,
         created_at=report.created_at,
         updated_at=report.updated_at,

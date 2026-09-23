@@ -843,3 +843,65 @@ class TestProjectAggregations:
         )
         assert resp.status_code == 200
         assert len(resp.json()["rows"]) == 0
+
+
+class TestSsoUserDisplayName:
+    """SSO signups only get first/last name — users.name stays NULL."""
+
+    @pytest_asyncio.fixture
+    async def sso_part(self, cost_data: dict, db_session: AsyncSession) -> None:
+        user = UserDB(
+            email="sso.user@example.com",
+            first_name="Sso",
+            last_name="User-Surname",
+            rate_id=cost_data["rate"].id,
+            dedication=Decimal("1.0"),
+            functional_area_id=cost_data["func_area"].id,
+        )
+        db_session.add(user)
+        await db_session.flush()
+        report = ReportDB(
+            user_id=user.id,
+            reporting_period_id=cost_data["period1"].id,
+            estimated=False,
+        )
+        db_session.add(report)
+        await db_session.flush()
+        db_session.add(
+            ReportPartDB(
+                report_id=report.id,
+                project_id=cost_data["project"].id,
+                percentage=Decimal("0.50"),
+                cost=Decimal("5000.00"),
+                days=Decimal("10.0"),
+            )
+        )
+        await db_session.commit()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("group_by", ["user", "functional_area_user"])
+    async def test_aggregation_uses_first_last_name(
+        self, client: AsyncClient, cost_data: dict, sso_part: None, group_by: str
+    ):
+        resp = await client.get(
+            f"/api/tracker/projects/{cost_data['project'].id}/aggregations",
+            params={"group_by": group_by},
+        )
+        assert resp.status_code == 200
+        rows = resp.json()["rows"]
+        if group_by == "functional_area_user":
+            rows = rows[0]["children"]
+        names = {r["name"] for r in rows}
+        assert "Sso User-Surname" in names
+        assert "Unknown" not in names
+
+    @pytest.mark.asyncio
+    async def test_report_parts_use_first_last_name(
+        self, client: AsyncClient, cost_data: dict, sso_part: None
+    ):
+        resp = await client.get(
+            f"/api/tracker/projects/{cost_data['project'].id}/report-parts",
+        )
+        assert resp.status_code == 200
+        by_email = {p["user_email"]: p["user_name"] for p in resp.json()}
+        assert by_email["sso.user@example.com"] == "Sso User-Surname"

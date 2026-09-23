@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.models.functional_area import FunctionalAreaDB
 from app.core.models.project import ProjectDB
 from app.core.models.user import UserDB
+from app.core.sql_helpers import user_display_name_expr
 from app.modules.tracker.constants import DEFAULT_RATE
 from app.modules.tracker.models.invoice import InvoiceDB
 from app.modules.tracker.models.non_staff_cost import NonStaffCostDB
@@ -262,7 +263,7 @@ async def get_project_report_parts(
         select(
             ReportPartDB.id,
             ReportingPeriodDB.date.label("period_date"),
-            UserDB.name.label("user_name"),
+            user_display_name_expr(UserDB).label("user_name"),
             UserDB.email.label("user_email"),
             FunctionalAreaDB.name.label("functional_area"),
             ReportPartDB.percentage,
@@ -278,7 +279,7 @@ async def get_project_report_parts(
         joined.where(ReportPartDB.project_id == project_id)
         .where(ReportPartDB.percentage.isnot(None))
         .where(ReportPartDB.percentage > 0)
-        .order_by(ReportingPeriodDB.date.desc(), UserDB.name.asc())
+        .order_by(ReportingPeriodDB.date.desc(), "user_name")
     )
 
     if period_id is not None:
@@ -319,7 +320,7 @@ async def _aggregate_fa_user(
             _join_author_fa(
                 select(
                     FunctionalAreaDB.name.label("fa_name"),
-                    UserDB.name.label("user_name"),
+                    user_display_name_expr(UserDB).label("user_name"),
                     UserDB.email.label("user_email"),
                     ReportingPeriodDB.date.label("period_date"),
                     func.coalesce(func.sum(ReportPartDB.days), 0).label("days"),
@@ -422,7 +423,7 @@ async def get_project_aggregations(
         name_expr = FunctionalAreaDB.name
         email_expr = func.cast(None, UserDB.email.type)
     else:
-        name_expr = UserDB.name
+        name_expr = user_display_name_expr(UserDB)
         email_expr = UserDB.email
 
     # FA (when grouping by it) is derived from the report author — see

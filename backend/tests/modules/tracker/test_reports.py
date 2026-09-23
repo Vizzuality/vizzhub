@@ -91,6 +91,26 @@ class TestReportsCRUD:
         assert data["user_name"] == "Test User"
 
     @pytest.mark.asyncio
+    async def test_report_user_name_falls_back_to_first_last(
+        self,
+        client: AsyncClient,
+        setup_reporting: dict,
+        db_session: AsyncSession,
+    ):
+        user = setup_reporting["user"]
+        user.name = None
+        user.first_name = "Sso"
+        user.last_name = "User"
+        await db_session.commit()
+
+        resp = await client.post(
+            "/api/tracker/reports",
+            json={"reporting_period_id": str(setup_reporting["period"].id)},
+        )
+        assert resp.status_code == 201
+        assert resp.json()["user_name"] == "Sso User"
+
+    @pytest.mark.asyncio
     async def test_duplicate_report_returns_409(
         self,
         client: AsyncClient,
