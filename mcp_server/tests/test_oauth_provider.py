@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -31,7 +32,6 @@ from app.core.permissions.actions import Action
 from app.database import Base
 from mcp_server.auth.provider import (
     ACCESS_TOKEN_TTL_HOURS,
-    AUTH_CODE_TTL_MINUTES,
     VizzHubOAuthProvider,
     is_allowed_redirect_uri,
 )
@@ -1033,8 +1033,6 @@ async def test_concurrent_code_redemption_issues_tokens_once(
     registered_client: OAuthClientInformationFull,
     code_row_with_user: MCPOAuthCodeDB,
 ) -> None:
-    import asyncio
-
     auth_code = _auth_code_for(code_row_with_user)
     results = await asyncio.gather(
         provider.exchange_authorization_code(registered_client, auth_code),
@@ -1052,8 +1050,6 @@ async def test_concurrent_refresh_rotation_issues_tokens_once(
     registered_client: OAuthClientInformationFull,
     refresh_token_row: MCPOAuthRefreshTokenDB,
 ) -> None:
-    import asyncio
-
     token = RefreshToken(token=refresh_token_row.token, client_id=TEST_CLIENT_ID, scopes=["read"])
     results = await asyncio.gather(
         provider.exchange_refresh_token(registered_client, token, scopes=[]),

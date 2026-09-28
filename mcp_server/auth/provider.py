@@ -343,38 +343,54 @@ class VizzHubOAuthProvider:
                     error_description="authorization code is invalid or already used",
                 )
 
-            fresh_roles, fresh_permissions = await self._resolve_active_user(
-                session, row.user_id
-            )
-            effective_scopes = row.scopes or []
-            access_token, _ = self._build_access_token(
-                user_id=str(row.user_id),
-                email=row.user_email,
+            oauth_token = await self._issue_tokens(
+                session,
                 client_id=client.client_id,
-                roles=fresh_roles,
-                permissions=fresh_permissions,
-                scopes=effective_scopes,
+                grant=row,
+                scopes=row.scopes or [],
+                refresh_scopes=row.scopes,
             )
-
-            refresh_token_str, refresh_row = self._build_refresh_token_row(
-                client_id=client.client_id,
-                user_id=row.user_id,
-                user_email=row.user_email,
-                user_roles=fresh_roles,
-                user_permissions=fresh_permissions,
-                scopes=row.scopes,
-                resource=row.resource,
-            )
-            session.add(refresh_row)
-            await session.commit()
 
         logger.info(
             "mcp_oauth_code_exchanged",
             client_id=client.client_id,
             user_email=row.user_email,
         )
+        return oauth_token
 
-        return self._build_oauth_token(access_token, refresh_token_str, effective_scopes)
+    async def _issue_tokens(
+        self,
+        session: AsyncSession,
+        *,
+        client_id: str,
+        grant: MCPOAuthCodeDB | MCPOAuthRefreshTokenDB,
+        scopes: list[str],
+        refresh_scopes: list[str] | None,
+    ) -> OAuthToken:
+        """Mint an access + rotated refresh token for an already-consumed grant."""
+        fresh_roles, fresh_permissions = await self._resolve_active_user(
+            session, grant.user_id
+        )
+        access_token, _ = self._build_access_token(
+            user_id=str(grant.user_id),
+            email=grant.user_email,
+            client_id=client_id,
+            roles=fresh_roles,
+            permissions=fresh_permissions,
+            scopes=scopes,
+        )
+        refresh_token_str, refresh_row = self._build_refresh_token_row(
+            client_id=client_id,
+            user_id=grant.user_id,
+            user_email=grant.user_email,
+            user_roles=fresh_roles,
+            user_permissions=fresh_permissions,
+            scopes=refresh_scopes,
+            resource=grant.resource,
+        )
+        session.add(refresh_row)
+        await session.commit()
+        return self._build_oauth_token(access_token, refresh_token_str, scopes)
 
     @staticmethod
     async def _resolve_active_user(
@@ -454,38 +470,21 @@ class VizzHubOAuthProvider:
                     error_description="refresh token is invalid or already used",
                 )
 
-            fresh_roles, fresh_permissions = await self._resolve_active_user(
-                session, old_row.user_id
-            )
-            effective_scopes = scopes if scopes else (old_row.scopes or [])
-            new_access_token, _ = self._build_access_token(
-                user_id=str(old_row.user_id),
-                email=old_row.user_email,
+            effective_scopes = scopes or old_row.scopes or []
+            oauth_token = await self._issue_tokens(
+                session,
                 client_id=client.client_id,
-                roles=fresh_roles,
-                permissions=fresh_permissions,
+                grant=old_row,
                 scopes=effective_scopes,
+                refresh_scopes=effective_scopes,
             )
-
-            new_refresh_str, refresh_row = self._build_refresh_token_row(
-                client_id=client.client_id,
-                user_id=old_row.user_id,
-                user_email=old_row.user_email,
-                user_roles=fresh_roles,
-                user_permissions=fresh_permissions,
-                scopes=effective_scopes,
-                resource=old_row.resource,
-            )
-            session.add(refresh_row)
-            await session.commit()
 
         logger.info(
             "mcp_oauth_refresh_token_exchanged",
             client_id=client.client_id,
             user_email=old_row.user_email,
         )
-
-        return self._build_oauth_token(new_access_token, new_refresh_str, effective_scopes)
+        return oauth_token
 
     # ------------------------------------------------------------------
     # Access token (JWT — no DB lookup needed)
