@@ -18,6 +18,7 @@ from mcp_server.data.base import (
     override_mcp_user,
     override_session,
     set_mcp_user,
+    user_context_from_claims,
 )
 from mcp_server.tools.tracker import tracker_get_projects
 from mcp_server.tools.scorecard import scorecard_get_project_scores
@@ -491,7 +492,7 @@ class TestIsoNoteVisibility:
         assert "hidden note" not in contents
 
 
-class TestTokenVerifierSetsContext:
+class TestTokenVerifierIdentity:
     SECRET = "test-secret-key-for-testing-only"
 
     def _make_jwt(self, **extra_claims) -> str:
@@ -511,20 +512,27 @@ class TestTokenVerifierSetsContext:
         return jose_jwt.encode(payload, self.SECRET, algorithm="HS256")
 
     @pytest.mark.asyncio
-    async def test_verify_token_sets_mcp_user_context(self) -> None:
+    async def test_verify_token_exposes_identity_claims(self) -> None:
         verifier = VizzHubTokenVerifier(secret_key=self.SECRET)
-        token_str = self._make_jwt()
 
-        access_token = await verifier.verify_token(token_str)
+        access_token = await verifier.verify_token(self._make_jwt())
 
         assert access_token is not None
-        user = get_mcp_user()
-        assert user.user_id == "user-uuid-123"
+        assert access_token.subject == "user-uuid-123"
+        user = user_context_from_claims(access_token.claims)
         assert user.email == "test@vizzuality.com"
-        assert "user" in user.roles
         assert "iso_docs_editor" in user.roles
-        assert user.has_permission("tracker:view")
         assert user.has_permission("iso_docs:edit")
+
+    @pytest.mark.asyncio
+    async def test_verify_token_does_not_set_task_context(self) -> None:
+        """A ContextVar set by auth middleware would leak into the session task."""
+        verifier = VizzHubTokenVerifier(secret_key=self.SECRET)
+
+        await verifier.verify_token(self._make_jwt())
+
+        with pytest.raises(RuntimeError):
+            get_mcp_user()
 
     @pytest.mark.asyncio
     async def test_failed_verification_does_not_set_context(self) -> None:

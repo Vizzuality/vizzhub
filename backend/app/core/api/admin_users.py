@@ -13,6 +13,7 @@ from sqlalchemy import select
 from app.config import get_settings
 from app.core.api.deps import AdminUser, CurrentUser, DBSession, get_or_404
 from app.core.auth import ALGORITHM, create_access_token, delete_auth_cookie, get_cookie_settings
+from app.core.models.mcp_oauth import MCPOAuthRefreshTokenDB
 from app.core.models.role import RoleDB, UserRoleDB
 from app.core.models.user import User, UserDB, UserPublic, UserUpdate
 from app.core.permissions.dependencies import is_admin
@@ -304,6 +305,11 @@ async def update_user(
     if "active" in update_data:
         logger.info(
             "user_active_changed", email=user.email, active=update.active, admin=current_user.email
+        )
+    if update.active is False:
+        # MCP refresh tokens outlive the web session; cut them off with the account.
+        await db.execute(
+            sa_delete(MCPOAuthRefreshTokenDB).where(MCPOAuthRefreshTokenDB.user_id == user_id)
         )
 
     await db.flush()

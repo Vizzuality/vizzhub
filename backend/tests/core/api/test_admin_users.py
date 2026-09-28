@@ -1,13 +1,16 @@
 """Tests for admin user management endpoints."""
 
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 from uuid import UUID
 
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.models.mcp_oauth import MCPOAuthClientDB, MCPOAuthRefreshTokenDB
 from app.core.models.role import RoleDB
 from app.core.models.user import UserDB, UserPublic
 from tests.conftest import assign_roles, seed_roles
@@ -149,6 +152,36 @@ class TestUpdateUser:
         assert response.json()["active"] is False
 
     @pytest.mark.asyncio
+    async def test_deactivate_user_revokes_mcp_refresh_tokens(
+        self,
+        client: AsyncClient,
+        admin_user: UserDB,
+        active_user: UserDB,
+        db_session: AsyncSession,
+    ):
+        db_session.add(MCPOAuthClientDB(client_id="c1", client_secret=None, client_info={}))
+        await db_session.flush()
+        db_session.add(
+            MCPOAuthRefreshTokenDB(
+                token="rt-active-user",
+                client_id="c1",
+                user_id=active_user.id,
+                user_email=active_user.email,
+                expires_at=datetime.now(UTC) + timedelta(days=1),
+            )
+        )
+        await db_session.commit()
+
+        response = await client.patch(
+            f"/api/admin/users/{active_user.id}",
+            json={"active": False},
+        )
+
+        assert response.status_code == 200
+        db_session.expire_all()
+        assert await db_session.get(MCPOAuthRefreshTokenDB, "rt-active-user") is None
+
+    @pytest.mark.asyncio
     async def test_reactivate_user(
         self, client: AsyncClient, admin_user: UserDB, inactive_user: UserDB
     ):
@@ -167,6 +200,41 @@ class TestUpdateUser:
         )
         assert response.status_code == 400
         assert "Cannot deactivate yourself" in response.json()["detail"]
+
+
+class TestGoogleIdentityChecks:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("idinfo", "detail"),
+        [
+            (
+                {"email": "new@vizzuality.com", "email_verified": False, "hd": "vizzuality.com"},
+                "not verified",
+            ),
+            ({"email": "new@vizzuality.com", "email_verified": True}, "Unauthorized domain"),
+        ],
+    )
+    async def test_untrusted_google_identity_cannot_login(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        idinfo: dict,
+        detail: str,
+    ):
+        with (
+            patch("app.core.api.auth.id_token.verify_oauth2_token", return_value=idinfo),
+            patch("app.core.api.auth.settings") as mock_settings,
+        ):
+            mock_settings.allowed_google_domain = "vizzuality.com"
+            response = await client.post(
+                "/api/auth/google",
+                json={"credential": "fake-google-token"},
+            )
+
+        assert response.status_code == 401
+        assert detail in response.json()["detail"]
+        user = await db_session.scalar(select(UserDB).where(UserDB.email == "new@vizzuality.com"))
+        assert user is None
 
 
 class TestInactiveUserLogin:
@@ -190,6 +258,7 @@ class TestInactiveUserLogin:
 
         mock_idinfo = {
             "email": "deactivated@test.com",
+            "email_verified": True,
             "given_name": "Deactivated",
             "family_name": "User",
             "picture": None,
@@ -225,6 +294,7 @@ class TestInactiveUserLogin:
 
         mock_idinfo = {
             "email": "active-login@test.com",
+            "email_verified": True,
             "given_name": "Active",
             "family_name": "Login",
             "picture": None,

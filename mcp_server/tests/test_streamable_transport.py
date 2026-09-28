@@ -51,6 +51,7 @@ def _build_app() -> tuple[FastAPI, object]:
     auth_settings = AuthSettings(
         issuer_url=BASE_URL,
         resource_server_url=BASE_URL,
+        validate_token_resource=False,
         client_registration_options=ClientRegistrationOptions(
             enabled=True, valid_scopes=["read"], default_scopes=["read"]
         ),

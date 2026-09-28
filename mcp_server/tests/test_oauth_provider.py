@@ -8,6 +8,14 @@ from datetime import datetime, timedelta, timezone
 import pytest
 import pytest_asyncio
 from jose import jwt
+from mcp.server.auth.provider import (
+    AuthorizationCode,
+    AuthorizationParams,
+    AuthorizeError,
+    RefreshToken,
+    RegistrationError,
+    TokenError,
+)
 from mcp.shared.auth import OAuthClientInformationFull
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -25,6 +33,7 @@ from mcp_server.auth.provider import (
     ACCESS_TOKEN_TTL_HOURS,
     AUTH_CODE_TTL_MINUTES,
     VizzHubOAuthProvider,
+    is_allowed_redirect_uri,
 )
 from mcp_server.tests.conftest import TEST_DATABASE_URL
 
@@ -257,6 +266,7 @@ async def test_load_authorization_code_valid(
                 redirect_uri="http://localhost:3000/callback",
                 redirect_uri_provided_explicitly=True,
                 scopes=["read"],
+                user_email="test@vizzuality.com",
                 expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
             )
         )
@@ -492,7 +502,7 @@ async def test_exchange_authorization_code_missing_code_raises(
     provider: VizzHubOAuthProvider,
     registered_client: OAuthClientInformationFull,
 ) -> None:
-    """exchange_authorization_code raises ValueError when code not found in DB."""
+    """exchange_authorization_code raises invalid_grant when code not found in DB."""
     from mcp.server.auth.provider import AuthorizationCode
 
     auth_code = AuthorizationCode(
@@ -505,8 +515,9 @@ async def test_exchange_authorization_code_missing_code_raises(
         expires_at=(datetime.now(timezone.utc) + timedelta(minutes=5)).timestamp(),
     )
 
-    with pytest.raises(ValueError, match="not found"):
+    with pytest.raises(TokenError) as exc_info:
         await provider.exchange_authorization_code(registered_client, auth_code)
+    assert exc_info.value.error == "invalid_grant"
 
 
 @pytest.mark.asyncio
@@ -515,7 +526,7 @@ async def test_exchange_authorization_code_null_user_raises(
     registered_client: OAuthClientInformationFull,
     session_maker,
 ) -> None:
-    """exchange_authorization_code raises ValueError when callback never populated user info."""
+    """A pre-callback row (no user yet) is neither loadable nor redeemable."""
     from mcp.server.auth.provider import AuthorizationCode
 
     code = "null-user-code-abc"
@@ -545,8 +556,10 @@ async def test_exchange_authorization_code_null_user_raises(
         expires_at=(datetime.now(timezone.utc) + timedelta(minutes=5)).timestamp(),
     )
 
-    with pytest.raises(ValueError, match="callback incomplete"):
+    assert await provider.load_authorization_code(registered_client, code) is None
+    with pytest.raises(TokenError) as exc_info:
         await provider.exchange_authorization_code(registered_client, auth_code)
+    assert exc_info.value.error == "invalid_grant"
 
 
 # ------------------------------------------------------------------
@@ -703,7 +716,7 @@ async def test_exchange_refresh_token_missing_token_raises(
     provider: VizzHubOAuthProvider,
     registered_client: OAuthClientInformationFull,
 ) -> None:
-    """exchange_refresh_token raises ValueError when token not found in DB."""
+    """exchange_refresh_token raises invalid_grant when token not found in DB."""
     from mcp.server.auth.provider import RefreshToken
 
     fake_token = RefreshToken(
@@ -712,8 +725,9 @@ async def test_exchange_refresh_token_missing_token_raises(
         scopes=["read"],
     )
 
-    with pytest.raises(ValueError, match="not found"):
+    with pytest.raises(TokenError) as exc_info:
         await provider.exchange_refresh_token(registered_client, fake_token, scopes=["read"])
+    assert exc_info.value.error == "invalid_grant"
 
 
 # ------------------------------------------------------------------
@@ -802,3 +816,241 @@ async def test_revoke_token_deletes_refresh_token(
             )
         )
         assert result.scalar_one_or_none() is None
+
+
+# ------------------------------------------------------------------
+# Redirect URI allowlist
+# ------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("uri", [
+    "https://claude.ai/api/mcp/auth_callback",
+    "https://claude.com/api/mcp/auth_callback",
+    "http://localhost:53682/callback",
+    "http://127.0.0.1:8080/oauth/callback",
+])
+def test_is_allowed_redirect_uri_accepts_claude_and_loopback(uri: str) -> None:
+    assert is_allowed_redirect_uri(uri)
+
+
+@pytest.mark.parametrize("uri", [
+    "https://attacker.example/cb",
+    "https://claude.ai.attacker.example/api/mcp/auth_callback",
+    "https://claude.ai/api/mcp/other",
+    "https://localhost/callback",
+    "http://localhost.attacker.example/callback",
+])
+def test_is_allowed_redirect_uri_rejects_others(uri: str) -> None:
+    assert not is_allowed_redirect_uri(uri)
+
+
+@pytest.mark.asyncio
+async def test_register_client_rejects_foreign_redirect_uri(
+    provider: VizzHubOAuthProvider,
+    session_maker,
+) -> None:
+    client_info = OAuthClientInformationFull(
+        client_id="rogue-client",
+        client_secret="rogue-secret",
+        redirect_uris=["http://localhost:3000/callback", "https://attacker.example/cb"],
+    )
+
+    with pytest.raises(RegistrationError) as exc_info:
+        await provider.register_client(client_info)
+
+    assert exc_info.value.error == "invalid_redirect_uri"
+    async with session_maker() as session:
+        row = await session.get(MCPOAuthClientDB, "rogue-client")
+    assert row is None
+
+
+@pytest.mark.asyncio
+async def test_get_client_hides_legacy_client_with_foreign_redirect_uri(
+    provider: VizzHubOAuthProvider,
+    session_maker,
+) -> None:
+    info = {**_client_info_dict(), "client_id": "legacy-rogue",
+            "redirect_uris": ["https://attacker.example/cb"]}
+    async with session_maker() as session:
+        session.add(MCPOAuthClientDB(
+            client_id="legacy-rogue", client_secret="x", client_info=info,
+        ))
+        await session.commit()
+
+    assert await provider.get_client("legacy-rogue") is None
+
+
+@pytest.mark.asyncio
+async def test_get_client_returns_none_for_invalid_stored_metadata(
+    provider: VizzHubOAuthProvider,
+    session_maker,
+) -> None:
+    info = {**_client_info_dict(), "client_id": "no-uris", "redirect_uris": []}
+    async with session_maker() as session:
+        session.add(MCPOAuthClientDB(client_id="no-uris", client_secret="x", client_info=info))
+        await session.commit()
+
+    assert await provider.get_client("no-uris") is None
+
+
+# ------------------------------------------------------------------
+# Resource indicator (RFC 8707)
+# ------------------------------------------------------------------
+
+
+def _authorize_params(resource: str | None) -> AuthorizationParams:
+    return AuthorizationParams(
+        state="s",
+        scopes=["read"],
+        code_challenge="c",
+        redirect_uri="http://localhost:3000/callback",
+        redirect_uri_provided_explicitly=True,
+        resource=resource,
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("resource", [None, BASE_URL, BASE_URL + "/"])
+async def test_authorize_accepts_own_resource(
+    provider: VizzHubOAuthProvider,
+    registered_client: OAuthClientInformationFull,
+    resource: str | None,
+) -> None:
+    url = await provider.authorize(registered_client, _authorize_params(resource))
+    assert "accounts.google.com" in url
+
+
+@pytest.mark.asyncio
+async def test_authorize_rejects_foreign_resource(
+    provider: VizzHubOAuthProvider,
+    registered_client: OAuthClientInformationFull,
+) -> None:
+    with pytest.raises(AuthorizeError) as exc_info:
+        await provider.authorize(
+            registered_client, _authorize_params("https://other.example/mcp"),
+        )
+    assert exc_info.value.error == "invalid_request"
+
+
+# ------------------------------------------------------------------
+# Deactivated users and single-use grants
+# ------------------------------------------------------------------
+
+
+def _auth_code_for(row: MCPOAuthCodeDB) -> AuthorizationCode:
+    return AuthorizationCode(
+        code=row.code,
+        client_id=row.client_id,
+        code_challenge=row.code_challenge,
+        redirect_uri=row.redirect_uri,
+        redirect_uri_provided_explicitly=True,
+        scopes=["read"],
+        expires_at=(datetime.now(timezone.utc) + timedelta(minutes=5)).timestamp(),
+    )
+
+
+async def _deactivate(session_maker, user_id: uuid.UUID) -> None:
+    async with session_maker() as session:
+        user = await session.get(UserDB, user_id)
+        user.active = False
+        await session.commit()
+
+
+@pytest.mark.asyncio
+async def test_exchange_authorization_code_rejects_inactive_user(
+    provider: VizzHubOAuthProvider,
+    registered_client: OAuthClientInformationFull,
+    code_row_with_user: MCPOAuthCodeDB,
+    session_maker,
+    test_user_id: uuid.UUID,
+) -> None:
+    await _deactivate(session_maker, test_user_id)
+
+    with pytest.raises(TokenError) as exc_info:
+        await provider.exchange_authorization_code(
+            registered_client, _auth_code_for(code_row_with_user),
+        )
+
+    assert exc_info.value.error == "invalid_grant"
+    async with session_maker() as session:
+        tokens = (await session.execute(select(MCPOAuthRefreshTokenDB))).scalars().all()
+    assert tokens == []
+
+
+@pytest.mark.asyncio
+async def test_exchange_refresh_token_rejects_inactive_user_and_drops_token(
+    provider: VizzHubOAuthProvider,
+    registered_client: OAuthClientInformationFull,
+    refresh_token_row: MCPOAuthRefreshTokenDB,
+    session_maker,
+    test_user_id: uuid.UUID,
+) -> None:
+    await _deactivate(session_maker, test_user_id)
+    token = RefreshToken(token=refresh_token_row.token, client_id=TEST_CLIENT_ID, scopes=["read"])
+
+    with pytest.raises(TokenError) as exc_info:
+        await provider.exchange_refresh_token(registered_client, token, scopes=[])
+
+    assert exc_info.value.error == "invalid_grant"
+    async with session_maker() as session:
+        assert await session.get(MCPOAuthRefreshTokenDB, refresh_token_row.token) is None
+
+
+@pytest.mark.asyncio
+async def test_exchange_refresh_token_rejects_legacy_row_without_user(
+    provider: VizzHubOAuthProvider,
+    registered_client: OAuthClientInformationFull,
+    session_maker,
+) -> None:
+    async with session_maker() as session:
+        session.add(MCPOAuthRefreshTokenDB(
+            token="legacy-no-user",
+            client_id=TEST_CLIENT_ID,
+            user_id=None,
+            user_email="old@vizzuality.com",
+            scopes=["read"],
+            expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+        ))
+        await session.commit()
+    token = RefreshToken(token="legacy-no-user", client_id=TEST_CLIENT_ID, scopes=["read"])
+
+    with pytest.raises(TokenError):
+        await provider.exchange_refresh_token(registered_client, token, scopes=[])
+
+
+@pytest.mark.asyncio
+async def test_concurrent_code_redemption_issues_tokens_once(
+    provider: VizzHubOAuthProvider,
+    registered_client: OAuthClientInformationFull,
+    code_row_with_user: MCPOAuthCodeDB,
+) -> None:
+    import asyncio
+
+    auth_code = _auth_code_for(code_row_with_user)
+    results = await asyncio.gather(
+        provider.exchange_authorization_code(registered_client, auth_code),
+        provider.exchange_authorization_code(registered_client, auth_code),
+        return_exceptions=True,
+    )
+
+    assert sum(not isinstance(r, Exception) for r in results) == 1
+    assert sum(isinstance(r, TokenError) for r in results) == 1
+
+
+@pytest.mark.asyncio
+async def test_concurrent_refresh_rotation_issues_tokens_once(
+    provider: VizzHubOAuthProvider,
+    registered_client: OAuthClientInformationFull,
+    refresh_token_row: MCPOAuthRefreshTokenDB,
+) -> None:
+    import asyncio
+
+    token = RefreshToken(token=refresh_token_row.token, client_id=TEST_CLIENT_ID, scopes=["read"])
+    results = await asyncio.gather(
+        provider.exchange_refresh_token(registered_client, token, scopes=[]),
+        provider.exchange_refresh_token(registered_client, token, scopes=[]),
+        return_exceptions=True,
+    )
+
+    assert sum(not isinstance(r, Exception) for r in results) == 1
+    assert sum(isinstance(r, TokenError) for r in results) == 1

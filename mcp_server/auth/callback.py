@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, RedirectResponse
 
+from app.core.auth import UntrustedGoogleIdentityError, trusted_google_email
 from app.core.models.mcp_oauth import MCPOAuthCodeDB
 from app.core.models.user import UserDB
 from app.core.permissions.resolver import resolve_permissions
@@ -83,6 +84,7 @@ async def _verify_google_identity(
     google_client_id: str,
     google_client_secret: str,
     callback_redirect_uri: str,
+    allowed_domain: str,
 ) -> str | HTMLResponse:
     status_code, tokens = await _exchange_google_code(
         google_code, google_client_id, google_client_secret, callback_redirect_uri,
@@ -107,21 +109,21 @@ async def _verify_google_identity(
         logger.warning("mcp_oauth_callback_id_token_invalid")
         return _error_html("Invalid Google ID token.")
 
-    email = idinfo.get("email", "").lower()
-    if not email:
-        return _error_html("Google did not provide an email address.")
-
-    return email
+    try:
+        return trusted_google_email(idinfo, allowed_domain)
+    except UntrustedGoogleIdentityError as exc:
+        logger.warning(
+            "mcp_oauth_callback_identity_rejected",
+            email=idinfo.get("email"),
+            hd=idinfo.get("hd"),
+            reason=str(exc),
+        )
+        return _error_html(str(exc))
 
 
 async def _lookup_active_user(
-    session: AsyncSession, email: str, allowed_domain: str,
+    session: AsyncSession, email: str,
 ) -> UserDB | HTMLResponse:
-    domain = email.split("@")[-1]
-    if domain != allowed_domain:
-        logger.warning("mcp_oauth_callback_domain_rejected", email=email)
-        return _error_html("Unauthorized domain.")
-
     user_result = await session.execute(
         select(UserDB).where(UserDB.email == email)
     )
@@ -167,12 +169,13 @@ def build_google_oauth_callback(
 
             email_or_error = await _verify_google_identity(
                 google_code, google_client_id, google_client_secret, callback_redirect_uri,
+                allowed_google_domain,
             )
             if isinstance(email_or_error, HTMLResponse):
                 return email_or_error
             email = email_or_error
 
-            user = await _lookup_active_user(session, email, allowed_google_domain)
+            user = await _lookup_active_user(session, email)
             if isinstance(user, HTMLResponse):
                 return user
 

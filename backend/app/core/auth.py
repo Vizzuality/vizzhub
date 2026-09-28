@@ -159,3 +159,26 @@ async def get_current_user(
         return TokenData(user_id=user_id, email=email, roles=roles, permissions=permissions)
     except JWTError:
         raise credentials_exception
+
+
+class UntrustedGoogleIdentityError(ValueError):
+    """A Google ID token that verified but must not be trusted as a login."""
+
+
+def trusted_google_email(idinfo: dict, allowed_domain: str | None) -> str:
+    """Return the lowercased email of a verified Google ID token payload.
+
+    The email suffix alone proves nothing: a consumer Google account can be
+    registered on any address. Only Workspace accounts carry ``hd``, so it is
+    the claim that proves membership of ``allowed_domain``.
+    """
+    email = (idinfo.get("email") or "").lower()
+    if not email:
+        raise UntrustedGoogleIdentityError("Google did not provide an email address.")
+    if idinfo.get("email_verified") is not True:
+        raise UntrustedGoogleIdentityError("Google email address is not verified.")
+    if allowed_domain and (
+        email.split("@")[-1] != allowed_domain or idinfo.get("hd") != allowed_domain
+    ):
+        raise UntrustedGoogleIdentityError("Unauthorized domain")
+    return email

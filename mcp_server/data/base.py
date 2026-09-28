@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 
+from mcp.server.lowlevel.server import request_ctx
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from mcp_server.config import get_settings
@@ -50,16 +51,44 @@ _mcp_user_context: ContextVar[McpUserContext | None] = ContextVar(
 )
 
 
+def user_context_from_claims(claims: dict) -> McpUserContext:
+    return McpUserContext(
+        user_id=claims.get("sub") or "unknown",
+        email=claims.get("email") or "",
+        roles=claims.get("roles") or [],
+        permissions=claims.get("permissions") or [],
+    )
+
+
+def _user_from_http_request() -> McpUserContext | None:
+    """Identity of the HTTP request that carried the current MCP message.
+
+    Streamable HTTP runs tool handlers in the session's task, which inherits
+    the contextvars of the request that *created* the session. A ContextVar
+    set by auth middleware would therefore pin the first token's identity for
+    the whole session; the SDK's per-message request context does not.
+    """
+    try:
+        request = request_ctx.get().request
+    except LookupError:
+        return None
+    user = request.scope.get("user") if request is not None else None
+    token = getattr(user, "access_token", None)
+    if token is None or token.claims is None:
+        return None
+    return user_context_from_claims(token.claims)
+
+
 def get_mcp_user() -> McpUserContext:
     """Return the current MCP user context. Raises if not set."""
-    ctx = _mcp_user_context.get()
+    ctx = _user_from_http_request() or _mcp_user_context.get()
     if ctx is None:
         raise RuntimeError("MCP user context not set")
     return ctx
 
 
 def set_mcp_user(ctx: McpUserContext) -> None:
-    """Set the MCP user context for the current async task."""
+    """Set the MCP user context for the current async task (stdio mode)."""
     _mcp_user_context.set(ctx)
 
 

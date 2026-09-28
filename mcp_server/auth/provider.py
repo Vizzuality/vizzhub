@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import secrets
+import uuid
 from datetime import datetime, timedelta, timezone
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 import structlog
 from jose import jwt
@@ -12,17 +13,22 @@ from mcp.server.auth.provider import (
     AccessToken,
     AuthorizationCode,
     AuthorizationParams,
+    AuthorizeError,
     RefreshToken,
+    RegistrationError,
+    TokenError,
 )
 from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
+from pydantic import ValidationError
 from sqlalchemy import delete, select
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.models.mcp_oauth import (
     MCPOAuthClientDB,
     MCPOAuthCodeDB,
     MCPOAuthRefreshTokenDB,
 )
+from app.core.models.user import UserDB
 from app.core.permissions.resolver import resolve_permissions
 from mcp_server.auth.token_verifier import VizzHubTokenVerifier
 
@@ -34,6 +40,22 @@ AUTH_CODE_TTL_MINUTES = 5
 
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_SCOPES = "openid email profile"
+
+# Without a consent screen, the redirect_uri allowlist is what stops a rogue
+# DCR client from harvesting codes: only Claude's hosted callback and loopback
+# (Claude Code / Desktop) may receive them.
+ALLOWED_REDIRECT_URIS = frozenset({
+    "https://claude.ai/api/mcp/auth_callback",
+    "https://claude.com/api/mcp/auth_callback",
+})
+LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+
+
+def is_allowed_redirect_uri(uri: str) -> bool:
+    if uri in ALLOWED_REDIRECT_URIS:
+        return True
+    parts = urlsplit(uri)
+    return parts.scheme == "http" and parts.hostname in LOOPBACK_HOSTS
 
 
 class VizzHubOAuthProvider:
@@ -143,9 +165,18 @@ class VizzHubOAuthProvider:
                 )
             )
             row = result.scalar_one_or_none()
-            if row is None:
-                return None
-            return OAuthClientInformationFull(**row.client_info)
+        if row is None:
+            return None
+        try:
+            client = OAuthClientInformationFull(**row.client_info)
+        except ValidationError:
+            logger.warning("mcp_oauth_client_invalid", client_id=client_id)
+            return None
+        # Clients registered before the allowlist existed are treated as unknown.
+        if not all(is_allowed_redirect_uri(str(u)) for u in client.redirect_uris or []):
+            logger.warning("mcp_oauth_client_redirect_rejected", client_id=client_id)
+            return None
+        return client
 
     async def register_client(
         self, client_info: OAuthClientInformationFull
@@ -156,6 +187,21 @@ class VizzHubOAuthProvider:
         returns its own copy to the caller — our return value is ignored.
         We must store the SAME client_id the SDK generated.
         """
+        rejected = [
+            str(u) for u in client_info.redirect_uris or []
+            if not is_allowed_redirect_uri(str(u))
+        ]
+        if rejected:
+            logger.warning(
+                "mcp_oauth_client_registration_rejected",
+                redirect_uris=rejected,
+                client_name=client_info.client_name,
+            )
+            raise RegistrationError(
+                error="invalid_redirect_uri",
+                error_description="redirect_uri not allowed for this server",
+            )
+
         async with self._session_maker() as session:
             session.add(
                 MCPOAuthClientDB(
@@ -177,6 +223,12 @@ class VizzHubOAuthProvider:
         client: OAuthClientInformationFull,
         params: AuthorizationParams,
     ) -> str:
+        if params.resource and params.resource.rstrip("/") != self._base_url:
+            raise AuthorizeError(
+                error="invalid_request",
+                error_description="resource does not match this server",
+            )
+
         code = secrets.token_urlsafe(32)
         expires_at = datetime.now(timezone.utc) + timedelta(
             minutes=AUTH_CODE_TTL_MINUTES
@@ -232,7 +284,8 @@ class VizzHubOAuthProvider:
             )
             row = result.scalar_one_or_none()
 
-        if row is None:
+        # Pre-callback rows (code = state sent to Google) carry no user yet.
+        if row is None or not row.user_email:
             return None
 
         if row.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
@@ -255,35 +308,29 @@ class VizzHubOAuthProvider:
         authorization_code: AuthorizationCode,
     ) -> OAuthToken:
         async with self._session_maker() as session:
+            # DELETE … RETURNING makes consumption atomic: of two concurrent
+            # redemptions only one gets the row back.
             result = await session.execute(
-                select(MCPOAuthCodeDB).where(
-                    MCPOAuthCodeDB.code == authorization_code.code
+                delete(MCPOAuthCodeDB)
+                .where(
+                    MCPOAuthCodeDB.code == authorization_code.code,
+                    MCPOAuthCodeDB.client_id == client.client_id,
                 )
+                .returning(MCPOAuthCodeDB)
             )
             row = result.scalar_one_or_none()
-            if row is None:
-                raise ValueError("Authorization code not found")
-
-            if not row.user_email:
-                raise ValueError("Authorization code has no associated user — callback incomplete")
-
-            await session.execute(
-                delete(MCPOAuthCodeDB).where(
-                    MCPOAuthCodeDB.code == authorization_code.code
+            if row is None or not row.user_email or row.user_id is None:
+                raise TokenError(
+                    error="invalid_grant",
+                    error_description="authorization code is invalid or already used",
                 )
+
+            fresh_roles, fresh_permissions = await self._resolve_active_user(
+                session, row.user_id
             )
-
             effective_scopes = row.scopes or []
-            if row.user_id:
-                fresh_roles, fresh_permissions = await resolve_permissions(
-                    session, str(row.user_id)
-                )
-            else:
-                fresh_roles, fresh_permissions = (row.user_roles or []), (
-                    row.user_permissions or []
-                )
             access_token, _ = self._build_access_token(
-                user_id=str(row.user_id) if row.user_id else None,
+                user_id=str(row.user_id),
                 email=row.user_email,
                 client_id=client.client_id,
                 roles=fresh_roles,
@@ -310,6 +357,24 @@ class VizzHubOAuthProvider:
         )
 
         return self._build_oauth_token(access_token, refresh_token_str, effective_scopes)
+
+    @staticmethod
+    async def _resolve_active_user(
+        session: AsyncSession, user_id: uuid.UUID,
+    ) -> tuple[list[str], list[str]]:
+        """Return fresh (roles, permissions), refusing deactivated or deleted users.
+
+        On refusal the already-deleted grant is committed away: it is useless.
+        """
+        active = await session.scalar(select(UserDB.active).where(UserDB.id == user_id))
+        if not active:
+            await session.commit()
+            logger.warning("mcp_oauth_grant_user_inactive", user_id=str(user_id))
+            raise TokenError(
+                error="invalid_grant",
+                error_description="user is inactive",
+            )
+        return await resolve_permissions(session, str(user_id))
 
     # ------------------------------------------------------------------
     # Refresh tokens
@@ -355,31 +420,28 @@ class VizzHubOAuthProvider:
     ) -> OAuthToken:
         async with self._session_maker() as session:
             result = await session.execute(
-                select(MCPOAuthRefreshTokenDB).where(
-                    MCPOAuthRefreshTokenDB.token == refresh_token.token
+                delete(MCPOAuthRefreshTokenDB)
+                .where(
+                    MCPOAuthRefreshTokenDB.token == refresh_token.token,
+                    MCPOAuthRefreshTokenDB.client_id == client.client_id,
                 )
+                .returning(MCPOAuthRefreshTokenDB)
             )
             old_row = result.scalar_one_or_none()
-            if old_row is None:
-                raise ValueError("Refresh token not found")
-
-            await session.execute(
-                delete(MCPOAuthRefreshTokenDB).where(
-                    MCPOAuthRefreshTokenDB.token == refresh_token.token
+            # Legacy rows without user_id cannot be checked for deactivation;
+            # force those clients through a fresh login instead.
+            if old_row is None or old_row.user_id is None:
+                raise TokenError(
+                    error="invalid_grant",
+                    error_description="refresh token is invalid or already used",
                 )
+
+            fresh_roles, fresh_permissions = await self._resolve_active_user(
+                session, old_row.user_id
             )
-
             effective_scopes = scopes if scopes else (old_row.scopes or [])
-            if old_row.user_id:
-                fresh_roles, fresh_permissions = await resolve_permissions(
-                    session, str(old_row.user_id)
-                )
-            else:
-                fresh_roles, fresh_permissions = (old_row.user_roles or []), (
-                    old_row.user_permissions or []
-                )
             new_access_token, _ = self._build_access_token(
-                user_id=str(old_row.user_id) if old_row.user_id else None,
+                user_id=str(old_row.user_id),
                 email=old_row.user_email,
                 client_id=client.client_id,
                 roles=fresh_roles,
@@ -423,6 +485,11 @@ class VizzHubOAuthProvider:
     async def revoke_token(
         self, token: AccessToken | RefreshToken
     ) -> None:
+        """Delete the refresh token.
+
+        Access tokens are stateless JWTs: revoking one is a no-op and it stays
+        valid until expiry (ACCESS_TOKEN_TTL_HOURS).
+        """
         async with self._session_maker() as session:
             await session.execute(
                 delete(MCPOAuthRefreshTokenDB).where(

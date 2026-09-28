@@ -151,10 +151,17 @@ def _google_exchange_fail() -> tuple[int, dict]:
     return (400, {"error": "invalid_grant"})
 
 
-def _mock_idinfo(email: str = "alice@vizzuality.com") -> dict:
-    """Build a mock Google ID token payload."""
+def _mock_idinfo(
+    email: str = "alice@vizzuality.com",
+    *,
+    email_verified: bool = True,
+    hd: str | None = None,
+) -> dict:
+    """Build a mock Google ID token payload (Workspace account by default)."""
     return {
         "email": email,
+        "email_verified": email_verified,
+        "hd": hd if hd is not None else email.split("@")[-1],
         "given_name": "Alice",
         "family_name": "Smith",
         "picture": "https://lh3.googleusercontent.com/photo.jpg",
@@ -320,6 +327,33 @@ async def test_callback_wrong_domain_returns_error(session_maker, original_code_
 
     assert response.status_code == 400
     assert "Unauthorized domain" in response.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("idinfo", "message"), [
+    (_mock_idinfo(email_verified=False), "not verified"),
+    # Consumer Google account registered on a company address: no `hd` claim.
+    ({**_mock_idinfo(), "hd": None}, "Unauthorized domain"),
+    (_mock_idinfo(hd="other-domain.com"), "Unauthorized domain"),
+])
+async def test_callback_rejects_untrusted_google_identity(
+    session_maker, original_code_row, idinfo, message,
+):
+    app = _build_app(session_maker)
+    transport = httpx.ASGITransport(app=app)
+
+    with (
+        patch(EXCHANGE_PATCH_TARGET, new_callable=AsyncMock, return_value=_google_exchange_ok()),
+        patch(VERIFY_PATCH_TARGET, return_value=idinfo),
+    ):
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get(
+                f"/oauth/callback?code=google-code&state={original_code_row.code}",
+                follow_redirects=False,
+            )
+
+    assert response.status_code == 400
+    assert message in response.text
 
 
 @pytest.mark.asyncio

@@ -11,7 +11,13 @@ from sqlalchemy import select
 
 from app.config import get_settings
 from app.core.api.deps import CurrentUser, DBSession
-from app.core.auth import create_access_token, delete_auth_cookie, get_cookie_settings
+from app.core.auth import (
+    UntrustedGoogleIdentityError,
+    create_access_token,
+    delete_auth_cookie,
+    get_cookie_settings,
+    trusted_google_email,
+)
 from app.core.models.role import RoleDB, UserRoleDB
 from app.core.models.user import User, UserDB, UserPublic
 from app.core.permissions.resolver import resolve_permissions
@@ -116,22 +122,19 @@ async def google_auth(
             settings.google_client_id,
         )
 
-        email = idinfo.get("email", "").lower()
-        if not email:
+        try:
+            email = trusted_google_email(idinfo, settings.allowed_google_domain)
+        except UntrustedGoogleIdentityError as exc:
+            logger.warning(
+                "auth_google_identity_rejected",
+                email=idinfo.get("email"),
+                hd=idinfo.get("hd"),
+                reason=str(exc),
+            )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Email not provided by Google",
-            )
-
-        # Check domain restriction
-        if settings.allowed_google_domain:
-            domain = email.split("@")[-1]
-            if domain != settings.allowed_google_domain:
-                logger.warning("auth_domain_rejected", email=email)
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Unauthorized domain",
-                )
+                detail=str(exc),
+            ) from None
 
         # Get or create user
         result = await db.execute(select(UserDB).where(UserDB.email == email))

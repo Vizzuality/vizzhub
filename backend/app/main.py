@@ -301,7 +301,6 @@ if settings.mcp_enabled and settings.mcp_base_url:
         )
         from mcp_server.auth.callback import build_google_oauth_callback
         from mcp_server.auth.provider import VizzHubOAuthProvider
-        from mcp_server.auth.token_verifier import VizzHubTokenVerifier
         from mcp_server.data.base import enable_backend_sessions, enable_backend_write_sessions
         from mcp_server.server import create_mcp_server
         from starlette.routing import Route
@@ -313,11 +312,12 @@ if settings.mcp_enabled and settings.mcp_base_url:
             allowed_google_domain=settings.allowed_google_domain,
             base_url=settings.mcp_base_url,
         )
-        verifier = VizzHubTokenVerifier(secret_key=settings.jwt_secret_key)
 
         auth_settings = AuthSettings(
             issuer_url=settings.mcp_base_url,
             resource_server_url=settings.mcp_base_url,
+            # VizzHubTokenVerifier checks aud="vizzhub-mcp" itself.
+            validate_token_resource=False,
             client_registration_options=ClientRegistrationOptions(
                 enabled=True,
                 valid_scopes=["read"],
