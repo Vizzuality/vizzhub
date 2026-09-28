@@ -442,6 +442,7 @@ async def test_callback_success_creates_new_code_row(
     # Extract the new code from redirect location
     parsed = urlparse(response.headers["location"])
     new_code = parse_qs(parsed.query)["code"][0]
+    assert parse_qs(parsed.query)["iss"] == [BASE_URL]
 
     # Verify the new code row has user info
     async with session_maker() as session:

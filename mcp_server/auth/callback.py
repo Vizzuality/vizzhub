@@ -201,7 +201,8 @@ def build_google_oauth_callback(
             await session.delete(original)
             await session.commit()
 
-        redirect_params: dict[str, str] = {"code": new_code}
+        # RFC 9207: lets clients (e.g. Gemini CLI) detect authorization-server mix-up.
+        redirect_params: dict[str, str] = {"code": new_code, "iss": base_url}
         if new_row.mcp_state:
             redirect_params["state"] = new_row.mcp_state
 

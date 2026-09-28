@@ -826,7 +826,10 @@ async def test_revoke_token_deletes_refresh_token(
 @pytest.mark.parametrize("uri", [
     "https://claude.ai/api/mcp/auth_callback",
     "https://claude.com/api/mcp/auth_callback",
+    "https://chatgpt.com/connector_platform_oauth_redirect",
+    "https://chatgpt.com/connector/oauth/qPYoR-UW7-xG",
     "http://localhost:53682/callback",
+    "http://localhost:7777/oauth/callback",
     "http://127.0.0.1:8080/oauth/callback",
 ])
 def test_is_allowed_redirect_uri_accepts_claude_and_loopback(uri: str) -> None:
@@ -839,6 +842,12 @@ def test_is_allowed_redirect_uri_accepts_claude_and_loopback(uri: str) -> None:
     "https://claude.ai/api/mcp/other",
     "https://localhost/callback",
     "http://localhost.attacker.example/callback",
+    "https://chatgpt.com/connector/oauth/",
+    "https://chatgpt.com/connector/oauth/id/../../evil",
+    "https://chatgpt.com/connector/oauth/id?next=https://attacker.example",
+    "https://chatgpt.com:8443/connector/oauth/id",
+    "https://chatgpt.com.attacker.example/connector/oauth/id",
+    "https://evil.chatgpt.com/connector/oauth/id",
 ])
 def test_is_allowed_redirect_uri_rejects_others(uri: str) -> None:
     assert not is_allowed_redirect_uri(uri)

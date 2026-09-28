@@ -442,6 +442,7 @@ if settings.mcp_enabled and settings.mcp_base_url:
                         "client_secret_basic",
                     ],
                     "code_challenge_methods_supported": ["S256"],
+                    "authorization_response_iss_parameter_supported": True,
                 },
                 headers={"Cache-Control": "public, max-age=3600"},
             )

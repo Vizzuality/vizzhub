@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -42,20 +43,37 @@ GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_SCOPES = "openid email profile"
 
 # Without a consent screen, the redirect_uri allowlist is what stops a rogue
-# DCR client from harvesting codes: only Claude's hosted callback and loopback
-# (Claude Code / Desktop) may receive them.
+# DCR client from harvesting codes: only known MCP hosts' callbacks and loopback
+# (Claude Code / Desktop, Gemini CLI) may receive them. To support a new MCP
+# client, add its documented callback here.
 ALLOWED_REDIRECT_URIS = frozenset({
     "https://claude.ai/api/mcp/auth_callback",
     "https://claude.com/api/mcp/auth_callback",
+    "https://chatgpt.com/connector_platform_oauth_redirect",
+})
+# (host, path prefix) pairs whose final path segment is a per-connector id,
+# e.g. ChatGPT's https://chatgpt.com/connector/oauth/{callback_id}.
+ALLOWED_REDIRECT_ID_PREFIXES = frozenset({
+    ("chatgpt.com", "/connector/oauth/"),
 })
 LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+_CALLBACK_ID = re.compile(r"[A-Za-z0-9_-]+")
 
 
 def is_allowed_redirect_uri(uri: str) -> bool:
     if uri in ALLOWED_REDIRECT_URIS:
         return True
     parts = urlsplit(uri)
-    return parts.scheme == "http" and parts.hostname in LOOPBACK_HOSTS
+    if parts.scheme == "http":
+        return parts.hostname in LOOPBACK_HOSTS
+    if parts.scheme != "https" or parts.port is not None or parts.query or parts.fragment:
+        return False
+    return any(
+        parts.hostname == host
+        and parts.path.startswith(prefix)
+        and _CALLBACK_ID.fullmatch(parts.path.removeprefix(prefix)) is not None
+        for host, prefix in ALLOWED_REDIRECT_ID_PREFIXES
+    )
 
 
 class VizzHubOAuthProvider:
