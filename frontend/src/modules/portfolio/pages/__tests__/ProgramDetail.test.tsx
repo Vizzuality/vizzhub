@@ -8,6 +8,7 @@ const mockUsePermission = vi.fn(() => true);
 const DETAIL = {
   id: 'p1',
   name: 'Alpha Program',
+  stage: 'Active',
   profile: {
     objective: 'The objective', short_description: 'Desc', web_copy: null,
     website_url: 'https://alpha.example.org', impact_story: null,
@@ -70,6 +71,11 @@ function renderPage(): void {
 }
 
 describe('ProgramDetail', () => {
+  it('shows the stage derived from projects, not the stored profile value', () => {
+    renderPage();
+    expect(screen.getByText('Active · Acme')).toBeInTheDocument();
+  });
+
   it('renders name, narrative fields, website link and tags', () => {
     renderPage();
     expect(screen.getByText('Alpha Program')).toBeInTheDocument();

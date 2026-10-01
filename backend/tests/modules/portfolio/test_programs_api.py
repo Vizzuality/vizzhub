@@ -545,4 +545,4 @@ async def test_stages_endpoint_distinct_sorted_non_null(
     await db_session.commit()
     resp = await viewer.get("/api/portfolio/programs/stages")
     assert resp.status_code == 200
-    assert resp.json() == ["live", "pipeline"]  # distinct (pipeline ×2 → once), sorted
+    assert resp.json() == ["Active", "pipeline"]  # Alpha derives Active; pipeline ×2 → once

@@ -143,6 +143,8 @@ export interface ProgramSummary {
   id: string;
   name: string;
   profile: ProgramProfile | null;
+  /** Derived from the program's projects; profile.stage is only the manual input. */
+  stage: string | null;
   terms: TermChip[];
   clients: ClientRef[];
   projects: ProjectIteration[];

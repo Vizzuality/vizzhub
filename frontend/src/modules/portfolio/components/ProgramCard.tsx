@@ -19,7 +19,7 @@ export function ProgramCard({ program }: { readonly program: ProgramSummary }): 
           <div className="text-xs text-muted-foreground">
             {[
               program.clients.map((c) => c.name).join(', '),
-              program.profile?.stage ?? undefined,
+              program.stage ?? undefined,
             ]
               .filter(Boolean)
               .join(' · ')}

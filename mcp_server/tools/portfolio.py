@@ -79,7 +79,8 @@ async def portfolio_list_programs(
     discovery prefer portfolio_search_programs.
 
     Args:
-        stage: Filter by profile stage (exact match, e.g. "live").
+        stage: Filter by program stage, derived from its projects
+            (exact match: "Active", "Finished" or "Maintenance").
         tags: Filter by taxonomy term names (case-insensitive exact
             match). Terms from the same taxonomy combine as OR, across
             taxonomies as AND. Unresolved names are reported in

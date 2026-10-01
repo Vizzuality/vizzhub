@@ -215,7 +215,8 @@ async def test_get_taxonomies_lists_terms_and_stages(
     assert geography["slug"] == "geography"
     assert geography["cardinality"] == "multi"
     assert geography["terms"] == ["Europe"]
-    assert payload["stages"] == ["live", "proposal"]
+    # Alpha has a live project → derived "Active"; Mangrove has none → stored value.
+    assert payload["stages"] == ["Active", "proposal"]
 
 
 @pytest.mark.asyncio
@@ -328,3 +329,16 @@ async def test_create_and_rename_program_via_queue(
         )
     assert rename_approved["status"] == "executed"
     assert rename_approved["result"]["name"] == "Gamma v2"
+
+
+@pytest.mark.asyncio
+async def test_list_programs_reports_derived_stage(
+    db_session: AsyncSession, seed_programs: dict
+) -> None:
+    server = create_mcp_server()
+    async with override_session(db_session):
+        active = await server.call_tool("portfolio_list_programs", {"stage": "Active"})
+        stored = await server.call_tool("portfolio_list_programs", {"stage": "live"})
+    rows = _parse_tool_result(active)["programs"]
+    assert [(p["name"], p["stage"]) for p in rows] == [("Alpha Program", "Active")]
+    assert _parse_tool_result(stored)["programs"] == []

@@ -8,16 +8,17 @@ Index filtering and pagination run in SQL (spec 2026-07-12).
 
 import math
 from collections import defaultdict
+from collections.abc import Iterable
 from uuid import UUID
 
 import structlog
-from sqlalchemy import Select, delete, exists, func, select
+from sqlalchemy import ColumnElement, Select, case, delete, exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.client import ClientDB
 from app.core.models.portfolio_profile import PortfolioProfileDB
 from app.core.models.program import ProgramDB
-from app.core.models.project import ProjectDB
+from app.core.models.project import ProjectDB, ProjectStatus
 from app.core.models.taxonomy import Cardinality, EntityTermDB, TaxonomyDB, TaxonomyTermDB
 from app.modules.portfolio.schemas.programs import (
     ClientRef,
@@ -31,6 +32,48 @@ from app.modules.portfolio.schemas.programs import (
 )
 
 logger = structlog.get_logger()
+
+STAGE_ACTIVE = "Active"
+STAGE_FINISHED = "Finished"
+STAGE_MAINTENANCE = "Maintenance"
+
+
+def derive_program_stage(stored: str | None, project_statuses: Iterable[str]) -> str | None:
+    """Program stage follows its projects; the stored profile value goes stale.
+
+    Any live project → Active (Maintenance when the profile flags it, since
+    project status can't tell a maintenance contract apart). Otherwise any
+    finished project → Finished. Programs without live/finished projects
+    (portfolio-only legacy entries, proposals) keep the stored value.
+    Mirrored in SQL by ``program_stage_expr`` — keep both in sync.
+    """
+    statuses = set(project_statuses)
+    if ProjectStatus.LIVE.value in statuses:
+        return STAGE_MAINTENANCE if stored == STAGE_MAINTENANCE else STAGE_ACTIVE
+    if ProjectStatus.FINISHED.value in statuses:
+        return STAGE_FINISHED
+    return stored
+
+
+def program_stage_expr() -> ColumnElement[str | None]:
+    """SQL mirror of ``derive_program_stage``; needs PortfolioProfileDB outer-joined."""
+
+    def has_status(status: ProjectStatus) -> ColumnElement[bool]:
+        return exists().where(
+            ProjectDB.program_id == ProgramDB.id, ProjectDB.status == status.value
+        )
+
+    return case(
+        (
+            has_status(ProjectStatus.LIVE),
+            case(
+                (PortfolioProfileDB.stage == STAGE_MAINTENANCE, STAGE_MAINTENANCE),
+                else_=STAGE_ACTIVE,
+            ),
+        ),
+        (has_status(ProjectStatus.FINISHED), STAGE_FINISHED),
+        else_=PortfolioProfileDB.stage,
+    )
 
 
 def _iteration(project: ProjectDB, client_name: str | None) -> ProjectIteration:
@@ -106,6 +149,10 @@ async def _assemble(db: AsyncSession, programs: list[ProgramDB]) -> list[Program
             id=p.id,
             name=p.name,
             profile=profiles.get(p.id),
+            stage=derive_program_stage(
+                profiles[p.id].stage if p.id in profiles else None,
+                (it.status for it in projects.get(p.id, [])),
+            ),
             terms=terms.get(p.id, []),
             clients=sorted(clients.get(p.id, {}).values(), key=lambda c: c.name),
             projects=projects.get(p.id, []),
@@ -187,7 +234,7 @@ async def build_program_index(
     )
 
     if stage is not None:
-        query = query.where(PortfolioProfileDB.stage == stage)
+        query = query.where(program_stage_expr() == stage)
     if on_website is not None:
         # Programs without a profile row count as "not on website".
         query = query.where(func.coalesce(PortfolioProfileDB.on_website, False).is_(on_website))
@@ -288,16 +335,16 @@ async def list_unassigned_projects(db: AsyncSession) -> list[ProjectIteration]:
 
 
 async def list_program_stages(db: AsyncSession) -> list[str]:
+    stage = program_stage_expr()
     rows = (
         (
             await db.execute(
-                select(PortfolioProfileDB.stage)
+                select(stage)
+                .select_from(ProgramDB)
+                .outerjoin(PortfolioProfileDB, PortfolioProfileDB.program_id == ProgramDB.id)
+                .where(stage.is_not(None))
                 .distinct()
-                .where(
-                    PortfolioProfileDB.program_id.is_not(None),
-                    PortfolioProfileDB.stage.is_not(None),
-                )
-                .order_by(PortfolioProfileDB.stage)
+                .order_by(stage)
             )
         )
         .scalars()

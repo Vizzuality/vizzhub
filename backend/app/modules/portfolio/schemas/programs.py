@@ -48,6 +48,8 @@ class ProgramSummary(BaseModel):
     id: UUID
     name: str
     profile: ProfileFields | None
+    # Derived from the program's projects; profile.stage is only the manual input.
+    stage: str | None = None
     terms: list[TermChip] = Field(default_factory=list)
     clients: list[ClientRef] = Field(default_factory=list)
     projects: list[ProjectIteration] = Field(default_factory=list)

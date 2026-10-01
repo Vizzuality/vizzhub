@@ -17,6 +17,7 @@ from app.core.services.program_catalog import (
     build_program_index,
     escape_like,
     list_program_stages,
+    program_stage_expr,
     search_query_candidates,
 )
 from app.modules.portfolio.schemas.programs import ProgramSummary
@@ -56,7 +57,7 @@ async def search_programs(session: AsyncSession, query: str, limit: int = 10) ->
                 select(
                     ProgramDB.id,
                     ProgramDB.name,
-                    PortfolioProfileDB.stage,
+                    program_stage_expr().label("stage"),
                     vector_match.label("is_vector_match"),
                     snippet.label("snippet"),
                     func.coalesce(PortfolioProfileDB.short_description, "").label("fallback"),
@@ -137,7 +138,7 @@ def _compact_program(p: ProgramSummary) -> dict:
     return {
         "program_id": str(p.id),
         "name": p.name,
-        "stage": p.profile.stage if p.profile else None,
+        "stage": p.stage,
         "short_description": short[:200] if short else None,
         "tags": [t.name for t in p.terms],
         "clients": [c.name for c in p.clients],

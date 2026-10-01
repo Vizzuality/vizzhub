@@ -9,6 +9,7 @@ const mockUsePermission = vi.fn(() => true);
 const PROGRAM = {
   id: 'p1',
   name: 'Alpha Program',
+  stage: 'Active',
   profile: {
     objective: null, short_description: 'Short desc', web_copy: null,
     impact_story: null, main_partner: null, stage: 'live', on_website: true,
@@ -110,6 +111,11 @@ describe('PortfolioPrograms', () => {
     expect(screen.getByText('Tools')).toBeInTheDocument();
     expect(screen.getByText('Biodiversity')).toBeInTheDocument(); // topics chip visible
     expect(screen.getByText(/1 active · 0 finished/)).toBeInTheDocument();
+  });
+
+  it('shows the stage derived from projects, not the stored profile value', () => {
+    renderPage();
+    expect(screen.getByText('Acme · Active')).toBeInTheDocument();
   });
 
   it('renders the unassigned tray last with its projects', () => {

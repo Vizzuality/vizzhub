@@ -78,8 +78,11 @@ async def portfolio_update_profile(
         impact_story: Narrative of achieved impact.
         web_copy: Marketing copy reference.
         website_url: Public website URL (http/https).
-        stage: Lifecycle stage (see portfolio_get_taxonomies for the
-            values in use, e.g. "live").
+        stage: Manual stage input. The effective stage is derived from the
+            program's projects (any live → "Active", all finished →
+            "Finished"); set "Maintenance" to flag a live maintenance
+            contract. Other values only show for programs without live or
+            finished projects.
         main_partner: Main partner organisation.
         on_website: Whether the program is published on the public website.
 

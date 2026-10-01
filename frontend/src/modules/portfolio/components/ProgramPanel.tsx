@@ -29,7 +29,7 @@ export function ProgramPanel({
   const [editing, setEditing] = useState(false);
 
   const subtitle = [
-    program.profile?.stage,
+    program.stage,
     program.clients.map((c) => c.name).join(', ') || null,
   ]
     .filter(Boolean)
