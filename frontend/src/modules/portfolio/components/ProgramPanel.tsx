@@ -8,6 +8,7 @@ import { ProgramNarrative } from './ProgramNarrative';
 import { ProgramIterations } from './ProgramIterations';
 import { ProgramTagsSection } from './ProgramTagsSection';
 import { ProgramEditForm } from './ProgramEditForm';
+import { DeleteProgramButton } from './DeleteProgramButton';
 import type { ProgramSummary } from '../types/portfolio';
 
 /**
@@ -19,8 +20,11 @@ export function ProgramPanel({
   program,
   leading,
   titleClassName = 'text-2xl',
+  onDeleted,
 }: {
   readonly program: ProgramSummary;
+  /** Enables the delete action; called once the program is gone. */
+  readonly onDeleted?: () => void;
   /** Optional node before the title (e.g. a back button). */
   readonly leading?: React.ReactNode;
   readonly titleClassName?: string;
@@ -57,6 +61,9 @@ export function ProgramPanel({
             <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
               <Pencil className="mr-2 h-3.5 w-3.5" /> Edit portfolio content
             </Button>
+          )}
+          {canManage && !editing && onDeleted && (
+            <DeleteProgramButton program={program} onDeleted={onDeleted} />
           )}
         </div>
       </div>

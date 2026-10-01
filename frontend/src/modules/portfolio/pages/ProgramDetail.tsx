@@ -25,6 +25,7 @@ export default function ProgramDetail(): JSX.Element {
   return (
     <ProgramPanel
       program={program}
+      onDeleted={() => navigate('/portfolio')}
       leading={
         <Button
           variant="ghost"

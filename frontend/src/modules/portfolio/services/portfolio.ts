@@ -122,5 +122,9 @@ export const portfolioApi = {
       const response = await api.patch<ProgramOption>(`/programs/${id}`, { name });
       return response.data;
     },
+
+    remove: async (id: string): Promise<void> => {
+      await api.delete(`/programs/${id}`);
+    },
   },
 };

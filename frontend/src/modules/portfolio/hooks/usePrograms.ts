@@ -68,6 +68,18 @@ export function useRenameProgram(id: string) {
   });
 }
 
+export function useDeleteProgram(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => portfolioApi.programs.remove(id),
+    onSuccess: () => {
+      // Drop the detail entry first so the invalidation doesn't refetch a 404.
+      queryClient.removeQueries({ queryKey: queryKeys.portfolio.programs.detail(id) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.portfolio.programs.all });
+    },
+  });
+}
+
 export function useUpdateProgramProfile(id: string) {
   const invalidate = useInvalidatePrograms();
   return useMutation({

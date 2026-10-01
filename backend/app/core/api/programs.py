@@ -4,12 +4,13 @@ from typing import Annotated
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy import delete, exists, select
 
 from app.core.api.deps import CurrentUser, DBSession, limiter
 from app.core.auth import TokenData
 from app.core.models.program import Program, ProgramCreate, ProgramDB, ProgramUpdate
+from app.core.models.project import ProjectDB
 from app.core.permissions import Action, require_permission
 
 ProjectManager = Annotated[TokenData, Depends(require_permission(Action.PROJECTS_MANAGE))]
@@ -83,3 +84,40 @@ async def rename_program(
         user_id=current_user.user_id,
     )
     return Program.model_validate(program)
+
+
+@router.delete(
+    "/{program_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        403: {"description": "Missing portfolio:manage permission"},
+        404: {"description": "Program not found"},
+        409: {"description": "Program still has projects attached"},
+    },
+)
+@limiter.limit("30/minute")
+async def delete_program(
+    request: Request,
+    program_id: UUID,
+    current_user: PortfolioManager,
+    db: DBSession,
+) -> None:
+    program = (
+        await db.execute(select(ProgramDB).where(ProgramDB.id == program_id))
+    ).scalar_one_or_none()
+    if program is None:
+        raise HTTPException(status_code=404, detail="Program not found")
+    # projects.program_id is ON DELETE SET NULL: deleting would silently orphan contracts.
+    has_projects = await db.scalar(select(exists().where(ProjectDB.program_id == program_id)))
+    if has_projects:
+        raise HTTPException(
+            status_code=409, detail="Program has projects attached; reassign them first"
+        )
+    # Core DELETE so the DB cascades profile, terms and links.
+    await db.execute(delete(ProgramDB).where(ProgramDB.id == program_id))
+    logger.info(
+        "program_deleted",
+        program_id=str(program_id),
+        name=program.name,
+        user_id=current_user.user_id,
+    )

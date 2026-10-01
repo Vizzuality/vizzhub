@@ -1,10 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import ProgramDetail from '../ProgramDetail';
 
 const mockUsePermission = vi.fn(() => true);
+const mockDeleteProgram = vi.fn();
 const DETAIL = {
   id: 'p1',
   name: 'Alpha Program',
@@ -32,8 +33,14 @@ const DETAIL = {
   ],
 };
 
+const mockUseProgramDetail = vi.fn((): { data: unknown; isLoading: boolean } => ({
+  data: DETAIL,
+  isLoading: false,
+}));
+
 vi.mock('../../hooks/usePrograms', () => ({
-  useProgramDetail: () => ({ data: DETAIL, isLoading: false }),
+  useProgramDetail: () => mockUseProgramDetail(),
+  useDeleteProgram: () => ({ mutateAsync: mockDeleteProgram, isPending: false }),
   useUpdateProgramProfile: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useReplaceProgramTerms: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useRenameProgram: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -64,6 +71,7 @@ function renderPage(): void {
       <MemoryRouter initialEntries={['/portfolio/programs/p1']}>
         <Routes>
           <Route path="/portfolio/programs/:programId" element={<ProgramDetail />} />
+          <Route path="/portfolio" element={<div>PROGRAM INDEX</div>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -120,5 +128,48 @@ describe('ProgramDetail', () => {
     // The always-visible move combobox is gone.
     expect(screen.queryByRole('button', { name: /^move/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /remove/i })).not.toBeInTheDocument();
+  });
+
+  it('disables delete while the program has projects attached', () => {
+    renderPage();
+    expect(screen.getByRole('button', { name: /delete program/i })).toBeDisabled();
+  });
+
+  it('deletes an empty program after confirming in the overlay', async () => {
+    mockUseProgramDetail.mockReturnValue({ data: { ...DETAIL, projects: [] }, isLoading: false });
+    mockDeleteProgram.mockResolvedValue(undefined);
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /delete program/i }));
+    expect(mockDeleteProgram).not.toHaveBeenCalled();
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('Alpha Program');
+
+    fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
+    await waitFor(() => expect(mockDeleteProgram).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText('PROGRAM INDEX')).toBeInTheDocument();
+    mockUseProgramDetail.mockReturnValue({ data: DETAIL, isLoading: false });
+  });
+
+  it('keeps the overlay open and shows the error when deletion is rejected', async () => {
+    mockUseProgramDetail.mockReturnValue({ data: { ...DETAIL, projects: [] }, isLoading: false });
+    mockDeleteProgram.mockRejectedValue(
+      Object.assign(new Error('conflict'), {
+        response: { status: 409, data: { detail: 'Program has projects attached' } },
+      }),
+    );
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /delete program/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
+    expect(await screen.findByText('Program has projects attached')).toBeInTheDocument();
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    mockUseProgramDetail.mockReturnValue({ data: DETAIL, isLoading: false });
+  });
+
+  it('hides delete without manage permission', () => {
+    mockUsePermission.mockReturnValue(false);
+    renderPage();
+    expect(screen.queryByRole('button', { name: /delete program/i })).not.toBeInTheDocument();
+    mockUsePermission.mockReturnValue(true);
   });
 });
