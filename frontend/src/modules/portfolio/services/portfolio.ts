@@ -12,6 +12,7 @@ import type {
   ProgramIndexFilters,
   ProgramIndexResponse,
   ProgramOption,
+  ProgramUpdate,
   ProgramProfile,
   ProgramProfileUpdate,
   ProgramSummary,
@@ -75,6 +76,7 @@ export const portfolioApi = {
       if (filters.client_id) params.set('client_id', filters.client_id);
       if (filters.stage) params.set('stage', filters.stage);
       if (filters.on_website !== undefined) params.set('on_website', String(filters.on_website));
+      if (filters.include_internal) params.set('include_internal', 'true');
       if (filters.sort) params.set('sort', filters.sort);
       if (filters.page !== undefined) params.set('page', String(filters.page));
       if (filters.n !== undefined) params.set('n', String(filters.n));
@@ -118,8 +120,8 @@ export const portfolioApi = {
       return response.data;
     },
 
-    rename: async (id: string, name: string): Promise<ProgramOption> => {
-      const response = await api.patch<ProgramOption>(`/programs/${id}`, { name });
+    update: async (id: string, data: ProgramUpdate): Promise<ProgramOption> => {
+      const response = await api.patch<ProgramOption>(`/programs/${id}`, data);
       return response.data;
     },
 

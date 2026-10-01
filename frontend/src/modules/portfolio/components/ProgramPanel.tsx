@@ -35,6 +35,7 @@ export function ProgramPanel({
   const subtitle = [
     program.stage,
     program.clients.map((c) => c.name).join(', ') || null,
+    program.is_internal ? 'Internal' : null,
   ]
     .filter(Boolean)
     .join(' · ');

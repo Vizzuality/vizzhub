@@ -157,3 +157,28 @@ async def test_delete_program_requires_manage_permission(
     await db_session.commit()
     resp = await viewer.delete(f"/api/programs/{prog.id}")
     assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_patch_program_toggles_internal_without_renaming(
+    manager: AsyncClient, db_session: AsyncSession
+) -> None:
+    prog = ProgramDB(name="Operations")
+    db_session.add(prog)
+    await db_session.commit()
+
+    resp = await manager.patch(f"/api/programs/{prog.id}", json={"is_internal": True})
+    assert resp.status_code == 200
+    assert resp.json()["is_internal"] is True
+    assert resp.json()["name"] == "Operations"
+
+
+@pytest.mark.asyncio
+async def test_patch_program_requires_a_field(
+    manager: AsyncClient, db_session: AsyncSession
+) -> None:
+    prog = ProgramDB(name="Untouched")
+    db_session.add(prog)
+    await db_session.commit()
+    resp = await manager.patch(f"/api/programs/{prog.id}", json={})
+    assert resp.status_code == 400

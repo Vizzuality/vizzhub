@@ -55,7 +55,7 @@ async def create_program(
     },
 )
 @limiter.limit("30/minute")
-async def rename_program(
+async def update_program(
     request: Request,
     program_id: UUID,
     payload: ProgramUpdate,
@@ -67,20 +67,27 @@ async def rename_program(
     ).scalar_one_or_none()
     if program is None:
         raise HTTPException(status_code=404, detail="Program not found")
-    clash = (
-        await db.execute(
-            select(ProgramDB.id).where(ProgramDB.name == payload.name, ProgramDB.id != program_id)
-        )
-    ).first()
-    if clash is not None:
-        raise HTTPException(status_code=409, detail="A program with this name already exists")
-    program.name = payload.name
+    if payload.name is not None:
+        clash = (
+            await db.execute(
+                select(ProgramDB.id).where(
+                    ProgramDB.name == payload.name, ProgramDB.id != program_id
+                )
+            )
+        ).first()
+        if clash is not None:
+            raise HTTPException(status_code=409, detail="A program with this name already exists")
+        program.name = payload.name
+    if payload.is_internal is not None:
+        program.is_internal = payload.is_internal
     await db.flush()
     await db.refresh(program)
     logger.info(
-        "program_renamed",
+        "program_updated",
         program_id=str(program_id),
         name=program.name,
+        is_internal=program.is_internal,
+        fields=sorted(payload.model_dump(exclude_none=True)),
         user_id=current_user.user_id,
     )
     return Program.model_validate(program)

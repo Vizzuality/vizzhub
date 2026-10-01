@@ -142,6 +142,8 @@ export interface ProgramProfile {
 export interface ProgramSummary {
   id: string;
   name: string;
+  /** Ops/admin bucket, hidden from the catalogue unless include_internal is set. */
+  is_internal: boolean;
   profile: ProgramProfile | null;
   /** Derived from the program's projects; profile.stage is only the manual input. */
   stage: string | null;
@@ -164,6 +166,7 @@ export interface ProgramIndexFilters {
   client_id?: string;
   stage?: string;
   on_website?: boolean;
+  include_internal?: boolean;
   sort?: ProgramSort;
   page?: number;
   n?: number;
@@ -189,4 +192,9 @@ export interface ProgramTermsUpdate {
 export interface ProgramOption {
   id: string;
   name: string;
+}
+
+export interface ProgramUpdate {
+  name?: string;
+  is_internal?: boolean;
 }

@@ -43,7 +43,7 @@ vi.mock('../../hooks/usePrograms', () => ({
   useDeleteProgram: () => ({ mutateAsync: mockDeleteProgram, isPending: false }),
   useUpdateProgramProfile: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useReplaceProgramTerms: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useRenameProgram: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUpdateProgram: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useSetProjectProgram: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useProgramOptions: () => ({ data: [] }),
 }));

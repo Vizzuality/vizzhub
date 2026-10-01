@@ -47,6 +47,7 @@ class ProfileFields(BaseModel):
 class ProgramSummary(BaseModel):
     id: UUID
     name: str
+    is_internal: bool = False
     profile: ProfileFields | None
     # Derived from the program's projects; profile.stage is only the manual input.
     stage: str | None = None

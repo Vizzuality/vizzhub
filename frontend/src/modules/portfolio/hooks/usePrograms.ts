@@ -16,6 +16,7 @@ import type {
   ProgramProfileUpdate,
   ProgramSummary,
   ProgramTermsUpdate,
+  ProgramUpdate,
   ProjectIteration,
 } from '@/modules/portfolio/types/portfolio';
 
@@ -60,10 +61,10 @@ export function useCreateProgram() {
   });
 }
 
-export function useRenameProgram(id: string) {
+export function useUpdateProgram(id: string) {
   const invalidate = useInvalidatePrograms();
   return useMutation({
-    mutationFn: (name: string) => portfolioApi.programs.rename(id, name),
+    mutationFn: (data: ProgramUpdate) => portfolioApi.programs.update(id, data),
     onSuccess: invalidate,
   });
 }

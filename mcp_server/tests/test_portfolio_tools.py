@@ -342,3 +342,19 @@ async def test_list_programs_reports_derived_stage(
     rows = _parse_tool_result(active)["programs"]
     assert [(p["name"], p["stage"]) for p in rows] == [("Alpha Program", "Active")]
     assert _parse_tool_result(stored)["programs"] == []
+
+
+@pytest.mark.asyncio
+async def test_list_and_search_skip_internal_programs(
+    db_session: AsyncSession, seed_programs: dict
+) -> None:
+    db_session.add(ProgramDB(name="Mangrove Ops", is_internal=True))
+    await db_session.commit()
+    server = create_mcp_server()
+    async with override_session(db_session):
+        listed = await server.call_tool("portfolio_list_programs", {})
+        found = await server.call_tool("portfolio_search_programs", {"query": "Mangrove"})
+    assert "Mangrove Ops" not in {p["name"] for p in _parse_tool_result(listed)["programs"]}
+    found_payload = _parse_tool_result(found)
+    found_rows = found_payload if isinstance(found_payload, list) else found_payload["programs"]
+    assert "Mangrove Ops" not in {p["name"] for p in found_rows}

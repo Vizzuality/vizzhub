@@ -148,6 +148,7 @@ async def _assemble(db: AsyncSession, programs: list[ProgramDB]) -> list[Program
         ProgramSummary(
             id=p.id,
             name=p.name,
+            is_internal=p.is_internal,
             profile=profiles.get(p.id),
             stage=derive_program_stage(
                 profiles[p.id].stage if p.id in profiles else None,
@@ -225,6 +226,7 @@ async def build_program_index(
     client_id: UUID | None = None,
     stage: str | None = None,
     on_website: bool | None = None,
+    include_internal: bool = False,
     sort: str = "recent",
     page: int = 1,
     n: int = 24,
@@ -233,6 +235,8 @@ async def build_program_index(
         PortfolioProfileDB, PortfolioProfileDB.program_id == ProgramDB.id
     )
 
+    if not include_internal:
+        query = query.where(ProgramDB.is_internal.is_(False))
     if stage is not None:
         query = query.where(program_stage_expr() == stage)
     if on_website is not None:
@@ -342,7 +346,7 @@ async def list_program_stages(db: AsyncSession) -> list[str]:
                 select(stage)
                 .select_from(ProgramDB)
                 .outerjoin(PortfolioProfileDB, PortfolioProfileDB.program_id == ProgramDB.id)
-                .where(stage.is_not(None))
+                .where(stage.is_not(None), ProgramDB.is_internal.is_(False))
                 .distinct()
                 .order_by(stage)
             )

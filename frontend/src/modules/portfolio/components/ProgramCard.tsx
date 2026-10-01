@@ -20,6 +20,7 @@ export function ProgramCard({ program }: { readonly program: ProgramSummary }): 
             {[
               program.clients.map((c) => c.name).join(', '),
               program.stage ?? undefined,
+              program.is_internal ? 'Internal' : undefined,
             ]
               .filter(Boolean)
               .join(' · ')}

@@ -39,6 +39,7 @@ export default function PortfolioPrograms(): JSX.Element {
     client: { defaultValue: '' },
     stage: { defaultValue: '' },
     website: { defaultValue: '' }, // '' = all, 'yes', 'no'
+    internal: { defaultValue: '' }, // '' = hidden, 'show'
     sort: { defaultValue: 'recent' },
     page: { defaultValue: 1 },
   }));
@@ -52,6 +53,7 @@ export default function PortfolioPrograms(): JSX.Element {
     client_id: state.client || undefined,
     stage: state.stage || undefined,
     on_website: state.website === '' ? undefined : state.website === 'yes',
+    include_internal: state.internal === 'show',
     sort: state.sort as ProgramSort,
     page: state.page,
     n: PAGE_SIZE,
@@ -84,7 +86,12 @@ export default function PortfolioPrograms(): JSX.Element {
   };
 
   const hasFilters = Boolean(
-    state.search || termIds.length || state.client || state.stage || state.website,
+    state.search ||
+      termIds.length ||
+      state.client ||
+      state.stage ||
+      state.website ||
+      state.internal,
   );
 
   if (isLoading) return <LoadingSpinner />;
@@ -138,6 +145,18 @@ export default function PortfolioPrograms(): JSX.Element {
             <SelectItem value="no">In website: no</SelectItem>
           </SelectContent>
         </Select>
+        <Select
+          value={state.internal || 'hidden'}
+          onValueChange={(v) => setState({ internal: v === 'hidden' ? '' : v, page: 1 })}
+        >
+          <SelectTrigger className="w-40" aria-label="Show internal programs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="hidden">Internal: hidden</SelectItem>
+            <SelectItem value="show">Internal: shown</SelectItem>
+          </SelectContent>
+        </Select>
         <Select value={state.sort} onValueChange={(v) => setState({ sort: v, page: 1 })}>
           <SelectTrigger className="w-40" aria-label="Sort programs">
             <SelectValue />
@@ -153,7 +172,15 @@ export default function PortfolioPrograms(): JSX.Element {
             size="sm"
             onClick={() => {
               setLocalSearch('');
-              setState({ search: '', terms: '', client: '', stage: '', website: '', page: 1 });
+              setState({
+                search: '',
+                terms: '',
+                client: '',
+                stage: '',
+                website: '',
+                internal: '',
+                page: 1,
+              });
             }}
           >
             <X className="mr-1 h-3.5 w-3.5" />

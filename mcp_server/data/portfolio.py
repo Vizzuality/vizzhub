@@ -63,7 +63,7 @@ async def search_programs(session: AsyncSession, query: str, limit: int = 10) ->
                     func.coalesce(PortfolioProfileDB.short_description, "").label("fallback"),
                 )
                 .outerjoin(PortfolioProfileDB, PortfolioProfileDB.program_id == ProgramDB.id)
-                .where(name_match | vector_match)
+                .where(name_match | vector_match, ProgramDB.is_internal.is_(False))
                 .order_by(
                     name_match.desc(),
                     func.coalesce(func.ts_rank(PortfolioProfileDB.search_vector, tsq), 0).desc(),

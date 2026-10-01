@@ -169,6 +169,27 @@ describe('PortfolioPrograms', () => {
     );
   });
 
+  it('hides internal programs unless the URL asks for them', () => {
+    renderPage();
+    expect(mockUseProgramIndex).toHaveBeenLastCalledWith(
+      expect.objectContaining({ include_internal: false }),
+    );
+    expect(screen.getByText('Internal: hidden')).toBeInTheDocument();
+  });
+
+  it('includes internal programs and labels them when internal=show', () => {
+    mockUseProgramIndex.mockReturnValue({
+      data: { programs: [{ ...PROGRAM, is_internal: true }], total: 1, pages: 1 },
+      isLoading: false,
+    });
+    renderPage({ initialEntries: ['/portfolio?internal=show'] });
+    expect(mockUseProgramIndex).toHaveBeenLastCalledWith(
+      expect.objectContaining({ include_internal: true }),
+    );
+    expect(screen.getByText('Internal: shown')).toBeInTheDocument();
+    expect(screen.getByText('Acme · Active · Internal')).toBeInTheDocument();
+  });
+
   it('shows pagination and navigates pages via URL state', () => {
     mockUseProgramIndex.mockReturnValue({
       data: { programs: [PROGRAM], total: 30, pages: 2 },

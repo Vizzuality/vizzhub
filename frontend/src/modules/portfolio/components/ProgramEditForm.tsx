@@ -8,7 +8,7 @@ import { Label } from '@/shared/components/ui/label';
 import { Switch } from '@/shared/components/ui/switch';
 import { Textarea } from '@/shared/components/ui/textarea';
 import {
-  useRenameProgram,
+  useUpdateProgram,
   useReplaceProgramTerms,
   useUpdateProgramProfile,
 } from '../hooks/usePrograms';
@@ -22,6 +22,7 @@ import {
 import type {
   ProgramProfileUpdate,
   ProgramSummary,
+  ProgramUpdate,
   Taxonomy,
 } from '../types/portfolio';
 
@@ -118,12 +119,13 @@ export function ProgramEditForm({
   const { data: taxonomies } = useTaxonomies();
   const active = (taxonomies ?? []).filter((t) => t.is_active);
 
-  const rename = useRenameProgram(program.id);
+  const updateProgram = useUpdateProgram(program.id);
   const updateProfile = useUpdateProgramProfile(program.id);
   const replaceTerms = useReplaceProgramTerms(program.id);
 
   const [name, setName] = useState(program.name);
   const [onWebsite, setOnWebsite] = useState(program.profile?.on_website ?? false);
+  const [isInternal, setIsInternal] = useState(program.is_internal);
   const [fields, setFields] = useState<Record<ProfileTextKey, string>>(() =>
     Object.fromEntries(
       PROFILE_TEXT_FIELDS.map((f) => [f.key, program.profile?.[f.key] ?? '']),
@@ -161,7 +163,10 @@ export function ProgramEditForm({
     setSaving(true);
     try {
       const trimmed = name.trim();
-      if (trimmed && trimmed !== program.name) await rename.mutateAsync(trimmed);
+      const programPatch: ProgramUpdate = {};
+      if (trimmed && trimmed !== program.name) programPatch.name = trimmed;
+      if (isInternal !== program.is_internal) programPatch.is_internal = isInternal;
+      if (Object.keys(programPatch).length > 0) await updateProgram.mutateAsync(programPatch);
 
       const diff = buildProfileDiff(fields, program.profile);
       if (onWebsite !== (program.profile?.on_website ?? false)) diff.on_website = onWebsite;
@@ -216,6 +221,12 @@ export function ProgramEditForm({
             On website
           </Label>
           <Switch id="program-on-website" checked={onWebsite} onCheckedChange={setOnWebsite} />
+        </div>
+        <div className="flex items-center gap-2 pb-2">
+          <Label htmlFor="program-internal" className="text-sm text-muted-foreground">
+            Internal program
+          </Label>
+          <Switch id="program-internal" checked={isInternal} onCheckedChange={setIsInternal} />
         </div>
       </div>
 
