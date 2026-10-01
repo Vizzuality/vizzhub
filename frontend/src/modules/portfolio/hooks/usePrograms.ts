@@ -70,12 +70,13 @@ export function useRenameProgram(id: string) {
 
 export function useDeleteProgram(id: string) {
   const queryClient = useQueryClient();
+  const invalidate = useInvalidatePrograms();
   return useMutation({
     mutationFn: () => portfolioApi.programs.remove(id),
     onSuccess: () => {
       // Drop the detail entry first so the invalidation doesn't refetch a 404.
       queryClient.removeQueries({ queryKey: queryKeys.portfolio.programs.detail(id) });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.portfolio.programs.all });
+      invalidate();
     },
   });
 }
