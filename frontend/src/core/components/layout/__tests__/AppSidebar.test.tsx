@@ -1,8 +1,9 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { AppSidebar } from '../AppSidebar';
-import { SidebarProvider } from '@/shared/components/ui/sidebar';
+import { SidebarProvider, SidebarTrigger } from '@/shared/components/ui/sidebar';
 
 beforeAll(() => {
   // jsdom lacks matchMedia; SidebarProvider's mobile detection needs it.
@@ -45,5 +46,39 @@ describe('AppSidebar active state', () => {
       'data-active',
       'false',
     );
+  });
+});
+
+describe('AppSidebar on mobile', () => {
+  const desktopWidth = window.innerWidth;
+
+  afterEach(() => {
+    window.innerWidth = desktopWidth;
+  });
+
+  // Regression: the only toggle lived inside the sidebar, which on mobile is a
+  // hidden sheet — the menu could never be opened.
+  it('opens from an external trigger and closes after navigating', async () => {
+    window.innerWidth = 500;
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <SidebarProvider>
+          <SidebarTrigger />
+          <AppSidebar />
+        </SidebarProvider>
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByRole('link', { name: 'Playbook' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Toggle Sidebar' }));
+    const link = await screen.findByRole('link', { name: 'Playbook' });
+
+    await act(async () => {
+      await user.click(link);
+    });
+
+    expect(screen.queryByRole('link', { name: 'Playbook' })).not.toBeInTheDocument();
   });
 });
