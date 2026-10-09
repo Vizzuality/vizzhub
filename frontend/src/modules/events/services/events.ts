@@ -8,6 +8,7 @@ import type {
   EventListResponse,
   EventOptions,
   EventStats,
+  EventStatsParams,
   EventSummary,
   EventUpdate,
 } from '../types/events';
@@ -60,10 +61,8 @@ export const eventsApi = {
     await api.delete(`/events/${eventId}/attendees/${userId}`);
   },
 
-  stats: async (year?: number): Promise<EventStats> => {
-    const response = await api.get<EventStats>('/events/stats', {
-      params: year ? { year } : {},
-    });
+  stats: async (params: EventStatsParams): Promise<EventStats> => {
+    const response = await api.get<EventStats>('/events/stats', { params });
     return response.data;
   },
 

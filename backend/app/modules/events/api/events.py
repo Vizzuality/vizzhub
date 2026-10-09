@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 
 from app.core.api.deps import DBSession
 from app.modules.events.api.deps import EventsManager, EventsViewer, get_event_or_404
+from app.modules.events.constants import ATTENDING_FILTER_PATTERN
 from app.modules.events.models.event import EventDB
 from app.modules.events.models.event_attendee import EventAttendeeDB
 from app.modules.events.schemas.event import (
@@ -47,7 +48,7 @@ class EventListFilters:
     theme_primary: str | None = None
     region_focus: str | None = None
     location_country: str | None = None
-    attending: Annotated[str | None, Query(pattern=r"^(yes|no|maybe|attended)$")] = None
+    attending: Annotated[str | None, Query(pattern=ATTENDING_FILTER_PATTERN)] = None
 
 
 @dataclass

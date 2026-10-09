@@ -2,6 +2,9 @@
 
 from enum import StrEnum
 
+# "attended" is filter-only: attending = yes and the event has already ended.
+ATTENDING_FILTER_PATTERN = r"^(yes|no|maybe|attended)$"
+
 
 class EventType(StrEnum):
     CONFERENCE = "Conference"

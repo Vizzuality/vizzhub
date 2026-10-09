@@ -607,3 +607,22 @@ class TestEventFiltering:
         r = await client.get("/api/events?sort_by=total_cost&sort_dir=desc")
         names = [i["name"] for i in r.json()["items"]]
         assert names.index("A_pricey") < names.index("B_cheap")
+
+
+class TestEventStatsApi:
+    @pytest.mark.asyncio
+    async def test_stats_attending_filter(self, client: AsyncClient):
+        past = (date.today() - timedelta(days=10)).isoformat()
+        await client.post(
+            "/api/events", json=_event_payload(name="A", attending="yes", start_date=past)
+        )
+        await client.post("/api/events", json=_event_payload(name="B", start_date=past))
+
+        resp = await client.get("/api/events/stats?attending=attended")
+        assert resp.status_code == 200
+        assert resp.json()["total_events"] == 1
+
+    @pytest.mark.asyncio
+    async def test_stats_attending_invalid_rejected(self, client: AsyncClient):
+        resp = await client.get("/api/events/stats?attending=going")
+        assert resp.status_code == 400

@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import ColumnElement, Select, and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql.elements import Label
@@ -79,6 +79,18 @@ def _base_list_query() -> Select:
     )
 
 
+def attending_condition(attending: str) -> ColumnElement[bool]:
+    if attending == "attended":
+        # Single-day events have no end_date, so fall back to start_date.
+        return and_(
+            EventDB.attending == "yes",
+            func.coalesce(EventDB.end_date, EventDB.start_date) < func.current_date(),
+        )
+    if attending == "maybe":
+        return or_(EventDB.attending == "maybe", EventDB.attending.is_(None))
+    return EventDB.attending == attending
+
+
 def apply_filters(
     stmt: Select,
     *,
@@ -105,16 +117,8 @@ def apply_filters(
         stmt = stmt.where(EventDB.region_focus == region_focus)
     if location_country:
         stmt = stmt.where(EventDB.location_country == location_country)
-    if attending == "attended":
-        # Attended = confirmed and already over; single-day events have no end_date.
-        stmt = stmt.where(
-            EventDB.attending == "yes",
-            func.coalesce(EventDB.end_date, EventDB.start_date) < func.current_date(),
-        )
-    elif attending == "maybe":
-        stmt = stmt.where(or_(EventDB.attending == "maybe", EventDB.attending.is_(None)))
-    elif attending in ("yes", "no"):
-        stmt = stmt.where(EventDB.attending == attending)
+    if attending:
+        stmt = stmt.where(attending_condition(attending))
     return stmt
 
 

@@ -15,16 +15,13 @@ import {
 } from '@/shared/components/ui/select';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
+import { AttendingFilterSelect } from '../components/AttendingFilterSelect';
 import { EventCard } from '../components/EventCard';
 import { EventForm } from '../components/EventForm';
 import { EventsTable } from '../components/EventsTable';
 import { useEvents } from '../hooks/useEvents';
 import { useEventOptions } from '../hooks/useEventOptions';
-import {
-  ALL_SENTINEL,
-  ATTENDING_LABELS,
-  buildYearOptions,
-} from '../utils/constants';
+import { ALL_SENTINEL, buildYearOptions } from '../utils/constants';
 import type { AttendingFilter, EventListParams, EventSummary } from '../types/events';
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -292,21 +289,10 @@ export default function Events(): JSX.Element {
           </SelectContent>
         </Select>
 
-        <Select
-          value={state.attending || ALL_SENTINEL}
-          onValueChange={(v) => handleSelectChange('attending', v)}
-        >
-          <SelectTrigger className="w-[140px] h-9 text-sm">
-            <SelectValue placeholder="Attending" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL_SENTINEL}>All Attending</SelectItem>
-            <SelectItem value="yes">{ATTENDING_LABELS.yes}</SelectItem>
-            <SelectItem value="maybe">{ATTENDING_LABELS.maybe}</SelectItem>
-            <SelectItem value="no">{ATTENDING_LABELS.no}</SelectItem>
-            <SelectItem value="attended">Attended</SelectItem>
-          </SelectContent>
-        </Select>
+        <AttendingFilterSelect
+          value={state.attending}
+          onChange={(v) => setState({ attending: v })}
+        />
 
         <Select
           value={state.sort}

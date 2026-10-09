@@ -119,6 +119,11 @@ export interface StatGroup {
   count: number;
 }
 
+export interface EventStatsParams {
+  year?: number;
+  attending?: AttendingFilter;
+}
+
 export interface EventStats {
   total_events: number;
   total_attendees: number;

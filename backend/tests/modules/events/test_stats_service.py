@@ -1,6 +1,6 @@
 """Tests for events stats_service aggregation."""
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
@@ -78,3 +78,45 @@ async def test_total_cost_handles_null_attendee_costs(db_session: AsyncSession, 
 async def test_total_cost_with_no_events(db_session: AsyncSession):
     stats = await get_stats(db_session, year=2026)
     assert stats["total_cost"] == 0
+
+
+@pytest.mark.asyncio
+async def test_attended_filter_scopes_every_aggregate(db_session: AsyncSession, debug_user: UserDB):
+    past = date.today() - timedelta(days=10)
+    future = date.today() + timedelta(days=10)
+
+    def _event(name: str, start: date, attending: str | None, cost: str) -> EventDB:
+        return EventDB(
+            name=name,
+            event_type="Conference",
+            theme_primary="Climate",
+            region_focus="Global",
+            start_date=start,
+            attending=attending,
+            other_costs=Decimal(cost),
+        )
+
+    attended = _event("Attended", past, "yes", "100.00")
+    db_session.add_all(
+        [
+            attended,
+            _event("Upcoming", future, "yes", "200.00"),
+            _event("Skipped", past, "no", "400.00"),
+        ]
+    )
+    await db_session.flush()
+    db_session.add(
+        EventAttendeeDB(
+            event_id=attended.id,
+            user_id=debug_user.id,
+            role="Speaker",
+            cost=Decimal("50.00"),
+        )
+    )
+    await db_session.commit()
+
+    stats = await get_stats(db_session, attending="attended")
+    assert stats["total_events"] == 1
+    assert stats["total_attendees"] == 1
+    assert stats["total_cost"] == Decimal("150.00")
+    assert stats["by_role"] == [{"label": "Speaker", "count": 1}]

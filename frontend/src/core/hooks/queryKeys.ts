@@ -253,7 +253,7 @@ export const queryKeys = {
     all: ['events'] as const,
     list: (params: Record<string, unknown>) => ['events', 'list', params] as const,
     detail: (id: string) => ['events', id] as const,
-    stats: (year?: number) => ['events', 'stats', year] as const,
+    stats: (params: Record<string, unknown>) => ['events', 'stats', params] as const,
     options: ['events', 'options'] as const,
   },
   portfolio: {
