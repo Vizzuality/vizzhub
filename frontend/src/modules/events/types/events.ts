@@ -1,5 +1,7 @@
 export const ATTENDING_VALUES = ['yes', 'no', 'maybe'] as const;
 export type Attending = typeof ATTENDING_VALUES[number];
+// List-only filter value: attending = yes and the event has already ended.
+export type AttendingFilter = Attending | 'attended';
 
 export const EVENT_TYPES = [
   'Conference', 'Summit', 'Forum', 'Workshop', 'Symposium',
@@ -105,7 +107,7 @@ export interface EventListParams {
   theme_primary?: string;
   region_focus?: string;
   location_country?: string;
-  attending?: Attending;
+  attending?: AttendingFilter;
   sort_by?: string;
   sort_dir?: string;
   page?: number;

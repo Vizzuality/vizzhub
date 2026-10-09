@@ -47,7 +47,7 @@ class EventListFilters:
     theme_primary: str | None = None
     region_focus: str | None = None
     location_country: str | None = None
-    attending: Annotated[str | None, Query(pattern=r"^(yes|no|maybe)$")] = None
+    attending: Annotated[str | None, Query(pattern=r"^(yes|no|maybe|attended)$")] = None
 
 
 @dataclass

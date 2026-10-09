@@ -105,7 +105,13 @@ def apply_filters(
         stmt = stmt.where(EventDB.region_focus == region_focus)
     if location_country:
         stmt = stmt.where(EventDB.location_country == location_country)
-    if attending == "maybe":
+    if attending == "attended":
+        # Attended = confirmed and already over; single-day events have no end_date.
+        stmt = stmt.where(
+            EventDB.attending == "yes",
+            func.coalesce(EventDB.end_date, EventDB.start_date) < func.current_date(),
+        )
+    elif attending == "maybe":
         stmt = stmt.where(or_(EventDB.attending == "maybe", EventDB.attending.is_(None)))
     elif attending in ("yes", "no"):
         stmt = stmt.where(EventDB.attending == attending)

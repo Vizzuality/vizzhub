@@ -1,5 +1,6 @@
 """Tests for events module API endpoints."""
 
+from datetime import date, timedelta
 from decimal import Decimal
 from uuid import uuid4
 
@@ -213,6 +214,31 @@ class TestEventsCRUD:
         assert resp.status_code == 200
         names = sorted(i["name"] for i in resp.json()["items"])
         assert names == ["Maybe Event", "Null Event"]
+
+    @pytest.mark.asyncio
+    async def test_filter_attended_only_past_confirmed(self, client: AsyncClient):
+        today = date.today()
+        past = (today - timedelta(days=10)).isoformat()
+        future = (today + timedelta(days=10)).isoformat()
+        events = [
+            _event_payload(name="Past Yes", attending="yes", start_date=past),
+            _event_payload(name="Past No", attending="no", start_date=past),
+            _event_payload(name="Past Unset", start_date=past),
+            _event_payload(name="Future Yes", attending="yes", start_date=future),
+            _event_payload(
+                name="Ongoing Yes",
+                attending="yes",
+                start_date=past,
+                end_date=today.isoformat(),
+            ),
+        ]
+        for payload in events:
+            await client.post("/api/events", json=payload)
+
+        resp = await client.get("/api/events?attending=attended")
+        assert resp.status_code == 200
+        names = sorted(i["name"] for i in resp.json()["items"])
+        assert names == ["Past Yes"]
 
     @pytest.mark.asyncio
     async def test_filter_attending_invalid_rejected(self, client: AsyncClient):

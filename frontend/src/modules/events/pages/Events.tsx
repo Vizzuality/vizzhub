@@ -25,7 +25,7 @@ import {
   ATTENDING_LABELS,
   buildYearOptions,
 } from '../utils/constants';
-import type { Attending, EventListParams, EventSummary } from '../types/events';
+import type { AttendingFilter, EventListParams, EventSummary } from '../types/events';
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -61,7 +61,7 @@ function buildQueryParams(state: UrlState): EventListParams {
     ...(state.theme && { theme_primary: state.theme }),
     ...(state.type && { event_type: state.type }),
     ...(state.region && { region_focus: state.region }),
-    ...(state.attending && { attending: state.attending as Attending }),
+    ...(state.attending && { attending: state.attending as AttendingFilter }),
     sort_by: sortBy,
     sort_dir: sortDir,
     page_size: 100,
@@ -304,6 +304,7 @@ export default function Events(): JSX.Element {
             <SelectItem value="yes">{ATTENDING_LABELS.yes}</SelectItem>
             <SelectItem value="maybe">{ATTENDING_LABELS.maybe}</SelectItem>
             <SelectItem value="no">{ATTENDING_LABELS.no}</SelectItem>
+            <SelectItem value="attended">Attended</SelectItem>
           </SelectContent>
         </Select>
 
