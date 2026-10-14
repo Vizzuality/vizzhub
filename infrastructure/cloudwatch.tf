@@ -8,6 +8,16 @@ resource "aws_cloudwatch_log_group" "main" {
   }
 }
 
+# Name is fixed by RDS; creating it here keeps logs from defaulting to "never expire".
+resource "aws_cloudwatch_log_group" "rds_postgresql" {
+  name              = "/aws/rds/instance/${var.project_name}-db/postgresql"
+  retention_in_days = 30
+
+  tags = {
+    Name = "${var.project_name}-rds-logs"
+  }
+}
+
 resource "aws_cloudwatch_log_group" "backend" {
   name              = "/${var.project_name}/backend"
   retention_in_days = 30

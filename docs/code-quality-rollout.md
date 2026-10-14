@@ -46,9 +46,9 @@ a person has high value.
 
 1. **Every finding has an owner and a notification path.** A tool whose
    output nobody triages is removed, not kept "for visibility".
-2. **One tool per job.** One SAST tool per repo, one dependency scanner
-   (Dependabot), one secrets scanner (Gitleaks, plus GitHub secret
-   scanning where free).
+2. **No overlapping tools.** A scanner stays only if it finds real issues
+   the others miss. One dependency scanner (Dependabot), one secrets
+   scanner (Gitleaks, plus GitHub secret scanning where free).
 3. **Reuse what has proven itself** (Dependabot + Peek) before adding
    new infrastructure.
 4. **Distribution by copy, not by framework.** At current capacity, a
@@ -70,17 +70,21 @@ running overlapping scanners.
 - Go through every open code scanning finding once. Fix the real ones;
   dismiss the rest with a reason (`false positive`, `won't fix` +
   justification), following the exception process in `SECURITY.md`.
-- Decide the SAST tool per repo type:
-  - **Public repos:** CodeQL (free; GitHub-native triage).
-  - **Private repos:** SonarQube Cloud (Adopt; already paid).
-  - **Semgrep** only where there is a real PR workflow that its
-    diff-aware gate can protect.
-- For VizzHub (public, no PRs): keep CodeQL + Sonar, remove the Semgrep
-  job from `security.yml`, keep the Gitleaks job.
+- Keep a scanner only if it finds real issues the others miss:
+  - **Code SAST:** CodeQL on public repos (free), SonarQube Cloud on
+    private ones (Adopt; already paid).
+  - **Semgrep** stays wherever it scans what the code SAST does not:
+    Terraform, Dockerfiles, GitHub Actions workflows and package-manager
+    config. In the 2026-10-14 VizzHub triage it found 2 of the 3 real
+    issues (workflow-level secret, missing uv dependency cooldown).
 
 **Exit criteria:**
 - Zero open findings without a triage decision.
-- `security.yml` runs only the tools chosen above.
+
+**Done in VizzHub (2026-10-14):** 55 findings triaged: 9 fixed (workflow
+`permissions`, secret scoped to the jobs that need it, uv
+`exclude-newer = "7 days"`, ALB access logs, RDS log export), 46
+dismissed with a reason. CodeQL, Semgrep and Gitleaks all stay.
 
 ### Step 2 — Route code scanning and secret scanning alerts through Peek
 
@@ -138,7 +142,7 @@ adopting it here needs the usual Trial confirmation.
 | Phase 2 — `Vizzuality/quality-templates` callable workflow | Versioned workflow infrastructure is heavier than the value it adds at current capacity. Replaced by copy-based distribution (Step 3). |
 | Phase 4 — Renovate in measuring mode | No current pain it solves; Dependabot is Adopt and its alerts already drive fixes. |
 | Phase 5 — Trivy fs, pip-audit, npm audit nightlies | Duplicate Dependabot alerts. Only the image-scan gap survives (optional step). |
-| Phase 5 — nightly Semgrep full scan | Superseded by one-SAST-per-repo (Step 1). |
+| Phase 5 — nightly Semgrep full scan | Semgrep already runs a full scan on every push to `dev`/`main`. |
 | Phase 6 — Pyright as a CI gate | Pyright is Adopt and runs in editors via Pylance; a CI gate on an untyped codebase is the highest-friction item and has no owner today. Revisit only with capacity. |
 | Post-plan linter/formatter evaluation | Settled by ADR 001 (oxlint/oxfmt Adopt, ESLint/Prettier Hold). VizzHub migrates opportunistically, as a small standalone task. |
 | CodeQL exclusion | Reversed for public repos: code scanning is free there. |
@@ -200,7 +204,8 @@ Commit: `90a68c0c`.
   pushes only report.
 - Adds ~1 minute on parallel runners, nothing on the critical path.
 
-Step 1 removes the Semgrep job from VizzHub.
+Semgrep stays: it covers IaC, Dockerfiles and workflows that CodeQL does
+not (see Step 1).
 
 Commits: `e8d4694a`, `4b1f2f83`.
 
@@ -231,7 +236,8 @@ Commits: `e8d4694a`, `4b1f2f83`.
 | 2026-05-19 | Semgrep via `semgrep scan --baseline-commit`, not `semgrep ci` | `semgrep ci` needs a platform account. |
 | 2026-05-19 | Gitleaks via upstream binary, not `gitleaks-action@v2` | Action v2 is paid for private org repos. |
 | 2026-10-14 | Replace phases 2, 4, 5, 6 with Steps 1–3 | See [Why the plan was revised](#why-the-plan-was-revised). |
-| 2026-10-14 | One SAST tool per repo type (CodeQL public, Sonar private, Semgrep only with PRs) | Three overlapping tools, none triaged. |
+| 2026-10-14 | Code SAST: CodeQL on public repos, Sonar on private; Semgrep kept for IaC/Docker/workflows | The first triage showed Semgrep catching real issues the others miss; overlap is judged by findings, not by tool category. |
+| 2026-10-14 | Enable ALB access logs and RDS log export | Triage decision: useful for incident investigation at low cost. ALB logs reuse the existing logs bucket (`alb/` prefix, 90-day expiry); RDS logs kept 30 days. |
 | 2026-10-14 | Route code/secret scanning alerts through Peek | Slack + reminders is the mechanism with measured results (~67d → ~7d median for Dependabot). |
 | 2026-10-14 | Copy-based baseline distribution via DevStack | A versioned callable workflow is more infrastructure than current capacity supports. |
 
@@ -240,7 +246,7 @@ Commits: `e8d4694a`, `4b1f2f83`.
 - Does the GitHub token VizzHub uses for Dependabot alerts also have
   access to code scanning and secret scanning alerts across orgs, or does
   Step 2 need an extra scope?
-- After Step 1, do Sonar and CodeQL still report the same issue twice on
-  VizzHub? If so, keep only one.
+- Do Sonar and CodeQL report the same code issues twice on VizzHub? If
+  so, keep only one.
 - Which two repos validate the Step 3 baseline? They should have a real
   PR workflow, unlike VizzHub.

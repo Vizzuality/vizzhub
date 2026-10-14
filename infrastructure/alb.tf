@@ -46,6 +46,15 @@ resource "aws_lb" "main" {
 
   enable_deletion_protection = true
 
+  access_logs {
+    bucket  = aws_s3_bucket.assets_logs.id
+    prefix  = "alb"
+    enabled = true
+  }
+
+  # ALB validates write access when logging is enabled, so the policy must exist first.
+  depends_on = [aws_s3_bucket_policy.assets_logs_https_only]
+
   tags = {
     Name = "${var.project_name}-alb"
   }

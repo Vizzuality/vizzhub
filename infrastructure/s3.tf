@@ -38,7 +38,10 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "assets" {
   }
 }
 
-# Access logging
+# Access logging (S3 access logs for assets, plus ALB access logs under alb/)
+# ALB delivery is done by the regional ELB service account, resolved per region.
+data "aws_elb_service_account" "main" {}
+
 resource "aws_s3_bucket" "assets_logs" {
   bucket = "${var.project_name}-vizzuality-assets-logs"
 
@@ -102,6 +105,15 @@ resource "aws_s3_bucket_policy" "assets_logs_https_only" {
             "aws:SourceArn" = aws_s3_bucket.assets.arn
           }
         }
+      },
+      {
+        Sid    = "AllowAlbLogDelivery"
+        Effect = "Allow"
+        Principal = {
+          AWS = data.aws_elb_service_account.main.arn
+        }
+        Action   = "s3:PutObject"
+        Resource = "${aws_s3_bucket.assets_logs.arn}/alb/AWSLogs/${var.aws_account_id}/*"
       }
     ]
   })

@@ -13,8 +13,10 @@ on:
         options:
           - prod
 
+permissions:
+  contents: read
+
 env:
-  AWS_REGION: ${{ secrets.AWS_REGION }}
   DB_USER: scorecard
   DB_PASSWORD: scorecard-ci
   DB_NAME: scorecard
@@ -79,6 +81,8 @@ jobs:
     permissions:
       id-token: write   # For OIDC
       contents: read    # For checkout
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
     outputs:
       image_tag: ${{ github.sha }}
 
@@ -153,6 +157,8 @@ jobs:
     permissions:
       id-token: write   # For OIDC
       contents: read
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
 
     steps:
       - name: Checkout

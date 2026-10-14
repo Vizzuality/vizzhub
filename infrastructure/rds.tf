@@ -40,6 +40,10 @@ resource "aws_db_instance" "main" {
   # Auto minor version upgrades
   auto_minor_version_upgrade = true
 
+  # Postgres server log to CloudWatch; group is pre-created so retention applies.
+  enabled_cloudwatch_logs_exports = ["postgresql"]
+  depends_on                      = [aws_cloudwatch_log_group.rds_postgresql]
+
   tags = {
     Name = "${var.project_name}-db"
   }
