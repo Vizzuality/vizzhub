@@ -22,6 +22,12 @@ REMINDER_DAYS = {
 }
 
 
-async def slack_send(bot_token: str, channel_id: str, message: str) -> dict:
+async def slack_send(
+    bot_token: str, channel_id: str, message: str, *, thread_ts: str | None = None
+) -> dict:
     """Thin wrapper around SlackService.send_message for test isolation."""
+    if thread_ts:
+        return await SlackService.send_message(
+            bot_token, channel_id, message, thread_ts=thread_ts, unfurl_links=False
+        )
     return await SlackService.send_message(bot_token, channel_id, message)

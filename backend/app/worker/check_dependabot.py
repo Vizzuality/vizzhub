@@ -1,7 +1,8 @@
 """Dependabot alerts check job.
 
 Daily cron job that checks every active project for new Dependabot alerts,
-re-notifies unresolved high/critical ones on cadence, and marks closed
+posts one Slack summary per project with the open alerts in its thread
+(when an alert is new or a reminder is due), and marks closed
 alerts as resolved. Per-alert-type logic lives in `app/worker/dependabot/`.
 """
 
@@ -17,13 +18,12 @@ from app.modules.notifications.models.slack import AlertDefinitionDB
 from app.modules.notifications.services.alert_service import AlertService
 from app.modules.scorecard.services.collectors.dependabot import DependabotCollector
 from app.utils.slack import get_slack_bot_token
-from app.worker.dependabot.reminders import send_reminders
+from app.worker.dependabot.digest import send_digest
 from app.worker.dependabot.shared import ALERT_NAME
 from app.worker.dependabot.tracking import (
     backfill_manifest_paths,
     get_tracked_alerts,
     mark_alerts_resolved,
-    notify_new_alert,
 )
 from app.worker.utils import complete_job_run, complete_with_error, start_job_run
 
@@ -133,24 +133,16 @@ async def _process_project(
     bot_token: str,
     github_token: str,
 ) -> int:
-    """Fetch GitHub alerts; diff against tracked rows; notify/remind/resolve."""
+    """Fetch GitHub alerts; diff against tracked rows; send digest; resolve."""
     current_alerts = await DependabotCollector.fetch_alerts(project.github_repo, github_token)
     current_alert_ids = {alert["number"] for alert in current_alerts}
 
     tracked_alerts = await get_tracked_alerts(db, project.id)
     tracked_alert_ids = {ta.github_alert_id for ta in tracked_alerts if not ta.resolved_at}
-    new_alert_ids = current_alert_ids - tracked_alert_ids
 
     await backfill_manifest_paths(db, tracked_alerts, current_alerts)
 
-    alerts_sent = 0
-    for alert in current_alerts:
-        if alert["number"] in new_alert_ids:
-            sent = await notify_new_alert(db, project, alert_definition, bot_token, alert)
-            if sent:
-                alerts_sent += 1
-
-    alerts_sent += await send_reminders(
+    alerts_sent = await send_digest(
         db, project, alert_definition, bot_token, tracked_alerts, current_alerts
     )
 

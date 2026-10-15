@@ -55,6 +55,7 @@ class SlackService:
         *,
         unfurl_links: bool = True,
         unfurl_media: bool = True,
+        thread_ts: str | None = None,
     ) -> dict[str, Any]:
         """Send a message to a Slack channel.
 
@@ -64,6 +65,7 @@ class SlackService:
             message: Message text (supports Slack markdown).
             unfurl_links: Enable link previews.
             unfurl_media: Enable media previews.
+            thread_ts: Parent message timestamp, to post the message as a thread reply.
 
         Returns:
             Slack API response containing ok status and message timestamp.
@@ -84,6 +86,7 @@ class SlackService:
                         "mrkdwn": True,
                         "unfurl_links": unfurl_links,
                         "unfurl_media": unfurl_media,
+                        **({"thread_ts": thread_ts} if thread_ts else {}),
                     },
                 )
             except httpx.HTTPError as exc:

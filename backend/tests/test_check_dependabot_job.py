@@ -209,7 +209,11 @@ class TestCheckDependabotJob:
         template = MessageTemplateDB(
             alert_definition_id=alert_def.id,
             template_type="initial",
-            message_template=":warning: New Dependabot alert in {project_name}: {package_name} ({severity})",
+            message_template=(
+                "{project_name}: {open_count} open high/critical vulnerabilities "
+                "({critical_count} critical, {high_count} high, {new_count} new). "
+                "Please, fix them ASAP."
+            ),
             is_active=True,
         )
         db_session.add(template)
@@ -250,13 +254,22 @@ class TestCheckDependabotJob:
             patch(
                 "app.worker.dependabot.shared.SlackService.send_message",
                 new_callable=AsyncMock,
-                return_value={"ok": True},
+                return_value={"ok": True, "ts": "1700000000.000100"},
             ) as mock_send,
         ):
             result = await check_dependabot_alerts(ctx)
 
-        mock_send.assert_called_once()
-        assert result["alerts_sent"] >= 1
+        summary_call, thread_call = mock_send.call_args_list
+        assert "thread_ts" not in summary_call.kwargs
+        assert "Please, fix them ASAP" in summary_call.args[2]
+        assert (
+            "1 open high/critical vulnerabilities (1 critical, 0 high, 1 new)"
+            in (summary_call.args[2])
+        )
+        assert thread_call.kwargs["thread_ts"] == "1700000000.000100"
+        assert "`lodash`" in thread_call.args[2]
+        assert "CVE-2024-1234" in thread_call.args[2]
+        assert result["alerts_sent"] == 1
 
     @pytest.mark.asyncio
     async def test_job_tracks_notified_alerts(self, db_session: AsyncSession) -> None:
