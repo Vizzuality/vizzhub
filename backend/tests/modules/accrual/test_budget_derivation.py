@@ -287,3 +287,63 @@ async def test_create_does_not_persist_auto_rate(db_session: AsyncSession) -> No
     assert line is not None
     assert line.rate is None  # auto rate NOT persisted
     assert line.value_eur == Decimal("1000.00")  # uses period rate 1.20
+
+
+@pytest.mark.asyncio
+async def test_upsert_noop_for_non_billable_project(db_session: AsyncSession) -> None:
+    db_session.add(
+        AccrualPeriodDB(start_date=date(2026, 1, 1), status="open", fx_rates={"USD": "1.00"})
+    )
+    project = await _make_project(db_session, is_billable=False)
+    assert await budget_derivation.upsert_derived_line(db_session, project_id=project.id) is None
+    assert (await db_session.execute(select(AccrualLineProjectDB))).first() is None
+
+
+@pytest.mark.asyncio
+async def test_upsert_drops_line_when_project_becomes_non_billable(
+    db_session: AsyncSession,
+) -> None:
+    db_session.add(
+        AccrualPeriodDB(start_date=date(2026, 1, 1), status="open", fx_rates={"USD": "1.00"})
+    )
+    project = await _make_project(db_session)
+    line = await budget_derivation.upsert_derived_line(db_session, project_id=project.id)
+    line_id = line.id
+
+    project.is_billable = False
+    await db_session.flush()
+    assert await budget_derivation.upsert_derived_line(db_session, project_id=project.id) is None
+
+    db_session.expire_all()
+    assert (
+        await db_session.execute(select(AccrualCellDB).where(AccrualCellDB.line_id == line_id))
+    ).first() is None
+
+
+@pytest.mark.asyncio
+async def test_upsert_keeps_non_billable_line_with_frozen_months(
+    db_session: AsyncSession,
+) -> None:
+    db_session.add(
+        AccrualPeriodDB(start_date=date(2026, 1, 1), status="open", fx_rates={"USD": "1.00"})
+    )
+    project = await _make_project(db_session)
+    line = await budget_derivation.upsert_derived_line(db_session, project_id=project.id)
+    cell = (
+        (await db_session.execute(select(AccrualCellDB).where(AccrualCellDB.line_id == line.id)))
+        .scalars()
+        .first()
+    )
+    cell.is_frozen = True
+    cell.frozen_at = datetime.now(UTC)
+    cell.frozen_eur_amount = cell.amount
+
+    project.is_billable = False
+    await db_session.flush()
+    await budget_derivation.upsert_derived_line(db_session, project_id=project.id)
+
+    assert (
+        await db_session.execute(
+            select(AccrualLineProjectDB).where(AccrualLineProjectDB.line_id == line.id)
+        )
+    ).first() is not None

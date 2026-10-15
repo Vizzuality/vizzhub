@@ -100,6 +100,21 @@ async def _project_has_any_line(db: AsyncSession, project_id: UUID) -> bool:
     return result.first() is not None
 
 
+async def _drop_derived_line(db: AsyncSession, line: AccrualLineDB) -> None:
+    """Delete a derived line, unless a closed (frozen) month already recognised it."""
+    has_frozen = await db.scalar(
+        select(AccrualCellDB.id)
+        .where(AccrualCellDB.line_id == line.id, AccrualCellDB.is_frozen.is_(True))
+        .limit(1)
+    )
+    if has_frozen is not None:
+        logger.warning("accrual_derived_line_kept_frozen", line_id=str(line.id))
+        return
+    await db.delete(line)
+    await db.flush()
+    logger.info("accrual_derived_line_dropped_non_billable", line_id=str(line.id))
+
+
 async def _refresh_derived_line(
     db: AsyncSession,
     line: AccrualLineDB,
@@ -150,6 +165,12 @@ async def upsert_derived_line(db: AsyncSession, *, project_id: UUID) -> AccrualL
         return None
 
     existing = await _find_derived_line(db, project_id)
+    # Non-billable work recognises no revenue, so it gets no accrual line.
+    if not project.is_billable:
+        if existing is not None:
+            await _drop_derived_line(db, existing)
+        return None
+
     code = currency_to_code(project.currency)
     override = existing.rate if existing is not None else None
 
