@@ -32,6 +32,8 @@ function sortValue(line: AccrualGridLine, key: string): string | number {
       return line.created_at ?? '';
     case 'window_start':
       return line.window_start ?? '';
+    case 'window_end':
+      return line.window_end ?? '';
     default:
       return '';
   }

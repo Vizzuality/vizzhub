@@ -113,6 +113,19 @@ describe('sortLines', () => {
     ]);
   });
 
+  it('sorts by window_end descending, missing dates last', () => {
+    const dated = [
+      makeLine({ id: 'a', window_end: '2026-06-01' }),
+      makeLine({ id: 'b', window_end: null }),
+      makeLine({ id: 'c', window_end: '2027-01-01' }),
+    ];
+    expect(sortLines(dated, { key: 'window_end', dir: 'desc' }).map((l) => l.id)).toEqual([
+      'c',
+      'a',
+      'b',
+    ]);
+  });
+
   it('does not mutate the input array', () => {
     const copy = [...lines];
     sortLines(lines, { key: 'code', dir: 'asc' });

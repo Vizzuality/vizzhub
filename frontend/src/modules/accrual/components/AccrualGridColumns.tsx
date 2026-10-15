@@ -38,7 +38,7 @@ export interface StaticColumn {
   readonly align: 'left' | 'right';
 }
 
-// The five non-month columns, in canonical left-to-right order. The grid renders
+// The non-month columns, in canonical left-to-right order. The grid renders
 // only the subset present in `visibleStaticIds` (preserving this order) and
 // derives the sticky-left offsets from these widths — so widths here are
 // load-bearing, not cosmetic.
@@ -46,6 +46,8 @@ export const STATIC_COLUMNS: readonly StaticColumn[] = [
   { id: 'code', label: 'Code', width: 150, sortable: true, align: 'left' },
   { id: 'name', label: 'Line', width: 220, sortable: true, align: 'left' },
   { id: 'projects', label: 'Projects', width: 170, sortable: false, align: 'left' },
+  { id: 'window_start', label: 'Start', width: 104, sortable: true, align: 'left' },
+  { id: 'window_end', label: 'End', width: 104, sortable: true, align: 'left' },
   { id: 'original', label: 'Original', width: 168, sortable: false, align: 'right' },
   { id: 'rate', label: 'Rate', width: 110, sortable: false, align: 'right' },
   { id: 'value_eur', label: 'Value €', width: 124, sortable: true, align: 'right' },
@@ -294,6 +296,22 @@ function LineOriginalCellRenderer({ line }: { readonly line: AccrualGridLine }):
   );
 }
 
+// Parsed from the ISO parts: `new Date('2026-01-01')` is UTC midnight and would
+// render the previous day in timezones west of UTC.
+function formatIsoDate(iso: string | null): string {
+  if (!iso) return '—';
+  const [y, m, d] = iso.slice(0, 10).split('-');
+  return `${d} ${monthLabel(Number(m))} ${y}`;
+}
+
+function LineDateCellRenderer({ value }: { readonly value: string | null }): JSX.Element {
+  return (
+    <span className="whitespace-nowrap font-mono text-xs tabular-nums">
+      {formatIsoDate(value)}
+    </span>
+  );
+}
+
 function diffBadgeClass(pct: number): string {
   const abs = Math.abs(pct);
   if (abs <= 5) return 'text-emerald-700';
@@ -331,6 +349,10 @@ function renderStaticCell(
       return <LineNameCellRenderer line={line} />;
     case 'projects':
       return <LineProjectsCellRenderer line={line} />;
+    case 'window_start':
+      return <LineDateCellRenderer value={line.window_start} />;
+    case 'window_end':
+      return <LineDateCellRenderer value={line.window_end} />;
     case 'original':
       return <LineOriginalCellRenderer line={line} />;
     case 'rate':

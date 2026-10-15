@@ -275,4 +275,15 @@ describe('AccrualGrid', () => {
     const header = screen.getByRole('button', { name: /sort by value/i });
     expect(header).toHaveClass('text-foreground');
   });
+
+  it('shows the line window as Start and End dates without timezone drift', () => {
+    renderGrid();
+    expect(screen.getByText('01 Jan 2026')).toBeInTheDocument();
+    expect(screen.getByText('01 Dec 2026')).toBeInTheDocument();
+  });
+
+  it('hides the Start and End columns when deselected', () => {
+    renderGrid({ visibleStaticIds: ['code', 'name', 'value_eur'] });
+    expect(screen.queryByText('01 Jan 2026')).toBeNull();
+  });
 });
