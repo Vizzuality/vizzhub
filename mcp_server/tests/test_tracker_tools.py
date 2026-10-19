@@ -4,14 +4,18 @@ import json
 from datetime import date
 from decimal import Decimal
 from unittest.mock import AsyncMock, patch
+from uuid import UUID
 
 import httpx
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.models.client import ClientDB
 from app.core.models.functional_area import FunctionalAreaDB
+from app.core.models.program import ProgramDB
 from app.core.models.project import ProjectDB
+from app.core.models.taxonomy import Cardinality, EntityTermDB, TaxonomyDB, TaxonomyTermDB
 from app.core.models.user import UserDB
 from app.modules.tracker.models import (
     InvoiceDB,
@@ -117,6 +121,59 @@ async def test_tracker_get_projects(db_session, seed_tracker) -> None:
     assert project["name"] == "Tool Test Project"
     assert project["staff_cost"] == 5000.0
     assert project["income"] == 10000.0
+
+
+@pytest.mark.asyncio
+async def test_tracker_get_projects_includes_client_program_and_tags(
+    db_session, seed_tracker
+) -> None:
+    program = ProgramDB(name="Atlas Program")
+    client = ClientDB(name="Acme", slug="acme")
+    service = TaxonomyDB(slug="service", name="Service", cardinality=Cardinality.MULTI)
+    topics = TaxonomyDB(slug="topics", name="Topics", cardinality=Cardinality.MULTI)
+    db_session.add_all([program, client, service, topics])
+    await db_session.flush()
+    # Same term name in two taxonomies must stay apart.
+    service_comms = TaxonomyTermDB(taxonomy_id=service.id, slug="comms", name="Communication")
+    topic_comms = TaxonomyTermDB(taxonomy_id=topics.id, slug="comms", name="Communication")
+    topic_forests = TaxonomyTermDB(taxonomy_id=topics.id, slug="forests", name="Forests")
+    db_session.add_all([service_comms, topic_comms, topic_forests])
+    await db_session.flush()
+
+    project = await db_session.get(ProjectDB, UUID(seed_tracker["project_id"]))
+    project.program_id = program.id
+    project.client_id = client.id
+    db_session.add_all([
+        EntityTermDB(term_id=service_comms.id, taxonomy_id=service.id, program_id=program.id),
+        EntityTermDB(term_id=topic_comms.id, taxonomy_id=topics.id, program_id=program.id),
+        EntityTermDB(term_id=topic_forests.id, taxonomy_id=topics.id, project_id=project.id),
+    ])
+    await db_session.commit()
+
+    server = create_mcp_server()
+    async with override_session(db_session):
+        result = await server.call_tool("tracker_get_projects", {})
+    row = _parse_tool_result(result)[0]
+    assert row["client_name"] == "Acme"
+    assert row["program_id"] == str(program.id)
+    assert row["program_name"] == "Atlas Program"
+    assert row["tags"] == {
+        "service": ["Communication"],
+        "topics": ["Communication", "Forests"],
+    }
+
+
+@pytest.mark.asyncio
+async def test_tracker_get_projects_without_program_has_empty_tags(
+    db_session, seed_tracker
+) -> None:
+    server = create_mcp_server()
+    async with override_session(db_session):
+        result = await server.call_tool("tracker_get_projects", {})
+    row = _parse_tool_result(result)[0]
+    assert row["client_name"] is None
+    assert row["program_id"] is None
+    assert row["tags"] == {}
 
 
 @pytest.mark.asyncio

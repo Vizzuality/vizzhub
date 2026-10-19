@@ -20,7 +20,7 @@ auto-approve to "be helpful". Do NOT loop approve_all on your own. If the
 user has not clearly confirmed, stop and ask. Auto-approving defeats the
 whole purpose of the queue.
 
-VizzHub is Vizzuality's internal operations hub with 8 modules:
+VizzHub is Vizzuality's internal operations hub with 9 modules:
 
 | Module | Key ID | Tools prefix |
 |--------|--------|-------------|
@@ -29,6 +29,7 @@ VizzHub is Vizzuality's internal operations hub with 8 modules:
 | Scorecard | project_id (UUID) | scorecard_ |
 | Capacity | user_id + period (YYYY-MM) | capacity_ |
 | Portfolio | program_id (UUID) | portfolio_ |
+| Events | event_id (UUID) | events_ |
 | ISO | slug (string) | iso_ |
 | Playbook | slug (string) | playbook_ |
 | DevStack | name (string) | devstack_ |
@@ -50,6 +51,7 @@ App URLs (base: https://hub.vizzuality.com):
 - ISO document: /iso/docs?page={slug}
 - Playbook article: /playbook?page={slug}
 - Portfolio program: /portfolio/programs/{program_id}
+- Event: /events/{event_id}
 - Admin user: /admin/users/{user_id}
 Always include full URLs in responses using IDs/slugs from tool results.
 
@@ -128,6 +130,9 @@ def create_mcp_server(
 
     from mcp_server.tools.portfolio import register_portfolio_tools  # noqa: PLC0415
     register_portfolio_tools(instance)
+
+    from mcp_server.tools.events import register_events_tools  # noqa: PLC0415
+    register_events_tools(instance)
 
     from mcp_server.tools.iso_write import register_iso_write_tools  # noqa: PLC0415
     register_iso_write_tools(instance)

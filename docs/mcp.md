@@ -114,7 +114,7 @@ List all tracked projects with cost summary. Excludes absence projects.
 | `status` | string | no | Filter by project status (`proposal`, `live`, `finished`) |
 | `is_billable` | bool | no | Filter by billable flag |
 
-**Returns:** JSON array of projects with `name`, `code`, `budget`, `staff_cost`, `non_staff_cost`, `total_cost`, `burn_percentage`, `income`, and `project_manager`.
+**Returns:** JSON array of projects with `name`, `code`, `budget`, `staff_cost`, `non_staff_cost`, `total_cost`, `burn_percentage`, `income`, `project_manager`, `client_name`, `program_id`, `program_name`, and `tags` — taxonomy term names grouped by taxonomy slug (`{"service": [...], "topics": [...]}`), inherited from the program plus any set on the project.
 
 ### `tracker_get_project_detail`
 
@@ -419,6 +419,32 @@ List all clients with project counts. Gated `portfolio:view`.
 **Parameters:** None
 
 **Returns:** JSON array of `{client_id, name, projects_count}` ordered by name.
+
+### `events_list`
+
+List tracked events (conferences, webinars, etc.) with attendees and costs. Gated `events:view`.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `year` | int | no | Calendar year of the start date |
+| `quarter` | int | no | Quarter (1-4) of the start date |
+| `attending` | string | no | `yes`, `no`, `maybe` (includes undecided) or `attended` (yes and already ended) |
+| `theme` | string | no | Primary theme, exact match |
+| `event_type` | string | no | Event type, exact match |
+| `region` | string | no | Region focus, exact match |
+| `search` | string | no | Substring of the event name |
+| `limit` | int | no | Max events (default 100, max 200) |
+
+**Returns:** JSON object `{events, total, returned}` ordered by start date; each event has type, themes, region, location, dates, `attending`, `rating`, `other_costs`, `total_cost` (EUR), `attendees` (`user_id`, `name`, `functional_area`, `role`, `cost`) and `url`.
+
+### `events_get_stats`
+
+Events dashboard aggregates. Gated `events:view`.
+
+**Parameters:** `year` (int, optional), `attending` (same values as `events_list`, optional).
+
+**Returns:** JSON with `total_events`, `total_attendees` (distinct people), `total_cost` (EUR) and `{label, count}` lists `by_quarter`, `by_theme`, `by_type`, `by_region`, `by_country`, `by_role`, `by_fa`.
 
 ## Authentication
 

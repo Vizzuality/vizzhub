@@ -17,6 +17,8 @@ EXPECTED: dict[str, dict[str, bool]] = {
     # Read (closed world — our DB)
     "iso_get_documents": {"readOnlyHint": True, "openWorldHint": False},
     "tracker_get_projects": {"readOnlyHint": True, "openWorldHint": False},
+    "events_list": {"readOnlyHint": True, "openWorldHint": False},
+    "events_get_stats": {"readOnlyHint": True, "openWorldHint": False},
     "get_pending_commands": {"readOnlyHint": True, "openWorldHint": False},
     # Read exception — hits live Jira → open world
     "tracker_get_user_jira_issues": {"readOnlyHint": True, "openWorldHint": True},

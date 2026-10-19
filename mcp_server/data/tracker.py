@@ -11,10 +11,11 @@ import structlog
 from sqlalchemy import case, func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-logger = structlog.get_logger()
-
+from app.core.models.client import ClientDB
 from app.core.models.functional_area import FunctionalAreaDB
+from app.core.models.program import ProgramDB
 from app.core.models.project import ProjectDB
+from app.core.models.taxonomy import EntityTermDB, TaxonomyDB, TaxonomyTermDB
 from app.core.models.user import UserDB
 from app.modules.tracker.models import (
     BudgetLineDB,
@@ -28,6 +29,8 @@ from app.modules.tracker.models import (
 )
 from app.modules.tracker.models.anonymous_feedback import AnonymousFeedbackDB
 from app.modules.tracker.models.postponement import InvoicePostponementDB
+
+logger = structlog.get_logger()
 
 
 def _user_full_name():
@@ -85,9 +88,14 @@ async def get_projects(
             ProjectDB.budget,
             ProjectDB.start_date,
             ProjectDB.end_date,
+            ProjectDB.program_id,
+            ProgramDB.name.label("program_name"),
+            ClientDB.name.label("client_name"),
             pm_name_expr,
         )
         .outerjoin(pm_user, ProjectDB.project_manager_id == pm_user.c.id)
+        .outerjoin(ProgramDB, ProjectDB.program_id == ProgramDB.id)
+        .outerjoin(ClientDB, ProjectDB.client_id == ClientDB.id)
         .where(ProjectDB.is_absence.is_(False))
         .order_by(ProjectDB.name)
     )
@@ -137,6 +145,8 @@ async def get_projects(
     )
     income_map = {r.project_id: float(r.income) for r in income_result.all()}
 
+    tags_map = await _project_tags(session, projects)
+
     rows = []
     for p in projects:
         budget = _to_float(p.budget)
@@ -156,6 +166,10 @@ async def get_projects(
             "start_date": p.start_date,
             "end_date": p.end_date,
             "project_manager": p.project_manager_name,
+            "client_name": p.client_name,
+            "program_id": str(p.program_id) if p.program_id else None,
+            "program_name": p.program_name,
+            "tags": tags_map.get(p.id, {}),
             "staff_cost": round(staff, 2),
             "non_staff_cost": round(non_staff, 2),
             "total_cost": total,
@@ -164,6 +178,46 @@ async def get_projects(
         })
 
     return rows
+
+
+async def _project_tags(session: AsyncSession, projects) -> dict[UUID, dict[str, list[str]]]:
+    """Taxonomy terms per project, grouped by taxonomy slug.
+
+    Tags mostly live on the program, so a project inherits its program's terms
+    plus any assigned to the project itself. Grouping by taxonomy keeps terms
+    that share a name across taxonomies (e.g. a service and a topic) apart.
+    """
+    project_ids_by_program: dict[UUID, list[UUID]] = defaultdict(list)
+    for p in projects:
+        if p.program_id is not None:
+            project_ids_by_program[p.program_id].append(p.id)
+    project_ids = [p.id for p in projects]
+
+    result = await session.execute(
+        select(
+            EntityTermDB.program_id,
+            EntityTermDB.project_id,
+            TaxonomyDB.slug.label("taxonomy"),
+            TaxonomyTermDB.name.label("term"),
+        )
+        .join(TaxonomyTermDB, TaxonomyTermDB.id == EntityTermDB.term_id)
+        .join(TaxonomyDB, TaxonomyDB.id == EntityTermDB.taxonomy_id)
+        .where(
+            (EntityTermDB.project_id.in_(project_ids))
+            | (EntityTermDB.program_id.in_(list(project_ids_by_program)))
+        )
+    )
+
+    collected: dict[UUID, dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
+    for r in result.all():
+        targets = [r.project_id] if r.project_id else project_ids_by_program[r.program_id]
+        for project_id in targets:
+            collected[project_id][r.taxonomy].add(r.term)
+
+    return {
+        project_id: {tax: sorted(terms) for tax, terms in sorted(by_tax.items())}
+        for project_id, by_tax in collected.items()
+    }
 
 
 # ---------------------------------------------------------------------------

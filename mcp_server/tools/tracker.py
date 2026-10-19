@@ -28,8 +28,12 @@ async def tracker_get_projects(
     """List all tracked projects with cost summary.
 
     Returns a JSON array of projects. Each entry includes name, code,
-    status, budget, staff/non-staff costs, burn percentage, and income
-    from paid invoices. Absence projects are excluded.
+    status, budget, staff/non-staff costs, burn percentage, income from
+    paid invoices, client_name, program_id/program_name (the Portfolio
+    program), and tags: taxonomy terms grouped by taxonomy slug (e.g.
+    {"service": [...], "topics": [...], "client-type": [...]}), inherited
+    from the program plus any set on the project. Absence projects are
+    excluded.
 
     Args:
         status: Filter by project status (proposal, live, finished).

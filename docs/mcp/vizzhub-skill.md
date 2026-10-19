@@ -1,11 +1,11 @@
 ---
 name: vizzhub-data-model
-description: Use this skill whenever querying VizzHub data through MCP tools — it describes the data model, module relationships, cross-module query patterns, and conventions needed to plan efficient tool calls. Trigger whenever the user asks about Vizzuality's projects, portfolio programs, team capacity, ISO compliance, scorecards, playbook articles, billing rates, or any operational data. Also trigger when a VizzHub MCP tool returns data and you need to interpret it or decide what to query next. Without this skill, you will waste tool calls discovering the schema by trial and error.
+description: Use this skill whenever querying VizzHub data through MCP tools — it describes the data model, module relationships, cross-module query patterns, and conventions needed to plan efficient tool calls. Trigger whenever the user asks about Vizzuality's projects, portfolio programs, team capacity, ISO compliance, scorecards, playbook articles, billing rates, conferences and events, or any operational data. Also trigger when a VizzHub MCP tool returns data and you need to interpret it or decide what to query next. Without this skill, you will waste tool calls discovering the schema by trial and error.
 ---
 
 # VizzHub Data Model Guide
 
-VizzHub is Vizzuality's internal operations platform. It has 7 modules, each with its own MCP tools. This guide tells you how they fit together so you can plan queries efficiently.
+VizzHub is Vizzuality's internal operations platform. It has 8 modules, each with its own MCP tools. This guide tells you how they fit together so you can plan queries efficiently.
 
 ## Modules Overview
 
@@ -18,6 +18,7 @@ VizzHub is Vizzuality's internal operations platform. It has 7 modules, each wit
 | **Portfolio** | Program catalogue: narrative profiles, taxonomy tags, project iterations | `program_id` (UUID) |
 | **ISO** | Compliance registries (JSONB rows) and policy documents | `slug` (string) |
 | **Playbook** | Internal knowledge base articles | `slug` (string) |
+| **Events** | Conferences and events, who attends (role, cost) and total cost | `event_id` (UUID) |
 
 ## How Modules Connect
 
@@ -35,6 +36,7 @@ Scorecard ◄─────┘ project_id ──► 8 dimension scores (0-100)
 
 ISO ──── standalone (registries + documents, linked by slug)
 Playbook ── standalone (articles, linked by slug)
+Events ──── attendees are user_ids (same UUID as Users)
 ```
 
 **The key join:** `user_id` is the same UUID across Users, Capacity, and Tracker. A `project_id` is the same UUID across Tracker and Scorecard.
@@ -74,10 +76,12 @@ Playbook ── standalone (articles, linked by slug)
 | `tracker_get_moods(month, year)` | Team mood for one month (admin-only) | `month` (1-12), `year` |
 | `tracker_get_moods_trend` | Per-person mood trend over N months (admin-only) | `months` (default 12, max 60), `user_id` (optional UUID) |
 
-**Returns:** `tracker_get_projects` → id, name, code, status, is_billable, currency, budget, start_date, end_date, project_manager, staff_cost, non_staff_cost, total_cost, burn_percentage, income. `tracker_get_project_detail` adds budget_lines (per FA), cost_summary with per-period breakdown, contract_rate, summary. `tracker_get_project_invoices` → id, code, amount, due_date, invoiced_on, milestone, observations, status (effective), stored_status, postpone_count, postponed_to. `tracker_get_user_jira_issues` → user email, issue_count, issues (key, summary, status, project_key, project_name, issue_type), site_url.
+**Returns:** `tracker_get_projects` → id, name, code, status, is_billable, currency, budget, start_date, end_date, project_manager, client_name, program_id, program_name, tags, staff_cost, non_staff_cost, total_cost, burn_percentage, income. `tracker_get_project_detail` adds budget_lines (per FA), cost_summary with per-period breakdown, contract_rate, summary. `tracker_get_project_invoices` → id, code, amount, due_date, invoiced_on, milestone, observations, status (effective), stored_status, postpone_count, postponed_to. `tracker_get_user_jira_issues` → user email, issue_count, issues (key, summary, status, project_key, project_name, issue_type), site_url.
 
 **Conventions:**
 - Absence projects are automatically excluded from `tracker_get_projects`
+- `tags` groups taxonomy term names by taxonomy slug (`service`, `topics`, `client-type`, `geography`, `impact-area`), inherited from the program plus any set on the project. Always read a term together with its taxonomy: the same name can exist in two (e.g. "Communication" is both a service and a topic). A project usually carries several terms per taxonomy, so summing budgets per term double-counts
+- Use `client_name` and `tags` from this one call for portfolio breakdowns (budget by client, client type, service or topic) instead of calling `portfolio_get_program` per program
 - Invoice `status` is the effective status (accounts for postponements): `scheduled`, `pending_to_issue`, `postponed`, `paid`
 - `burn_percentage` is null when budget is zero
 - `tracker_get_project_time(project_id, group_by="functional_area")` groups by role instead of person
@@ -178,6 +182,23 @@ Write tools (queued for human approval, like ISO/Playbook; gated `portfolio:mana
 - Workflow: `portfolio_search_programs` or `portfolio_list_programs` to find → `portfolio_get_program` for the narrative → Tracker/Scorecard tools with the iteration `project_id`s
 - Program URL: `https://hub.vizzuality.com/portfolio/programs/{program_id}`
 
+### Events (2 tools)
+
+| Tool | Use for | Key params |
+|------|---------|------------|
+| `events_list` | Events with attendees and costs | `year`, `quarter`, `attending`, `theme`, `event_type`, `region`, `search`, `limit` (default 100, max 200) |
+| `events_get_stats` | Dashboard aggregates | `year`, `attending` |
+
+**Returns:** `events_list` → `{events, total, returned}`; each event has event_id, name, event_type, theme_primary/secondary, region_focus, location_city/country, start/end date, attending, rating (1-5), other_costs, total_cost, attendees (user_id, name, functional_area, role, cost), url. `events_get_stats` → total_events, total_attendees (distinct people), total_cost and `{label, count}` lists by_quarter, by_theme, by_type, by_region, by_country, by_role, by_fa.
+
+**Conventions:**
+- Requires `events:view` permission
+- `attending`: `yes`, `no`, `maybe` (also matches undecided events) or `attended` (yes and the event has already ended). Use `attended` for "events we went to", `yes` for "events we go or will go to"
+- Costs are in EUR. `total_cost` = event-level `other_costs` + each attendee's cost (null attendee cost counts as 0)
+- Year and quarter come from the start date
+- `by_role` and `by_fa` count attendances (one per person per event); `total_attendees` counts distinct people
+- Event URL: `https://hub.vizzuality.com/events/{event_id}`
+
 ### Playbook (3 tools)
 
 | Tool | Use for | Key params |
@@ -274,6 +295,7 @@ When presenting results, include direct links to the app so the user can navigat
 | Portfolio program | `/portfolio/programs/{program_id}` | `program_id` from Portfolio |
 | Portfolio dashboard | `/admin/portfolio/dashboard` | — |
 | Portfolio clients | `/admin/portfolio/clients` | — |
+| Event detail | `/events/{event_id}` | `event_id` from `events_list` |
 | Admin users | `/admin/users` | — |
 | Admin user detail | `/admin/users/{user_id}` | `user_id` from Users |
 | Global scores | `/admin/global-scores` | — |
