@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useNavigationGuard } from '@/core/contexts/NavigationGuardContext';
 import { useForm, useFieldArray, Controller, type Control } from 'react-hook-form';
+import type { AxiosError } from 'axios';
+import type { ApiErrorResponse } from '@/core/types/common';
 import type {
   BudgetPreviewResponse,
   ProjectCreate,
@@ -221,6 +223,11 @@ function getSubmitButtonText(isPending: boolean, isEditMode: boolean): string {
 }
 
 function getApiErrorMessage(error: unknown): string {
+  // The backend explains blocked actions (e.g. a delete refused with 409) in `detail`.
+  const detail = (error as AxiosError<ApiErrorResponse> | null)?.response?.data?.detail;
+  if (typeof detail === 'string' && detail) {
+    return detail;
+  }
   if (error instanceof Error) {
     return error.message;
   }

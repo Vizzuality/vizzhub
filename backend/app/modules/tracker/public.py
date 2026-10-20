@@ -7,7 +7,7 @@ from datetime import date
 from uuid import UUID
 
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.tracker.models.non_staff_cost import NonStaffCostDB
@@ -120,44 +120,46 @@ async def inject_evm_into_preserved(
             preserved[field] = value
 
 
+def _logged_time_filter() -> ColumnElement[bool]:
+    # Prepopulated parts nobody filled in carry no time; they must not pin a project.
+    return ReportPartDB.percentage.isnot(None) & (ReportPartDB.percentage > 0)
+
+
 async def has_tracker_references(project_id: UUID, db: AsyncSession) -> list[str]:
     """Check if a project has tracker references that block deletion.
 
     Returns a list of human-readable reference descriptions.
     """
-    from sqlalchemy import text
-
-    table_check = await db.execute(
-        text(
-            "SELECT tablename FROM pg_tables "
-            "WHERE schemaname = 'public' "
-            "AND tablename IN ('report_parts', 'progress_reports')"
-        )
-    )
-    existing_tables = {row[0] for row in table_check.fetchall()}
-
     references: list[str] = []
 
-    if "report_parts" in existing_tables:
-        rp_count = (
-            await db.execute(
-                select(func.count())
-                .select_from(ReportPartDB)
-                .where(ReportPartDB.project_id == project_id)
-            )
-        ).scalar() or 0
-        if rp_count > 0:
-            references.append(f"Cannot delete: project has {rp_count} time report entries.")
+    rp_count = (
+        await db.execute(
+            select(func.count())
+            .select_from(ReportPartDB)
+            .where(ReportPartDB.project_id == project_id, _logged_time_filter())
+        )
+    ).scalar() or 0
+    if rp_count > 0:
+        noun = "entry" if rp_count == 1 else "entries"
+        references.append(f"Cannot delete: project has {rp_count} time report {noun}.")
 
-    if "progress_reports" in existing_tables:
-        pr_count = (
-            await db.execute(
-                select(func.count())
-                .select_from(ProgressReportDB)
-                .where(ProgressReportDB.project_id == project_id)
-            )
-        ).scalar() or 0
-        if pr_count > 0:
-            references.append(f"Cannot delete: project has {pr_count} progress reports.")
+    pr_count = (
+        await db.execute(
+            select(func.count())
+            .select_from(ProgressReportDB)
+            .where(ProgressReportDB.project_id == project_id)
+        )
+    ).scalar() or 0
+    if pr_count > 0:
+        noun = "report" if pr_count == 1 else "reports"
+        references.append(f"Cannot delete: project has {pr_count} progress {noun}.")
 
     return references
+
+
+async def delete_empty_report_parts(project_id: UUID, db: AsyncSession) -> int:
+    """Remove a project's report parts that log no time, so the project can be deleted."""
+    result = await db.execute(
+        delete(ReportPartDB).where(ReportPartDB.project_id == project_id, ~_logged_time_filter())
+    )
+    return result.rowcount or 0

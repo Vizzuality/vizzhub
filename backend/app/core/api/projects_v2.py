@@ -461,12 +461,13 @@ async def delete_project(
 ) -> None:
     project = await get_project_or_404(db, project_id)
 
-    from app.modules.tracker.public import has_tracker_references
+    from app.modules.tracker.public import delete_empty_report_parts, has_tracker_references
 
     tracker_refs = await has_tracker_references(project_id, db)
     if tracker_refs:
         raise HTTPException(status_code=409, detail=tracker_refs[0])
 
+    empty_parts = await delete_empty_report_parts(project_id, db)
     await delete_project_metrics(db, project_id)
     await db.delete(project)
     if cache:
@@ -475,5 +476,6 @@ async def delete_project(
         "project_deleted",
         project_id=str(project_id),
         code=project.code,
+        empty_report_parts_removed=empty_parts,
         user_id=admin.user_id,
     )

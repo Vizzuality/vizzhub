@@ -648,10 +648,9 @@ describe('ProjectForm', () => {
       );
       await user.click(dialogDeleteBtn!);
 
-      await waitFor(() => {
-        const errorBanner = document.querySelector('.border-destructive');
-        expect(errorBanner).toBeTruthy();
-      });
+      expect(
+        await screen.findByText('Cannot delete: project has 5 time report entries.'),
+      ).toBeInTheDocument();
     });
   });
 
