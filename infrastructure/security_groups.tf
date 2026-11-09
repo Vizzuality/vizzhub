@@ -76,6 +76,19 @@ resource "aws_security_group" "ec2" {
   }
 }
 
+# The security group of the Cerebro tasks, from the Cerebro state. The list is empty when Cerebro
+# does not exist, so this plan never depends on the order of the two applies.
+data "aws_security_groups" "cerebro" {
+  filter {
+    name   = "group-name"
+    values = ["cerebro-app"]
+  }
+  filter {
+    name   = "vpc-id"
+    values = [aws_vpc.main.id]
+  }
+}
+
 # Security Group - RDS
 resource "aws_security_group" "rds" {
   name        = "${var.project_name}-rds-sg"
@@ -89,6 +102,19 @@ resource "aws_security_group" "rds" {
     to_port         = 5432
     protocol        = "tcp"
     security_groups = [aws_security_group.ec2.id]
+  }
+
+  # PostgreSQL from the api and the worker of Cerebro (Vizzuality/cerebro). Cerebro has its own
+  # database and a read-only role on hub. The rule is here because this group has inline rules.
+  dynamic "ingress" {
+    for_each = data.aws_security_groups.cerebro.ids
+    content {
+      description     = "PostgreSQL from Cerebro"
+      from_port       = 5432
+      to_port         = 5432
+      protocol        = "tcp"
+      security_groups = [ingress.value]
+    }
   }
 
   # Outbound: allow all (AWS default, explicit for clarity)
