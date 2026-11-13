@@ -1,13 +1,20 @@
 """Tests for monthly_scorecard_capture worker job recovery paths."""
 
 from datetime import date
+from decimal import Decimal
 from unittest.mock import AsyncMock, patch
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.models.project import ProjectDB
 from app.modules.notifications.models.slack import ScheduledJobRunDB
+from app.modules.scorecard.models.config import ConfigParameter
+from app.modules.scorecard.models.global_metrics import GlobalMetricsDB
+from app.modules.scorecard.models.metrics import MetricsDB
+from app.modules.scorecard.services.metrics_service import MetricsService
 from app.worker.monthly_scorecard_capture import monthly_scorecard_capture
 
 
@@ -162,3 +169,72 @@ async def test_project_starting_after_the_captured_month_is_skipped(
 
     row = await _latest_run(db_session)
     assert row.projects_checked == 0
+
+
+@pytest.mark.asyncio
+async def test_failed_project_keeps_earlier_captures_and_global_is_recalculated(
+    db_session: AsyncSession, scoring_config
+) -> None:
+    """One failing project must not roll back the others; the month's global follows.
+
+    Regression: projects were only flushed, so the per-project rollback after a
+    failure discarded every capture before it. Global scores were never
+    recalculated by the job, leaving gaps in the global timeline. And the worker
+    used an empty scoring config (all weights 0) instead of the DB one.
+    """
+    db_session.add(
+        ConfigParameter(category="weights", name="weight_cost_cpi", value=Decimal("0.7"))
+    )
+    ok_id, bad_id = uuid4(), uuid4()
+    for pid, name in ((ok_id, "OkProject"), (bad_id, "BadProject")):
+        db_session.add(
+            ProjectDB(
+                id=pid,
+                name=name,
+                start_date=date(2026, 1, 1),
+                status="live",
+                has_scorecard=True,
+            )
+        )
+    await db_session.commit()
+
+    real_load = MetricsService.get_manual_fields_for_historical_capture
+
+    async def load_manual(db, project_id, year, month):
+        if str(project_id) == str(bad_id):
+            raise RuntimeError("simulated collector failure")
+        return await real_load(db, project_id, year, month)
+
+    ctx = {"db": db_session, "score_cache": None}
+    with (
+        patch("app.worker.monthly_scorecard_capture.date") as mock_date,
+        patch(
+            "app.worker.monthly_scorecard_capture.MetricsService.get_manual_fields_for_historical_capture",
+            new=load_manual,
+        ),
+        patch("app.worker.monthly_scorecard_capture.asyncio.sleep", new=AsyncMock()),
+    ):
+        mock_date.today.return_value = date(2026, 11, 5)
+        result = await monthly_scorecard_capture(ctx)
+
+    assert result["captured"] == 1
+    assert result["errors"] == 1
+    assert result["global_recalculated"] is True
+
+    db_session.expire_all()
+    kept = (
+        (await db_session.execute(select(MetricsDB).where(MetricsDB.project_id == ok_id)))
+        .scalars()
+        .all()
+    )
+    assert {(m.period_year, m.period_month) for m in kept} == {(2026, 10)}
+    assert all(m.weights_applied["weight_cost_cpi"] == pytest.approx(0.7) for m in kept)
+
+    global_row = (
+        await db_session.execute(
+            select(GlobalMetricsDB).where(
+                GlobalMetricsDB.period_year == 2026, GlobalMetricsDB.period_month == 10
+            )
+        )
+    ).scalar_one()
+    assert global_row.project_count == 1

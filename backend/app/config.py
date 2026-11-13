@@ -1,9 +1,13 @@
 from decimal import Decimal
 from functools import lru_cache
+from typing import TYPE_CHECKING
 
 import structlog
 from pydantic import ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger()
 
@@ -361,6 +365,20 @@ class ScoringConfig:
 _scoring_config: ScoringConfig | None = None
 
 
+async def read_scoring_config(db: "AsyncSession") -> ScoringConfig:
+    """Build a ScoringConfig from the config_parameters table, without caching it.
+
+    For processes that never run the API startup (the ARQ worker): reading per
+    job also picks up weight/target edits made after the worker started.
+    """
+    from sqlalchemy import select
+
+    from app.modules.scorecard.models.config import ConfigParameter
+
+    result = await db.execute(select(ConfigParameter))
+    return ScoringConfig({p.name: p.value for p in result.scalars().all()})
+
+
 async def load_scoring_config_from_db() -> ScoringConfig:
     """
     Load scoring config from database.
@@ -370,19 +388,13 @@ async def load_scoring_config_from_db() -> ScoringConfig:
     leaf weights don't sum to 1.0, so misconfiguration is visible in
     structured logs / Loki instead of silently distorting scores.
     """
-    from sqlalchemy import select
-
     from app.database import async_session_maker
-    from app.modules.scorecard.models.config import ConfigParameter
 
     async with async_session_maker() as db:
-        result = await db.execute(select(ConfigParameter))
-        parameters = result.scalars().all()
-
-        config_dict = {p.name: p.value for p in parameters}
+        config = await read_scoring_config(db)
 
     global _scoring_config
-    _scoring_config = ScoringConfig(config_dict)
+    _scoring_config = config
 
     for group_name, (passed, total) in _scoring_config.validate_weights_with_totals().items():
         if not passed:

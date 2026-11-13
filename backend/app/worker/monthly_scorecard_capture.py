@@ -1,11 +1,13 @@
 """Monthly scorecard capture cron job.
 
-Runs on the 5th of each month at 2 AM UTC. Captures current month
-metrics for all live projects with has_scorecard enabled.
+Runs on the 5th of each month at 2 AM UTC. Captures the previous month's
+metrics for all live projects with has_scorecard enabled, then recalculates
+that month's global scores from the fresh snapshots.
 """
 
 import asyncio
 from datetime import UTC, date, datetime
+from typing import TYPE_CHECKING
 
 import structlog
 from sqlalchemy import select, update
@@ -21,9 +23,13 @@ from app.modules.scorecard.api.capture import (
     _last_day_of_month,
 )
 from app.modules.scorecard.models.metrics import SnapshotType
+from app.modules.scorecard.services.global_metrics_service import GlobalMetricsService
 from app.modules.scorecard.services.metrics_service import MetricsService
 from app.modules.tracker.public import inject_evm_into_preserved
 from app.worker.utils import complete_job_run, start_job_run
+
+if TYPE_CHECKING:
+    from app.config import ScoringConfig
 
 logger = structlog.get_logger()
 
@@ -39,13 +45,34 @@ async def _get_scorecard_projects(db: AsyncSession) -> list[ProjectDB]:
     return list(result.scalars().all())
 
 
+async def _recalculate_global(
+    db: AsyncSession, config: "ScoringConfig", year: int, month: int
+) -> bool:
+    """Recompute the month's global scores; a failure must not fail the capture."""
+    try:
+        record = await GlobalMetricsService(config).calculate_and_store(db, year, month)
+    except Exception:
+        await db.rollback()
+        logger.exception("global_metrics_recalc_failed", year=year, month=month)
+        return False
+    logger.info(
+        "global_metrics_recalculated",
+        year=year,
+        month=month,
+        project_count=record.project_count,
+    )
+    return True
+
+
 async def monthly_scorecard_capture(ctx: dict) -> dict:
     """Capture current month metrics for all scorecard-enabled projects."""
-    from app.config import get_scoring_config
+    from app.config import read_scoring_config
 
     db: AsyncSession = ctx["db"]
     score_cache = ctx.get("score_cache")
-    config = get_scoring_config()
+    # The worker never runs the API startup that loads the global config, so
+    # get_scoring_config() here was an empty config (all weights 0).
+    config = await read_scoring_config(db)
 
     job_run = await start_job_run(db, "monthly_scorecard_capture")
     # Hold the PK as a plain int so the outer except can use it even after a
@@ -124,6 +151,9 @@ async def monthly_scorecard_capture(ctx: dict) -> dict:
                     db, project.id, year, month, SnapshotType.CUMULATIVE, config, cumulative_data
                 )
 
+                # Commit per project: the except below rolls back, and without a
+                # commit that would also discard every project captured before it.
+                await db.commit()
                 if score_cache:
                     await score_cache.invalidate(str(project.id))
 
@@ -146,6 +176,8 @@ async def monthly_scorecard_capture(ctx: dict) -> dict:
             errors=len(errors),
         )
 
+        global_recalculated = await _recalculate_global(db, config, year, month)
+
         job_run.projects_checked = len(projects)
         job_run.alerts_sent = captured
         await complete_job_run(db, job_run)
@@ -158,6 +190,7 @@ async def monthly_scorecard_capture(ctx: dict) -> dict:
             "captured": captured,
             "errors": len(errors),
             "error_details": errors,
+            "global_recalculated": global_recalculated,
         }
 
     except Exception as e:
