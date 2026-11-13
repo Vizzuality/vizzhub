@@ -5,15 +5,19 @@ This module contains common functions used across multiple
 collector modules (Jira, GitHub) to avoid duplication.
 """
 
+import time
 from collections.abc import Awaitable, Callable
 from datetime import datetime
 from typing import Any
 
+import structlog
 from fastapi import HTTPException, status
 
 from app.core.exceptions import ConfigurationError
 
 HTTP_CLIENT_TIMEOUT = 30.0
+
+logger = structlog.get_logger()
 
 
 def parse_iso_datetime(dt_str: str | None) -> datetime | None:
@@ -60,14 +64,29 @@ async def execute_collector[T](
         HTTPException: Wrapped exception with 500 status for other errors
     """
     close = close_fn if close_fn is not None else collector.close
+    started = time.perf_counter()
     try:
-        return await collect_coro
+        result = await collect_coro
     except ConfigurationError:
         raise
     except Exception as e:
+        logger.warning(
+            "collector_failed",
+            source=source_name,
+            duration_ms=round((time.perf_counter() - started) * 1000),
+            error=type(e).__name__,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to collect {source_name} metrics: {type(e).__name__}",
         ) from e
     finally:
         await close()
+    # Captures run inside one HTTP request behind a 60s ALB timeout; per-source
+    # timings show which API is eating that budget.
+    logger.info(
+        "collector_completed",
+        source=source_name,
+        duration_ms=round((time.perf_counter() - started) * 1000),
+    )
+    return result

@@ -144,19 +144,36 @@ async def get_merged_prs(
         if not prs:
             break
 
+        reached_older = False
         for pr in prs:
+            if _updated_before(pr, period_start):
+                reached_older = True
+                break
             filtered = _filter_merged_pr(pr, period_start, period_end)
             if filtered:
                 merged_prs.append(filtered)
                 if len(merged_prs) >= max_results:
                     break
 
-        if len(prs) < per_page:
+        if reached_older or len(prs) < per_page:
             break
 
         page += 1
 
     return merged_prs
+
+
+def _updated_before(pr: dict, period_start: date | None) -> bool:
+    """True when a PR was last updated before the period starts.
+
+    Pages are sorted by updated_at desc and a PR is always updated when merged,
+    so once one is older than the period nothing after it can have merged inside
+    it. Without this stop a long-lived repo is paged through its whole history.
+    """
+    if period_start is None:
+        return False
+    updated = parse_iso_datetime(pr.get("updated_at"))
+    return updated is not None and updated.date() < period_start
 
 
 def filter_target_branch_prs(prs: list[dict]) -> list[dict]:
