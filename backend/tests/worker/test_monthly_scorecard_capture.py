@@ -1,5 +1,6 @@
 """Tests for monthly_scorecard_capture worker job recovery paths."""
 
+from datetime import date
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -117,3 +118,47 @@ async def test_per_project_failure_does_not_poison_outer_commit(
     assert row.status == "completed"
     assert row.projects_checked == 1
     assert row.alerts_sent == 0
+
+
+@pytest.mark.asyncio
+async def test_project_starting_after_the_captured_month_is_skipped(
+    db_session: AsyncSession, scoring_config
+) -> None:
+    """A project that goes live after the month closes gets no snapshot for that month.
+
+    Regression: a project starting 2026-11-02 got an October snapshot on the
+    Nov 5 run, with a cumulative range from Nov 2 back to Oct 31.
+    """
+
+    class _Proj:
+        def __init__(self, name: str, start: date) -> None:
+            self.id = "00000000-0000-0000-0000-000000000000"
+            self.name = name
+            self.budget = None
+            self.start_date = start
+            self.end_date = None
+
+    ctx = {"db": db_session, "score_cache": None}
+    load_manual = AsyncMock(side_effect=RuntimeError("must not be reached"))
+
+    with (
+        patch("app.worker.monthly_scorecard_capture.date") as mock_date,
+        patch(
+            "app.worker.monthly_scorecard_capture._get_scorecard_projects",
+            new=AsyncMock(return_value=[_Proj("NewProject", date(2026, 11, 2))]),
+        ),
+        patch(
+            "app.worker.monthly_scorecard_capture.MetricsService.get_manual_fields_for_historical_capture",
+            new=load_manual,
+        ),
+    ):
+        mock_date.today.return_value = date(2026, 11, 5)
+        result = await monthly_scorecard_capture(ctx)
+
+    assert result["status"] == "completed"
+    assert result["month"] == 10
+    assert result["errors"] == 0
+    load_manual.assert_not_awaited()
+
+    row = await _latest_run(db_session)
+    assert row.projects_checked == 0

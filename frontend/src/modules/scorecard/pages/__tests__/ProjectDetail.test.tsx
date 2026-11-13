@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import ProjectDetail from '../ProjectDetail';
 import { ProjectProvider } from '@/core/contexts/ProjectContext';
+import { AuthContext } from '@/core/contexts/AuthContext';
+import type { AuthContextType } from '@/core/types/auth';
 import type { Project } from '@/core/types/project';
 import type { ScoreResponse } from '../../types';
 
@@ -205,19 +207,36 @@ function createQueryClient(): QueryClient {
   });
 }
 
+function buildAuth(permissions: string[]): AuthContextType {
+  return {
+    user: null,
+    isAuthenticated: true,
+    isLoading: false,
+    permissions,
+    isImpersonating: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+    impersonate: vi.fn(),
+    stopImpersonating: vi.fn(),
+  };
+}
+
 function renderWithProviders(
   ui: React.ReactElement,
   project: Project = mockProject,
+  permissions: string[] = ['*'],
 ): ReturnType<typeof render> {
   const queryClient = createQueryClient();
   return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/projects/project-123/scorecard']}>
-        <ProjectProvider project={project}>
-          {ui}
-        </ProjectProvider>
-      </MemoryRouter>
-    </QueryClientProvider>
+    <AuthContext.Provider value={buildAuth(permissions)}>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/projects/project-123/scorecard']}>
+          <ProjectProvider project={project}>
+            {ui}
+          </ProjectProvider>
+        </MemoryRouter>
+      </QueryClientProvider>
+    </AuthContext.Provider>
   );
 }
 
@@ -287,6 +306,12 @@ describe('ProjectDetail', () => {
       renderWithProviders(<ProjectDetail />);
 
       expect(screen.getByRole('button', { name: /collect metrics/i })).toBeInTheDocument();
+    });
+
+    it('hides Collect Metrics without the capture permission', () => {
+      renderWithProviders(<ProjectDetail />, mockProject, ['scorecard:view']);
+
+      expect(screen.queryByRole('button', { name: /collect metrics/i })).not.toBeInTheDocument();
     });
   });
 

@@ -46,6 +46,7 @@ export default function ProjectDetail(): JSX.Element {
   const [showFinishDialog, setShowFinishDialog] = useState(false);
   const [dismissedSuccess, setDismissedSuccess] = useState(false);
   const canEditMetrics = usePermission(Action.SCORECARD_EDIT_METRICS);
+  const canCapture = usePermission(Action.SCORECARD_CAPTURE);
   const dimensionsSchema = useMemo(() => ({
     hiddenDimensions: { defaultValue: '' },
   }), []);
@@ -248,7 +249,7 @@ export default function ProjectDetail(): JSX.Element {
               await capturePeriod({ year: period.year, month: period.month, force });
             }}
             isCollecting={isPeriodCapturing}
-            hasCollectors={!!(project.jira_project_key || project.github_repo)}
+            hasCollectors={canCapture && !!(project.jira_project_key || project.github_repo)}
             isFinished={project.status === 'finished'}
           />
 

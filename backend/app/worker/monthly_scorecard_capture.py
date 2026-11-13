@@ -67,6 +67,17 @@ async def monthly_scorecard_capture(ctx: dict) -> dict:
         month_end = _last_day_of_month(year, month)
 
         projects = await _get_scorecard_projects(db)
+        not_started = [p for p in projects if p.start_date and p.start_date > month_end]
+        if not_started:
+            # A project that goes live after the month closes has nothing to measure
+            # yet; capturing it would store a cumulative range that ends before it starts.
+            logger.info(
+                "capture_skipped_not_started",
+                projects=[p.name for p in not_started],
+                year=year,
+                month=month,
+            )
+            projects = [p for p in projects if p not in not_started]
         logger.info(
             "capture_started",
             project_count=len(projects),
