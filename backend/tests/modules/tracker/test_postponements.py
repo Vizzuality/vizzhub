@@ -16,8 +16,10 @@ import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import TokenData, get_current_user
 from app.core.models.project import ProjectDB
 from app.core.models.user import UserDB
+from app.main import app
 from app.modules.tracker.models.invoice import InvoiceDB
 from app.modules.tracker.models.postponement import InvoicePostponementDB
 
@@ -696,3 +698,65 @@ class TestEffectiveStatusMostRecent:
         assert inv["status"] == "postponed"
         assert inv["postponed_to"] == near.isoformat()
         assert inv["postpone_count"] == 2
+
+
+def _act_as(user_id: UUID) -> None:
+    """Authenticate the following requests as a non-admin tracker manager."""
+
+    async def override() -> TokenData:
+        return TokenData(
+            user_id=str(user_id),
+            roles=["manager"],
+            permissions=["tracker:view", "tracker:manage"],
+        )
+
+    app.dependency_overrides[get_current_user] = override
+
+
+@pytest.mark.asyncio
+class TestCancelPostponementByRequester:
+    """VHUB-128: the requester got 403 cancelling their own request."""
+
+    async def _request_postponement(self, client: AsyncClient, setup: dict) -> str:
+        new_date = (date.today() + timedelta(days=15)).isoformat()
+        resp = await client.post(
+            f"/api/tracker/projects/{setup['project_id']}/invoices/{setup['invoice_id']}/postpone",
+            json={"postponed_to": new_date, "reason": "client delay"},
+        )
+        assert resp.status_code == 201, resp.text
+        return resp.json()["id"]
+
+    async def test_requester_without_admin_can_cancel(
+        self,
+        client: AsyncClient,
+        setup_pending_invoice: dict,
+    ) -> None:
+        _act_as(DEBUG_USER_ID)
+        pp_id = await self._request_postponement(client, setup_pending_invoice)
+
+        resp = await client.post(
+            f"/api/tracker/projects/{setup_pending_invoice['project_id']}/invoices/"
+            f"{setup_pending_invoice['invoice_id']}/postponements/{pp_id}/cancel",
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["approval_status"] == "cancelled"
+
+    async def test_other_non_admin_cannot_cancel(
+        self,
+        client: AsyncClient,
+        setup_pending_invoice: dict,
+        db_session: AsyncSession,
+    ) -> None:
+        pp_id = await self._request_postponement(client, setup_pending_invoice)
+        other = UUID("00000000-0000-0000-0000-000000000002")
+        db_session.add(UserDB(id=other, email="other@example.com", name="Other"))
+        await db_session.commit()
+        _act_as(other)
+
+        resp = await client.post(
+            f"/api/tracker/projects/{setup_pending_invoice['project_id']}/invoices/"
+            f"{setup_pending_invoice['invoice_id']}/postponements/{pp_id}/cancel",
+        )
+
+        assert resp.status_code == 403

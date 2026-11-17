@@ -470,7 +470,8 @@ async def cancel_postponement(
     )
 
     is_admin = "*" in (user.permissions or [])
-    if pp.created_by != user.user_id and not is_admin:
+    # created_by is a UUID and user_id a string: compare as text, or nobody matches.
+    if str(pp.created_by) != user.user_id and not is_admin:
         raise HTTPException(
             status_code=403,
             detail="Only the requester or an admin can cancel a postpone request",
