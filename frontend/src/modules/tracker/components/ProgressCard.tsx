@@ -10,11 +10,11 @@ import {
   useDeleteProgress,
 } from '../hooks/useProgress';
 import { formatPeriodDate } from '../utils/constants';
-import type { PeriodCostBreakdown, ProgressReport } from '../types/tracker';
+import { useReportingPeriods } from '../hooks/useReportingPeriods';
+import type { ProgressReport } from '../types/tracker';
 
 interface ProgressCardProps {
   readonly projectId: string;
-  readonly periods: PeriodCostBreakdown[];
 }
 
 function ProgressBar({ value }: { readonly value: number }): JSX.Element {
@@ -29,8 +29,9 @@ function ProgressBar({ value }: { readonly value: number }): JSX.Element {
   );
 }
 
-export default function ProgressCard({ projectId, periods }: ProgressCardProps): JSX.Element {
+export default function ProgressCard({ projectId }: ProgressCardProps): JSX.Element {
   const { data: progressList } = useProjectProgress(projectId);
+  const { data: periods } = useReportingPeriods();
   const createMutation = useCreateProgress(projectId);
   const [adding, setAdding] = useState(false);
   const [newPeriodId, setNewPeriodId] = useState('');
@@ -39,7 +40,7 @@ export default function ProgressCard({ projectId, periods }: ProgressCardProps):
   const existingPeriodIds = new Set(
     (progressList ?? []).map((p) => p.reporting_period_id),
   );
-  const availablePeriods = periods.filter((p) => !existingPeriodIds.has(p.period_id));
+  const availablePeriods = (periods ?? []).filter((p) => !existingPeriodIds.has(p.id));
 
   const latestPct = progressList && progressList.length > 0
     ? progressList[progressList.length - 1].percentage
@@ -122,7 +123,7 @@ export default function ProgressCard({ projectId, periods }: ProgressCardProps):
             >
               <option value="">Select period</option>
               {availablePeriods.map((p) => (
-                <option key={p.period_id} value={p.period_id}>
+                <option key={p.id} value={p.id}>
                   {formatPeriodDate(p.date)}
                 </option>
               ))}

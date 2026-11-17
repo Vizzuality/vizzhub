@@ -293,16 +293,10 @@ export default function ProjectTrackerDetail(): JSX.Element {
         <InvoicesCard projectId={projectId} currency={project.currency} projectName={project.name} />
       </Can>
 
-      <NonStaffCostsCard
-        projectId={projectId}
-        periods={summary.periods}
-      />
+      <NonStaffCostsCard projectId={projectId} />
 
       <Can do={Action.TRACKER_MANAGE}>
-        <ProgressCard
-          projectId={projectId}
-          periods={summary.periods}
-        />
+        <ProgressCard projectId={projectId} />
       </Can>
 
       <InsightsSection

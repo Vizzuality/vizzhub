@@ -9,8 +9,9 @@ import {
   useUpdateNonStaffCost,
   useDeleteNonStaffCost,
 } from '../hooks/useNonStaffCosts';
+import { useReportingPeriods } from '../hooks/useReportingPeriods';
 import { formatCurrency, formatPeriodDate } from '../utils/constants';
-import type { NonStaffCost, NonStaffCostType, PeriodCostBreakdown } from '../types/tracker';
+import type { NonStaffCost, NonStaffCostType, ReportingPeriod } from '../types/tracker';
 
 const COST_TYPES: NonStaffCostType[] = ['outsource', 'travel', 'servers', 'others'];
 
@@ -20,7 +21,6 @@ function capitalize(s: string): string {
 
 interface NonStaffCostsCardProps {
   readonly projectId: string;
-  readonly periods: PeriodCostBreakdown[];
 }
 
 function CostRowActions({
@@ -30,7 +30,7 @@ function CostRowActions({
 }: {
   readonly cost: NonStaffCost;
   readonly projectId: string;
-  readonly periods: PeriodCostBreakdown[];
+  readonly periods: ReportingPeriod[];
 }): JSX.Element {
   const [editing, setEditing] = useState(false);
   const [editCostType, setEditCostType] = useState<NonStaffCostType>(
@@ -41,7 +41,7 @@ function CostRowActions({
   const updateMutation = useUpdateNonStaffCost(projectId);
   const deleteMutation = useDeleteNonStaffCost(projectId);
 
-  const periodLabel = periods.find((p) => p.period_id === cost.reporting_period_id);
+  const periodLabel = periods.find((p) => p.id === cost.reporting_period_id);
 
   const handleSave = (): void => {
     const amount = Number.parseFloat(editAmount);
@@ -159,11 +159,10 @@ function CostRowActions({
   );
 }
 
-export default function NonStaffCostsCard({
-  projectId,
-  periods,
-}: NonStaffCostsCardProps): JSX.Element {
+export default function NonStaffCostsCard({ projectId }: NonStaffCostsCardProps): JSX.Element {
   const { data: costs } = useNonStaffCosts(projectId);
+  const { data: periodsData } = useReportingPeriods();
+  const periods = periodsData ?? [];
   const createMutation = useCreateNonStaffCost(projectId);
   const [adding, setAdding] = useState(false);
   const [newPeriodId, setNewPeriodId] = useState('');
@@ -249,7 +248,7 @@ export default function NonStaffCostsCard({
             >
               <option value="">Select period</option>
               {periods.map((p) => (
-                <option key={p.period_id} value={p.period_id}>
+                <option key={p.id} value={p.id}>
                   {formatPeriodDate(p.date)}
                 </option>
               ))}
