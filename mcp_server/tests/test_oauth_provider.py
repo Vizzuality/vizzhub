@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 import pytest_asyncio
-from jose import jwt
+import jwt
 from mcp.server.auth.provider import (
     AuthorizationCode,
     AuthorizationParams,

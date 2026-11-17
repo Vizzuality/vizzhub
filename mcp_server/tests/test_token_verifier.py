@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from jose import jwt
+import jwt
 
 from mcp_server.auth.token_verifier import VizzHubTokenVerifier
 
@@ -102,7 +102,7 @@ async def test_verify_missing_claims_uses_defaults(
 async def test_verify_token_with_no_expiry(
     verifier: VizzHubTokenVerifier,
 ) -> None:
-    """A JWT without an exp claim should still verify (jose allows it by default)."""
+    """A JWT without an exp claim should still verify (PyJWT allows it by default)."""
     token = jwt.encode(
         {"client_id": "no-exp", "iss": "vizzhub", "aud": "vizzhub-mcp"},
         TEST_SECRET,

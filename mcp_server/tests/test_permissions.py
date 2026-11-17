@@ -4,7 +4,7 @@ import json
 
 import pytest
 import pytest_asyncio
-from jose import jwt as jose_jwt
+import jwt
 from mcp.server.fastmcp.exceptions import ToolError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -519,7 +519,7 @@ class TestTokenVerifierIdentity:
             "iat": 1700000000,
             **extra_claims,
         }
-        return jose_jwt.encode(payload, self.SECRET, algorithm="HS256")
+        return jwt.encode(payload, self.SECRET, algorithm="HS256")
 
     @pytest.mark.asyncio
     async def test_verify_token_exposes_identity_claims(self) -> None:

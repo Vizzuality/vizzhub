@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
-from jose import JWTError, jwt
+import jwt
 from mcp.server.auth.provider import AccessToken
 
 
@@ -44,5 +44,5 @@ class VizzHubTokenVerifier:
                 subject=payload.get("sub"),
                 claims=payload,
             )
-        except JWTError:
+        except jwt.InvalidTokenError:
             return None

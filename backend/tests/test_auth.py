@@ -3,10 +3,10 @@
 from datetime import UTC, timedelta
 from unittest.mock import MagicMock, patch
 
+import jwt
 import pytest
 from fastapi.security import HTTPAuthorizationCredentials
 from httpx import AsyncClient
-from jose import jwt
 
 from app.core.auth import COOKIE_NAME, TokenData, create_access_token, get_cookie_settings
 
@@ -273,6 +273,27 @@ class TestTokenValidation:
         with patch("app.core.auth.settings") as mock_settings:
             mock_settings.debug = False
             mock_settings.jwt_secret_key = "correct-secret"
+
+            with pytest.raises(Exception) as exc_info:
+                await get_current_user(_make_request(), credentials)
+
+            assert exc_info.value.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_get_current_user_rejects_mcp_audience_token(self) -> None:
+        """An MCP access token (aud=vizzhub-mcp) must not authenticate the web API."""
+        from app.core.auth import get_current_user
+
+        token = jwt.encode(
+            {"sub": "user-123", "aud": "vizzhub-mcp", "iss": "vizzhub"},
+            "test-secret",
+            algorithm="HS256",
+        )
+        credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+
+        with patch("app.core.auth.settings") as mock_settings:
+            mock_settings.debug = False
+            mock_settings.jwt_secret_key = "test-secret"
 
             with pytest.raises(Exception) as exc_info:
                 await get_current_user(_make_request(), credentials)

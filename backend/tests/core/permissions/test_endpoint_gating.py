@@ -7,9 +7,9 @@ get to an authenticated end-to-end request without the production OAuth flow.
 
 from datetime import UTC, datetime, timedelta
 
+import jwt
 import pytest
 from httpx import AsyncClient
-from jose import jwt
 
 from app.config import get_settings
 from app.core.auth import ALGORITHM, COOKIE_NAME

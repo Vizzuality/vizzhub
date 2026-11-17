@@ -2,10 +2,9 @@
 
 from uuid import UUID
 
+import jwt
 import structlog
 from fastapi import APIRouter, HTTPException, Request, Response, status
-from jose import JWTError
-from jose import jwt as jose_jwt
 from pydantic import BaseModel as PydanticBaseModel
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import select
@@ -150,14 +149,14 @@ async def stop_impersonate(
 
     settings = get_settings()
     try:
-        payload = jose_jwt.decode(admin_token, settings.jwt_secret_key, algorithms=[ALGORITHM])
+        payload = jwt.decode(admin_token, settings.jwt_secret_key, algorithms=[ALGORITHM])
         token_permissions = payload.get("permissions", [])
         if not is_admin(token_permissions):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Stored token is not an admin",
             )
-    except JWTError:
+    except jwt.InvalidTokenError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid admin token",

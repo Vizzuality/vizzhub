@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 import pytest
-from jose import jwt
+import jwt
 from mcp.server.auth.settings import AuthSettings
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings

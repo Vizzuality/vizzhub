@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode, urlsplit
 
 import structlog
-from jose import jwt
+import jwt
 from mcp.server.auth.provider import (
     AccessToken,
     AuthorizationCode,

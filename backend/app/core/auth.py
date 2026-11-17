@@ -3,10 +3,10 @@
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
+import jwt
 import structlog
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
 from pydantic import BaseModel
 
 from app.config import get_settings
@@ -157,7 +157,7 @@ async def get_current_user(
             raise credentials_exception
 
         return TokenData(user_id=user_id, email=email, roles=roles, permissions=permissions)
-    except JWTError:
+    except jwt.InvalidTokenError:
         raise credentials_exception
 
 
