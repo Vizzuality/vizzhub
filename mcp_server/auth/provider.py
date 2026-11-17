@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 import secrets
 import uuid
@@ -58,6 +59,11 @@ ALLOWED_REDIRECT_ID_PREFIXES = frozenset({
 })
 LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 _CALLBACK_ID = re.compile(r"[A-Za-z0-9_-]+")
+
+
+def hash_refresh_token(token: str) -> str:
+    """SHA-256 hex digest of a refresh token, the only form stored in the DB."""
+    return hashlib.sha256(token.encode()).hexdigest()
 
 
 def is_allowed_redirect_uri(uri: str) -> bool:
@@ -144,7 +150,7 @@ class VizzHubOAuthProvider:
         """Create a new refresh token string and DB row. Returns (token_str, row)."""
         token_str = secrets.token_urlsafe(48)
         row = MCPOAuthRefreshTokenDB(
-            token=token_str,
+            token_hash=hash_refresh_token(token_str),
             client_id=client_id,
             user_id=user_id,
             user_email=user_email,
@@ -422,7 +428,7 @@ class VizzHubOAuthProvider:
         async with self._session_maker() as session:
             result = await session.execute(
                 select(MCPOAuthRefreshTokenDB).where(
-                    MCPOAuthRefreshTokenDB.token == refresh_token,
+                    MCPOAuthRefreshTokenDB.token_hash == hash_refresh_token(refresh_token),
                     MCPOAuthRefreshTokenDB.client_id == client.client_id,
                 )
             )
@@ -438,7 +444,7 @@ class VizzHubOAuthProvider:
             return None
 
         return RefreshToken(
-            token=row.token,
+            token=refresh_token,
             client_id=row.client_id,
             scopes=row.scopes or [],
             expires_at=int(row.expires_at.replace(tzinfo=timezone.utc).timestamp())
@@ -456,7 +462,7 @@ class VizzHubOAuthProvider:
             result = await session.execute(
                 delete(MCPOAuthRefreshTokenDB)
                 .where(
-                    MCPOAuthRefreshTokenDB.token == refresh_token.token,
+                    MCPOAuthRefreshTokenDB.token_hash == hash_refresh_token(refresh_token.token),
                     MCPOAuthRefreshTokenDB.client_id == client.client_id,
                 )
                 .returning(MCPOAuthRefreshTokenDB)
@@ -510,7 +516,7 @@ class VizzHubOAuthProvider:
         async with self._session_maker() as session:
             await session.execute(
                 delete(MCPOAuthRefreshTokenDB).where(
-                    MCPOAuthRefreshTokenDB.token == token.token
+                    MCPOAuthRefreshTokenDB.token_hash == hash_refresh_token(token.token)
                 )
             )
             await session.commit()

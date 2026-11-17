@@ -577,7 +577,7 @@ Tools read the caller with `get_mcp_user()`, which resolves the identity from th
 OAuth state (codes, refresh tokens, client registrations) is stored in PostgreSQL:
 - `mcp_oauth_clients` — OAuth clients (pre-registered + dynamically registered)
 - `mcp_oauth_codes` — authorization codes (60s TTL after callback, 5min TTL during Google flow)
-- `mcp_oauth_refresh_tokens` — refresh tokens (30-day TTL)
+- `mcp_oauth_refresh_tokens` — refresh tokens (30-day TTL), stored only as their SHA-256 hex (`token_hash`): read access to the table yields no usable token
 
 An ARQ cron job runs daily at 3 AM UTC to purge expired rows.
 

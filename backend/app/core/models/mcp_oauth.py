@@ -58,7 +58,8 @@ class MCPOAuthRefreshTokenDB(Base):
 
     __tablename__ = "mcp_oauth_refresh_tokens"
 
-    token: Mapped[str] = mapped_column(String(256), primary_key=True)
+    # SHA-256 hex of the token: read access to this table must not yield a usable token.
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
     client_id: Mapped[str] = mapped_column(
         String(128),
         ForeignKey("mcp_oauth_clients.client_id", ondelete="CASCADE"),

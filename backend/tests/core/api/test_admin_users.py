@@ -163,7 +163,7 @@ class TestUpdateUser:
         await db_session.flush()
         db_session.add(
             MCPOAuthRefreshTokenDB(
-                token="rt-active-user",
+                token_hash="rt-active-user",
                 client_id="c1",
                 user_id=active_user.id,
                 user_email=active_user.email,

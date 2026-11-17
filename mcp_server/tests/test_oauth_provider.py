@@ -33,6 +33,7 @@ from app.database import Base
 from mcp_server.auth.provider import (
     ACCESS_TOKEN_TTL_HOURS,
     VizzHubOAuthProvider,
+    hash_refresh_token,
     is_allowed_redirect_uri,
 )
 from mcp_server.tests.conftest import TEST_DATABASE_URL
@@ -44,6 +45,7 @@ BASE_URL = "https://hub.vizzuality.com/mcp"
 
 TEST_CLIENT_ID = "test-mcp-client"
 TEST_CLIENT_SECRET = "test-mcp-secret"
+RAW_REFRESH_TOKEN = "test-refresh-token-abc"
 
 
 def _client_info_dict() -> dict:
@@ -425,7 +427,7 @@ async def test_exchange_authorization_code_refreshes_stale_permissions(
     async with session_maker() as session:
         new_refresh = await session.execute(
             select(MCPOAuthRefreshTokenDB).where(
-                MCPOAuthRefreshTokenDB.token == token.refresh_token
+                MCPOAuthRefreshTokenDB.token_hash == hash_refresh_token(token.refresh_token)
             )
         )
         new_refresh_row = new_refresh.scalar_one()
@@ -574,7 +576,7 @@ async def refresh_token_row(
     """Insert a refresh token row in the DB."""
     async with session_maker() as session:
         row = MCPOAuthRefreshTokenDB(
-            token="test-refresh-token-abc",
+            token_hash=hash_refresh_token(RAW_REFRESH_TOKEN),
             client_id=TEST_CLIENT_ID,
             user_id=test_user_id,
             user_email="refresh@vizzuality.com",
@@ -597,7 +599,7 @@ async def test_load_refresh_token_valid(
     refresh_token_row: MCPOAuthRefreshTokenDB,
 ) -> None:
     result = await provider.load_refresh_token(
-        registered_client, refresh_token_row.token
+        registered_client, RAW_REFRESH_TOKEN
     )
 
     assert result is not None
@@ -615,7 +617,7 @@ async def test_load_refresh_token_expired(
     async with session_maker() as session:
         session.add(
             MCPOAuthRefreshTokenDB(
-                token="expired-refresh-token",
+                token_hash=hash_refresh_token("expired-refresh-token"),
                 client_id=TEST_CLIENT_ID,
                 scopes=["read"],
                 expires_at=datetime.now(timezone.utc) - timedelta(days=1),
@@ -641,7 +643,7 @@ async def test_exchange_refresh_token_rotates_tokens(
     await _assign_role(session_maker, refresh_token_row.user_id, "user")
 
     old_refresh = RefreshToken(
-        token=refresh_token_row.token,
+        token=RAW_REFRESH_TOKEN,
         client_id=TEST_CLIENT_ID,
         scopes=["read"],
     )
@@ -652,12 +654,12 @@ async def test_exchange_refresh_token_rotates_tokens(
 
     assert token.access_token is not None
     assert token.refresh_token is not None
-    assert token.refresh_token != refresh_token_row.token
+    assert token.refresh_token != RAW_REFRESH_TOKEN
 
     async with session_maker() as session:
         result = await session.execute(
             select(MCPOAuthRefreshTokenDB).where(
-                MCPOAuthRefreshTokenDB.token == refresh_token_row.token
+                MCPOAuthRefreshTokenDB.token_hash == hash_refresh_token(RAW_REFRESH_TOKEN)
             )
         )
         assert result.scalar_one_or_none() is None
@@ -665,7 +667,7 @@ async def test_exchange_refresh_token_rotates_tokens(
     async with session_maker() as session:
         result = await session.execute(
             select(MCPOAuthRefreshTokenDB).where(
-                MCPOAuthRefreshTokenDB.token == token.refresh_token
+                MCPOAuthRefreshTokenDB.token_hash == hash_refresh_token(token.refresh_token)
             )
         )
         new_row = result.scalar_one_or_none()
@@ -691,7 +693,7 @@ async def test_exchange_refresh_token_refreshes_stale_permissions(
     await _assign_role(session_maker, refresh_token_row.user_id, "user")
 
     old_refresh = RefreshToken(
-        token=refresh_token_row.token,
+        token=RAW_REFRESH_TOKEN,
         client_id=TEST_CLIENT_ID,
         scopes=["read"],
     )
@@ -802,7 +804,7 @@ async def test_revoke_token_deletes_refresh_token(
     from mcp.server.auth.provider import RefreshToken
 
     rt = RefreshToken(
-        token=refresh_token_row.token,
+        token=RAW_REFRESH_TOKEN,
         client_id=TEST_CLIENT_ID,
         scopes=["read"],
     )
@@ -812,7 +814,7 @@ async def test_revoke_token_deletes_refresh_token(
     async with session_maker() as session:
         result = await session.execute(
             select(MCPOAuthRefreshTokenDB).where(
-                MCPOAuthRefreshTokenDB.token == refresh_token_row.token
+                MCPOAuthRefreshTokenDB.token_hash == hash_refresh_token(RAW_REFRESH_TOKEN)
             )
         )
         assert result.scalar_one_or_none() is None
@@ -995,14 +997,14 @@ async def test_exchange_refresh_token_rejects_inactive_user_and_drops_token(
     test_user_id: uuid.UUID,
 ) -> None:
     await _deactivate(session_maker, test_user_id)
-    token = RefreshToken(token=refresh_token_row.token, client_id=TEST_CLIENT_ID, scopes=["read"])
+    token = RefreshToken(token=RAW_REFRESH_TOKEN, client_id=TEST_CLIENT_ID, scopes=["read"])
 
     with pytest.raises(TokenError) as exc_info:
         await provider.exchange_refresh_token(registered_client, token, scopes=[])
 
     assert exc_info.value.error == "invalid_grant"
     async with session_maker() as session:
-        assert await session.get(MCPOAuthRefreshTokenDB, refresh_token_row.token) is None
+        assert await session.get(MCPOAuthRefreshTokenDB, hash_refresh_token(RAW_REFRESH_TOKEN)) is None
 
 
 @pytest.mark.asyncio
@@ -1013,7 +1015,7 @@ async def test_exchange_refresh_token_rejects_legacy_row_without_user(
 ) -> None:
     async with session_maker() as session:
         session.add(MCPOAuthRefreshTokenDB(
-            token="legacy-no-user",
+            token_hash=hash_refresh_token("legacy-no-user"),
             client_id=TEST_CLIENT_ID,
             user_id=None,
             user_email="old@vizzuality.com",
@@ -1050,7 +1052,7 @@ async def test_concurrent_refresh_rotation_issues_tokens_once(
     registered_client: OAuthClientInformationFull,
     refresh_token_row: MCPOAuthRefreshTokenDB,
 ) -> None:
-    token = RefreshToken(token=refresh_token_row.token, client_id=TEST_CLIENT_ID, scopes=["read"])
+    token = RefreshToken(token=RAW_REFRESH_TOKEN, client_id=TEST_CLIENT_ID, scopes=["read"])
     results = await asyncio.gather(
         provider.exchange_refresh_token(registered_client, token, scopes=[]),
         provider.exchange_refresh_token(registered_client, token, scopes=[]),
@@ -1059,3 +1061,29 @@ async def test_concurrent_refresh_rotation_issues_tokens_once(
 
     assert sum(not isinstance(r, Exception) for r in results) == 1
     assert sum(isinstance(r, TokenError) for r in results) == 1
+
+
+@pytest.mark.asyncio
+async def test_issued_refresh_token_is_stored_only_as_hash(
+    provider: VizzHubOAuthProvider,
+    registered_client: OAuthClientInformationFull,
+    code_row_with_user: MCPOAuthCodeDB,
+    session_maker,
+) -> None:
+    """Read access to the table must not yield a usable refresh token."""
+    await _assign_role(session_maker, code_row_with_user.user_id, "user")
+
+    token = await provider.exchange_authorization_code(
+        registered_client, _auth_code_for(code_row_with_user),
+    )
+
+    async with session_maker() as session:
+        rows = (await session.execute(select(MCPOAuthRefreshTokenDB))).scalars().all()
+    assert [r.token_hash for r in rows] == [hash_refresh_token(token.refresh_token)]
+
+
+def test_hash_refresh_token_is_sha256_hex() -> None:
+    """The migration hashes existing rows in SQL; both sides must agree."""
+    import hashlib
+
+    assert hash_refresh_token("abc") == hashlib.sha256(b"abc").hexdigest()

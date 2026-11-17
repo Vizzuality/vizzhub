@@ -32,7 +32,7 @@ def _make_code(code: str, client_id: str, expires_at: datetime) -> MCPOAuthCodeD
 
 def _make_refresh_token(token: str, client_id: str, expires_at: datetime) -> MCPOAuthRefreshTokenDB:
     return MCPOAuthRefreshTokenDB(
-        token=token,
+        token_hash=token,
         client_id=client_id,
         expires_at=expires_at,
     )
@@ -75,7 +75,7 @@ async def test_cleanup_deletes_expired_refresh_tokens(db_session: AsyncSession) 
     await cleanup_mcp_oauth({"db": db_session})
 
     result = await db_session.execute(
-        select(MCPOAuthRefreshTokenDB).where(MCPOAuthRefreshTokenDB.token == "expired-token-1")
+        select(MCPOAuthRefreshTokenDB).where(MCPOAuthRefreshTokenDB.token_hash == "expired-token-1")
     )
     assert result.scalar_one_or_none() is None
 
@@ -100,7 +100,7 @@ async def test_cleanup_preserves_valid_entries(db_session: AsyncSession) -> None
         select(MCPOAuthCodeDB).where(MCPOAuthCodeDB.code == "valid-code-1")
     )
     token_result = await db_session.execute(
-        select(MCPOAuthRefreshTokenDB).where(MCPOAuthRefreshTokenDB.token == "valid-token-1")
+        select(MCPOAuthRefreshTokenDB).where(MCPOAuthRefreshTokenDB.token_hash == "valid-token-1")
     )
     assert code_result.scalar_one_or_none() is not None
     assert token_result.scalar_one_or_none() is not None
