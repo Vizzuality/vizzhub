@@ -115,24 +115,32 @@ Events ──── attendees are user_ids (same UUID as Users)
 - Use `scorecard_get_global_metrics` as a benchmark to compare individual projects against the org average
 - A score of null/None means no data available (not zero)
 
-### Capacity (4 tools)
+### Capacity (5 read tools + 2 write tools)
 
-| Tool | Use for | Key params |
-|------|---------|------------|
-| `capacity_get_insights` | Overview by FA and period | `start_month`, `end_month` (YYYY-MM) |
-| `capacity_get_fa_detail(fa)` | Per-user breakdown for one FA | `fa` (short code), `start_month`, `end_month` |
-| `capacity_get_user_detail(user_id)` | Per-project breakdown for one user | `user_id` (UUID), `start_month`, `end_month` |
-| `capacity_get_allocation` | Allocation segments (users or projects) | `view` (users/projects), `start_month`, `end_month` |
+**Time rule — the most important capacity convention.** The PAST comes ONLY from confirmed tracker reports; the FUTURE comes ONLY from the capacity planner. No tool crosses that line:
 
-**Returns:** `capacity_get_insights` → per-period array, each with FA entries: short code, billable_pct, absence_pct, user_count. `capacity_get_fa_detail` → per-period array with per-user: user_id, name, billable_pct, absence_pct, billable_project_count. `capacity_get_user_detail` → per-period array with project allocations. `capacity_get_allocation` → averaged segments over finished periods.
+- `capacity_get_reported_*` cover closed reporting periods only. A month whose period is not closed yet has no confirmed data. A range past the last closed month is truncated, with a `note` pointing to the planner.
+- `capacity_get_planned` covers the current week onward. A past start is moved to the current week; a fully past range returns a `note` pointing to the reported tools.
+- Availability, upcoming staffing, "who is free" or "who is overloaded" → planner. "What did X work on", utilization, billable share → reports.
+
+| Tool | Side | Use for | Key params |
+|------|------|---------|------------|
+| `capacity_get_reported_overview` | past | Billable share by FA and month | `start_month`, `end_month` (YYYY-MM) |
+| `capacity_get_reported_by_fa(fa)` | past | Per-person breakdown of one FA | `fa` (short code), `start_month`, `end_month` |
+| `capacity_get_reported_by_user(user_id)` | past | Per-project breakdown of one person | `user_id` (UUID), `start_month`, `end_month` |
+| `capacity_get_reported_average` | past | Allocation averaged over closed periods | `view` (users/projects), `start_month`, `end_month` |
+| `capacity_get_planned` | future | Weekly planned allocation | `start`, `end` (YYYY-MM or YYYY-MM-DD), `user_id`, `project_id`, `fa` |
+
+**Returns:** every capacity tool returns `data_source`. Reported tools add `last_closed_month` and `periods` (overview: per-FA `billable_pct`, `absence_pct`, `user_count`; by FA: per-person `billable_pct`, `absence_pct`, `billable_project_count`; by user: project percentages and `absence_pct`); `capacity_get_reported_average` returns `periods_used` plus segments by user or project. `capacity_get_planned` returns `range` (`first_week`, `last_week`), `assignments` (one per person-project: `kind` billable/absence/other, `weeks` = {Monday date: percentage}, `comments`) and `overallocated_weeks` (person-weeks above 100%).
+
+Write tools (queued for human approval, like ISO/Playbook/Portfolio; gated `capacity:manage`; future-only, a week before the current one is rejected both when queuing and when executing): `capacity_plan_set_allocation(user_id, project_id, percentage, start, end, comment?)` sets the same weekly % on every week of the range (0 clears those weeks; other projects untouched), `capacity_plan_clear_assignment(user_id, project_id, from_week?)` deletes the person's planned weeks on that project from `from_week` (default current week) onward.
 
 **Conventions:**
 - FA short codes: `FE`, `BE`, `Design`, `PM`, `Sci`, `Coms`
-- Periods are `YYYY-MM` strings (e.g., `2026-03`)
-- Default range: last 6 months. Override with `start_month` / `end_month`
+- Reported tools: months as `YYYY-MM`, default the last 6 closed months (average: last 3 closed periods)
+- Planner: weeks keyed by their Monday; default the next 13 weeks; percentages 0-200 (100 = full week, above 100 = overallocated)
 - `billable_pct` and `absence_pct` are on a 0-100 scale (e.g., 75.5 means 75.5% of time)
-- `capacity_get_allocation(view="projects")` shows which users work on each project
-- Users with `requires_project_reporting=false` or inactive users are excluded
+- Users with `requires_project_reporting=false` or inactive users are excluded; the planner also excludes finished projects
 
 ### ISO (5 tools)
 
@@ -224,9 +232,10 @@ Write tools (queued for human approval, like ISO/Playbook; gated `portfolio:mana
 
 ### "How is the frontend team allocated this quarter?"
 
-1. `capacity_get_fa_detail(fa="FE", start_month="2026-01", end_month="2026-03")` → per-user breakdown
-2. For deep dive on a specific user: `capacity_get_user_detail(user_id, start_month, end_month)` → per-project detail
-3. Cross-reference with `users_get_detail(user_id)` for rate and dedication info
+1. Months already closed: `capacity_get_reported_by_fa(fa="FE", start_month, end_month)` → per-person breakdown from confirmed reports
+2. Months still ahead: `capacity_get_planned(fa="FE", start, end)` → planned weekly allocation
+3. For deep dive on a specific person: `capacity_get_reported_by_user(user_id, …)` for the past, `capacity_get_planned(user_id=…)` for the future
+4. Cross-reference with `users_get_detail(user_id)` for rate and dedication info
 
 ### "What's the budget situation for project X?"
 
@@ -248,21 +257,21 @@ Write tools (queued for human approval, like ISO/Playbook; gated `portfolio:mana
 ### "Show me the org health dashboard"
 
 1. `scorecard_get_global_metrics(limit=6)` → org-wide score trends
-2. `capacity_get_insights(start_month, end_month)` → utilization by FA
+2. `capacity_get_reported_overview(start_month, end_month)` → utilization by FA (closed months)
 3. `tracker_get_projects(status="live")` → active project count and burn rates
 
 ### "What did this person work on last month?"
 
 1. `users_get_team(active_only=true)` → find the user_id
 2. `tracker_get_user_jira_issues(user_id, start_date, end_date)` → Jira issues in the period
-3. `capacity_get_user_detail(user_id, start_month, end_month)` → project allocation %
-4. Cross-reference: Jira shows actual tasks, Capacity shows planned allocation
+3. `capacity_get_reported_by_user(user_id, start_month, end_month)` → confirmed project allocation %
+4. Cross-reference: Jira shows the tasks, the reports show the confirmed time split
 
 ### "Who's available for a new project?"
 
 1. `users_get_team(active_only=true)` → full team with dedication levels
-2. `capacity_get_insights()` → current billable % by FA (low billable = more availability)
-3. `capacity_get_fa_detail(fa="FE")` → drill into specific FA to find individuals with low allocation
+2. `capacity_get_planned(start, end)` → planned weekly allocation for the coming weeks; people with low weekly totals are available (filter with `fa="FE"`)
+3. Check `overallocated_weeks` before proposing someone already above 100%
 
 ### "Compare project X to the org average"
 
@@ -310,7 +319,7 @@ When presenting results, include direct links to the app so the user can navigat
 
 ## Tips
 
-- **Start broad, then drill down.** Use list tools first (`tracker_get_projects`, `scorecard_get_project_scores`, `capacity_get_insights`, `users_get_team`) to find what you need, then detail tools for specific items.
+- **Start broad, then drill down.** Use list tools first (`tracker_get_projects`, `scorecard_get_project_scores`, `capacity_get_reported_overview`, `users_get_team`) to find what you need, then detail tools for specific items.
 - **Don't call `users_get_functional_areas` just to map FA names.** The mapping is fixed: FE = Frontend Developer, BE = Backend Developer, Design = Designer, PM = Project Manager, Sci = Scientist, Coms = Communications.
 - **Capacity and Tracker complement each other.** Capacity shows allocation (planned %), Tracker shows actual time and cost. Compare them to find over/under-utilization.
 - **Scorecard + Tracker = project health.** Scorecard gives quality metrics, Tracker gives financial metrics. Together they answer "is this project healthy?"

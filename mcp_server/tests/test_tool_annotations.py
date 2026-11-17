@@ -20,6 +20,8 @@ EXPECTED: dict[str, dict[str, bool]] = {
     "events_list": {"readOnlyHint": True, "openWorldHint": False},
     "events_get_stats": {"readOnlyHint": True, "openWorldHint": False},
     "get_pending_commands": {"readOnlyHint": True, "openWorldHint": False},
+    "capacity_get_reported_overview": {"readOnlyHint": True, "openWorldHint": False},
+    "capacity_get_planned": {"readOnlyHint": True, "openWorldHint": False},
     # Read exception — hits live Jira → open world
     "tracker_get_user_jira_issues": {"readOnlyHint": True, "openWorldHint": True},
     # Non-destructive writes
@@ -38,7 +40,13 @@ EXPECTED: dict[str, dict[str, bool]] = {
         "destructiveHint": False,
         "idempotentHint": False,
     },
+    "capacity_plan_set_allocation": {
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+    },
     # Destructive writes
+    "capacity_plan_clear_assignment": {"readOnlyHint": False, "destructiveHint": True},
     "iso_delete_node": {"readOnlyHint": False, "destructiveHint": True},
     "playbook_delete_node": {"readOnlyHint": False, "destructiveHint": True},
     # Command-queue gate — mutates, not a read, not destructive on its own

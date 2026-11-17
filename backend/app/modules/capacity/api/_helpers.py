@@ -7,11 +7,9 @@ re-imports them, preserving the public name table.
 """
 
 from datetime import date, timedelta
-from uuid import UUID
 
 from fastapi import HTTPException
 from sqlalchemy import func, select
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.functional_area import FunctionalAreaDB
@@ -203,38 +201,3 @@ async def _get_overallocation_warnings(
     )
     warn_rows = (await db.execute(stmt)).all()
     return list({str(r.user_id) for r in warn_rows})
-
-
-async def _upsert_batch(
-    db: AsyncSession,
-    batch: list,
-    user_id: UUID,
-    include_comment: bool,
-) -> None:
-    """Upsert a batch of cells. When include_comment is False the existing
-    DB comment is preserved (percentage-only update)."""
-    values = [
-        {
-            "project_id": cell.project_id,
-            "user_id": cell.user_id,
-            "week_start": cell.week_start,
-            "percentage": cell.percentage,
-            "comment": cell.comment,
-            "created_by": user_id,
-            "updated_by": user_id,
-        }
-        for cell in batch
-    ]
-    stmt = pg_insert(CapacityPlanDB).values(values)
-    update_set: dict = {
-        "percentage": stmt.excluded.percentage,
-        "updated_by": stmt.excluded.updated_by,
-        "updated_at": func.now(),
-    }
-    if include_comment:
-        update_set["comment"] = stmt.excluded.comment
-    stmt = stmt.on_conflict_do_update(
-        constraint="uq_capacity_plan_cell",
-        set_=update_set,
-    )
-    await db.execute(stmt)

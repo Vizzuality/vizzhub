@@ -22,7 +22,7 @@ from mcp_server.data.base import (
 )
 from mcp_server.tools.tracker import tracker_get_projects
 from mcp_server.tools.scorecard import scorecard_get_project_scores
-from mcp_server.tools.capacity import capacity_get_insights
+from mcp_server.tools.capacity import capacity_get_planned, capacity_get_reported_overview
 from mcp_server.tools.iso import iso_get_registries
 
 from app.modules.iso_docs.models import (
@@ -171,7 +171,17 @@ class TestToolGating:
         )
         async with override_mcp_user(user):
             with pytest.raises(ToolError, match="Permission denied"):
-                await capacity_get_insights()
+                await capacity_get_reported_overview()
+
+    @pytest.mark.asyncio
+    async def test_planner_read_uses_capacity_view(self) -> None:
+        user = McpUserContext(
+            user_id="u1", email="a@b.com",
+            roles=[], permissions=["tracker:view"],
+        )
+        async with override_mcp_user(user):
+            with pytest.raises(ToolError, match="requires capacity:view"):
+                await capacity_get_planned()
 
     @pytest.mark.asyncio
     async def test_iso_registries_returns_filtered_list_for_non_editor(

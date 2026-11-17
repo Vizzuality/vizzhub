@@ -13,6 +13,9 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.program import ProgramDB
+from app.core.models.project import ProjectDB
+from app.core.models.user import UserDB
+from app.core.sql_helpers import user_display_name_expr
 from app.core.services.content_version_service import ContentVersionService
 from app.modules.iso_docs.models.node import IsoDocNodeDB
 from app.modules.iso_docs.models.page_version import IsoDocVersionDB
@@ -326,6 +329,57 @@ async def _portfolio_set_tags(
 
 
 # ---------------------------------------------------------------------------
+# Capacity planner generators
+# ---------------------------------------------------------------------------
+
+async def _capacity_names(session: AsyncSession, payload: dict) -> tuple[str, str]:
+    """Resolve person and project display names; fall back to the raw ids."""
+    user_ref = str(payload.get("user_id", "unknown"))
+    project_ref = str(payload.get("project_id", "unknown"))
+    try:
+        user_name = await session.scalar(
+            select(user_display_name_expr(UserDB)).where(UserDB.id == UUID(user_ref))
+        )
+    except ValueError:
+        user_name = None
+    try:
+        project_name = await session.scalar(
+            select(ProjectDB.name).where(ProjectDB.id == UUID(project_ref))
+        )
+    except ValueError:
+        project_name = None
+    return (
+        user_name or f"{user_ref} (WARNING: user not found)",
+        project_name or f"{project_ref} (WARNING: project not found)",
+    )
+
+
+async def _capacity_set_allocation(
+    session: AsyncSession, target: str | None, payload: dict,
+) -> str:
+    user_name, project_name = await _capacity_names(session, payload)
+    weeks = payload.get("weeks") or []
+    span = f"{len(weeks)} weeks, {weeks[0]} to {weeks[-1]}" if weeks else "no weeks"
+    pct = payload.get("percentage")
+    if not pct:
+        return f"Clear planner weeks of **{user_name}** on **{project_name}** ({span})"
+    summary = f"Plan **{user_name}** at **{pct}%** on **{project_name}** ({span})"
+    if payload.get("comment"):
+        summary += f" with comment: {payload['comment']}"
+    return summary
+
+
+async def _capacity_clear_assignment(
+    session: AsyncSession, target: str | None, payload: dict,
+) -> str:
+    user_name, project_name = await _capacity_names(session, payload)
+    return (
+        f"Remove all planned weeks of **{user_name}** on **{project_name}** "
+        f"from {payload.get('from_week', 'the current week')} onward"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Dispatch table
 # ---------------------------------------------------------------------------
 
@@ -347,6 +401,8 @@ _GENERATORS: dict[tuple[str, str], Generator] = {
     ("portfolio", "rename_program"): _portfolio_rename_program,
     ("portfolio", "update_profile"): _portfolio_update_profile,
     ("portfolio", "set_tags"): _portfolio_set_tags,
+    ("capacity", "set_allocation"): _capacity_set_allocation,
+    ("capacity", "clear_assignment"): _capacity_clear_assignment,
 }
 
 

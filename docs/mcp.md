@@ -1,6 +1,6 @@
 # MCP Server
 
-VizzHub exposes an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that allows Claude and other MCP clients to query operational data across all modules (ISO, Tracker, Scorecard, Capacity, Playbook, Users, Portfolio) directly from the database. 32 read-only tools + 20 write tools (via command queue) available.
+VizzHub exposes an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that allows Claude and other MCP clients to query operational data across all modules (ISO, Tracker, Scorecard, Capacity, Playbook, Users, Portfolio) directly from the database. 44 read-only tools, 19 write tools queued for human approval, and 3 approval tools.
 
 ## Architecture
 
@@ -246,56 +246,87 @@ Organization-wide averaged scores and indicators by month.
 
 **Returns:** JSON array of monthly records with averaged `scores` and `indicators` across all projects, plus `project_count`.
 
-### `capacity_get_insights`
+### Capacity: time rule
 
-Billable allocation overview by functional area and period.
+Past allocation is answered only from confirmed tracker reports (`capacity_get_reported_*`, closed reporting periods). Future allocation is answered only from the capacity planner (`capacity_get_planned`, current week onward). A request on the wrong side of the boundary is truncated or returns a `note` that names the right tool. Every capacity response carries `data_source`.
+
+### `capacity_get_reported_overview`
+
+PAST. Billable share by functional area per closed month. Gate: `tracker:view`.
 
 **Parameters:**
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `start_month` | string | no | YYYY-MM format. Defaults to 6 months ago. |
-| `end_month` | string | no | YYYY-MM format. Defaults to current month. |
+| `start_month` | string | no | YYYY-MM. Defaults to 6 months before the end. |
+| `end_month` | string | no | YYYY-MM. Truncated to the last closed month. |
 
-**Returns:** JSON array of periods with per-FA `billable_pct`, `absence_pct`, and `user_count`.
+**Returns:** `data_source`, `last_closed_month`, `periods` with per-FA `billable_pct`, `absence_pct`, `user_count`, and a `note` when the range was truncated.
 
-### `capacity_get_fa_detail`
+### `capacity_get_reported_by_fa`
 
-Per-user breakdown for a functional area.
+PAST. Per-person breakdown of one functional area. Gate: `tracker:view`.
 
 **Parameters:**
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `fa` | string | yes | FA short code: `FE`, `BE`, `Design`, `PM`, `Sci`, `Coms` |
-| `start_month` | string | no | YYYY-MM format |
-| `end_month` | string | no | YYYY-MM format |
+| `start_month` | string | no | YYYY-MM |
+| `end_month` | string | no | YYYY-MM, truncated to the last closed month |
 
-**Returns:** JSON array of periods with per-user `billable_pct`, `absence_pct`, `billable_project_count`.
+**Returns:** `periods` with per-person `billable_pct`, `absence_pct`, `billable_project_count`.
 
-### `capacity_get_user_detail`
+### `capacity_get_reported_by_user`
 
-Per-project breakdown for a specific user.
+PAST. Per-project breakdown of one person. Gate: `tracker:view`.
 
 **Parameters:**
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `user_id` | string | yes | User UUID |
-| `start_month` | string | no | YYYY-MM format |
-| `end_month` | string | no | YYYY-MM format |
+| `start_month` | string | no | YYYY-MM |
+| `end_month` | string | no | YYYY-MM, truncated to the last closed month |
 
-**Returns:** JSON array of periods with per-project `percentage` and `absence_pct`.
+**Returns:** `periods` with per-project `percentage` and `absence_pct`.
 
-### `capacity_get_allocation`
+### `capacity_get_reported_average`
 
-Averaged allocation across finished periods.
+PAST. Allocation averaged over closed periods. Gate: `tracker:view`.
 
 **Parameters:**
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `view` | string | no | `"users"` (default) or `"projects"` |
-| `start_month` | string | no | YYYY-MM format |
-| `end_month` | string | no | YYYY-MM format |
+| `start_month` | string | no | YYYY-MM |
+| `end_month` | string | no | YYYY-MM, truncated to the last closed month |
 
-**Returns:** JSON with `periods_used` and allocation segments (by user or by project).
+**Returns:** `periods_used` and allocation segments (by user or by project). Default: the last 3 closed periods.
+
+### `capacity_get_planned`
+
+FUTURE. Weekly planned allocation from the capacity planner, current week onward. Gate: `capacity:view`.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `start` | string | no | YYYY-MM-DD or YYYY-MM. Moved forward to the current week. |
+| `end` | string | no | YYYY-MM-DD or YYYY-MM (end of that month). Defaults to 13 weeks. |
+| `user_id` | string | no | Only this person |
+| `project_id` | string | no | Only this project |
+| `fa` | string | no | Only this FA short code |
+
+**Returns:** `range` (`first_week`, `last_week`), `assignments` (per person-project: `kind` billable/absence/other, `weeks` = {Monday: percentage}, `comments`) and `overallocated_weeks` (person-weeks above 100%).
+
+### `capacity_plan_set_allocation` (write, queued)
+
+FUTURE. Sets the same weekly percentage for a person on a project over a range of weeks; 0 clears those weeks. Gate: `capacity:manage`. Weeks before the current one are rejected when queuing and again when executing.
+
+**Parameters:** `user_id`, `project_id`, `percentage` (0-200), `start`, `end` (YYYY-MM-DD or YYYY-MM), optional `comment` (max 500 chars). At most 104 weeks.
+
+### `capacity_plan_clear_assignment` (write, queued, destructive)
+
+FUTURE. Deletes a person's planned weeks on a project from `from_week` (default: the current week) onward. Earlier weeks are never touched. Gate: `capacity:manage`.
+
+**Parameters:** `user_id`, `project_id`, optional `from_week`.
 
 ### `playbook_get_tree`
 

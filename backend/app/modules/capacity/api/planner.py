@@ -5,7 +5,7 @@ from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import delete, func, select, tuple_
+from sqlalchemy import delete, func, select
 
 from app.core.api.deps import CurrentUser, DBSession
 from app.core.auth import TokenData
@@ -21,10 +21,10 @@ from app.modules.capacity.api._helpers import (
     _mondays_in_month,
     _parse_date,
     _process_rows,
-    _upsert_batch,
     _user_name_expr,
 )
 from app.modules.capacity.models.capacity_plan import BulkCellUpdate, CapacityPlanDB
+from app.modules.capacity.services.planner import apply_cell_updates
 
 CapacityManager = Annotated[TokenData, Depends(require_permission(Action.CAPACITY_MANAGE))]
 CapacityViewer = Annotated[TokenData, Depends(require_permission(Action.CAPACITY_VIEW))]
@@ -188,45 +188,14 @@ async def update_cells(
     if not body.updates:
         return {"updated": 0}
 
-    deletes = []
-    upserts = []
-
-    for cell in body.updates:
-        if cell.percentage is None or cell.percentage == 0:
-            deletes.append(cell)
-        else:
-            upserts.append(cell)
-
-    deleted_count = 0
-    if deletes:
-        stmt = delete(CapacityPlanDB).where(
-            tuple_(
-                CapacityPlanDB.project_id,
-                CapacityPlanDB.user_id,
-                CapacityPlanDB.week_start,
-            ).in_([(c.project_id, c.user_id, c.week_start) for c in deletes])
-        )
-        result = await db.execute(stmt)
-        deleted_count = result.rowcount
-
-    upserted_count = 0
-    if upserts:
-        with_comment = [c for c in upserts if "comment" in c.model_fields_set]
-        without_comment = [c for c in upserts if "comment" not in c.model_fields_set]
-        if with_comment:
-            await _upsert_batch(db, with_comment, user.user_id, include_comment=True)
-        if without_comment:
-            await _upsert_batch(db, without_comment, user.user_id, include_comment=False)
-        upserted_count = len(upserts)
-
-    await db.flush()
+    counts = await apply_cell_updates(db, body.updates, user.user_id)
     logger.info(
         "capacity_cells_updated",
         actor_id=user.user_id,
-        upserted=upserted_count,
-        deleted=deleted_count,
+        upserted=counts["upserted"],
+        deleted=counts["deleted"],
     )
-    return {"updated": upserted_count + deleted_count}
+    return {"updated": counts["upserted"] + counts["deleted"]}
 
 
 @router.delete(

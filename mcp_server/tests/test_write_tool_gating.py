@@ -16,6 +16,10 @@ import pytest
 from mcp.server.fastmcp.exceptions import ToolError
 
 from mcp_server.data.base import override_mcp_user
+from mcp_server.tools.capacity_write import (
+    capacity_plan_clear_assignment,
+    capacity_plan_set_allocation,
+)
 from mcp_server.tools.iso_write import (
     iso_create_page,
     iso_create_registry_row,
@@ -68,6 +72,13 @@ WRITE_TOOLS: list[tuple[Callable[..., Any], str, dict[str, Any]]] = [
     (playbook_update_article_content, "playbook:edit", {"slug": "x", "content": "y"}),
     (playbook_update_node, "playbook:edit", {"slug": "x"}),
     (playbook_delete_node, "playbook:edit", {"slug": "x"}),
+    # Capacity planner write tools — require capacity:manage
+    (
+        capacity_plan_set_allocation,
+        "capacity:manage",
+        {"user_id": "x", "project_id": "y", "percentage": 50, "start": "2099-01", "end": "2099-02"},
+    ),
+    (capacity_plan_clear_assignment, "capacity:manage", {"user_id": "x", "project_id": "y"}),
 ]
 
 

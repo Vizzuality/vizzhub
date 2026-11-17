@@ -10,8 +10,8 @@ _SKILL_PATH = Path(__file__).resolve().parent.parent / "docs" / "mcp" / "vizzhub
 _SKILL_CONTENT = _SKILL_PATH.read_text(encoding="utf-8") if _SKILL_PATH.exists() else ""
 
 _INSTRUCTIONS = """\
-**CRITICAL — HUMAN-IN-THE-LOOP FOR WRITES:** Write tools (iso_*, playbook_*, portfolio_*)
-NEVER execute directly — they only queue a command and return a summary.
+**CRITICAL — HUMAN-IN-THE-LOOP FOR WRITES:** Write tools (iso_*, playbook_*, portfolio_*,
+capacity_plan_*) NEVER execute directly — they only queue a command and return a summary.
 `approve_command` and `approve_all` are NOT shortcuts for the assistant to
 complete its task. They MUST ONLY be called AFTER the human user has seen
 the summary in chat and explicitly confirmed (e.g. "ok", "approve", "sí",
@@ -27,7 +27,7 @@ VizzHub is Vizzuality's internal operations hub with 9 modules:
 | Users | user_id (UUID) | users_ |
 | Tracker | project_id (UUID) | tracker_ |
 | Scorecard | project_id (UUID) | scorecard_ |
-| Capacity | user_id + period (YYYY-MM) | capacity_ |
+| Capacity | user_id + month (past) / week (future) | capacity_ |
 | Portfolio | program_id (UUID) | portfolio_ |
 | Events | event_id (UUID) | events_ |
 | ISO | slug (string) | iso_ |
@@ -39,6 +39,14 @@ project_id is the same UUID across Tracker and Scorecard. A Portfolio program \
 groups project iterations — the project_id of each iteration is the same UUID \
 used by Tracker and Scorecard.
 
+Capacity time rule (the most important capacity convention): the PAST is \
+answered ONLY from confirmed tracker reports (capacity_get_reported_*, closed \
+reporting periods), the FUTURE ONLY from the capacity planner \
+(capacity_get_planned, current week onward; writes via capacity_plan_*). Never \
+use the planner to describe what happened, nor reports to describe what will \
+happen. A month whose reporting period is not closed yet has no confirmed data. \
+Questions about availability, upcoming staffing or who is free go to the planner.
+
 FA mapping (Capacity short codes → Users full names): \
 FE=Frontend Developer, BE=Backend Developer, Design=Designer, \
 PM=Project Manager, Sci=Scientist, Coms=Communications.
@@ -47,7 +55,8 @@ App URLs (base: https://hub.vizzuality.com):
 - Project scorecard: /scorecard/{project_id}
 - Tracker project: /tracker/projects/{project_id}
 - Invoice detail: /tracker/invoices/{invoice_id}
-- Capacity insights: /capacity/insights (add ?fa=FE to filter)
+- Capacity insights (past): /capacity/insights (add ?fa=FE to filter)
+- Capacity planner (future): /capacity/planner
 - ISO document: /iso/docs?page={slug}
 - Playbook article: /playbook?page={slug}
 - Portfolio program: /portfolio/programs/{program_id}
@@ -60,7 +69,7 @@ Conventions:
 - Cost values are currency-specific — check the currency field.
 - burn_percentage is null when budget is zero.
 - Invoice status is the effective status (accounts for postponements).
-- Capacity percentages are 0-100 scale.
+- Capacity percentages are 0-100 scale; planner weeks may go up to 200 (over 100 = overallocated).
 - iso_search_documents uses full-text search; iso_get_documents(search=) is title-only.
 - Yearly registries follow the ISO audit cycle, not the calendar year. Each cycle \
 runs approximately March to February. The year parameter refers to the cycle start \
@@ -142,6 +151,9 @@ def create_mcp_server(
 
     from mcp_server.tools.portfolio_write import register_portfolio_write_tools  # noqa: PLC0415
     register_portfolio_write_tools(instance)
+
+    from mcp_server.tools.capacity_write import register_capacity_write_tools  # noqa: PLC0415
+    register_capacity_write_tools(instance)
 
     from mcp_server.tools.commands import register_command_tools  # noqa: PLC0415
     register_command_tools(instance)

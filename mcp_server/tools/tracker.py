@@ -168,10 +168,10 @@ async def tracker_get_user_jira_issues(
 
     Returns issues that were In Progress or moved to Done during the
     period. Useful for understanding what a team member worked on.
-    Cross-reference user_id from users_get_team or capacity_get_fa_detail.
+    Cross-reference user_id from users_get_team or capacity_get_reported_by_fa.
 
     Args:
-        user_id: User UUID (from users_get_team or capacity_get_fa_detail).
+        user_id: User UUID (from users_get_team or capacity_get_reported_by_fa).
         start_date: Start of range (YYYY-MM-DD).
         end_date: End of range (YYYY-MM-DD).
     """
