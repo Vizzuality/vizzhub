@@ -22,7 +22,7 @@ concurrency:
 
 env:
   DB_USER: scorecard
-  DB_PASSWORD: ci-${{ github.run_id }}
+  DB_AUTH: ci-${{ github.run_id }}
   DB_NAME: scorecard
 
 jobs:
@@ -34,7 +34,7 @@ jobs:
         image: postgres:16
         env:
           POSTGRES_USER: ${{ env.DB_USER }}
-          POSTGRES_PASSWORD: ${{ env.DB_PASSWORD }}
+          POSTGRES_PASSWORD: ${{ env.DB_AUTH }}
           POSTGRES_DB: ${{ env.DB_NAME }}
         ports:
           - 5432:5432
@@ -61,8 +61,8 @@ jobs:
       - name: Run tests
         working-directory: backend
         env:
-          DATABASE_URL: postgresql+asyncpg://${{ env.DB_USER }}:${{ env.DB_PASSWORD }}@localhost:5432/${{ env.DB_NAME }}
-          TEST_DATABASE_URL: postgresql+asyncpg://${{ env.DB_USER }}:${{ env.DB_PASSWORD }}@localhost:5432/${{ env.DB_NAME }}
+          DATABASE_URL: postgresql+asyncpg://${{ env.DB_USER }}:${{ env.DB_AUTH }}@localhost:5432/${{ env.DB_NAME }}
+          TEST_DATABASE_URL: postgresql+asyncpg://${{ env.DB_USER }}:${{ env.DB_AUTH }}@localhost:5432/${{ env.DB_NAME }}
           DEBUG: "true"
         run: uv run --no-sync --no-build pytest -n auto --durations=30
 

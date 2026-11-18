@@ -18,7 +18,7 @@ permissions:
 
 env:
   DB_USER: scorecard
-  DB_PASSWORD: ci-${{ github.run_id }}
+  DB_AUTH: ci-${{ github.run_id }}
   DB_NAME: scorecard
 
 jobs:
@@ -30,7 +30,7 @@ jobs:
         image: postgres:16
         env:
           POSTGRES_USER: scorecard
-          POSTGRES_PASSWORD: ${{ env.DB_PASSWORD }}
+          POSTGRES_PASSWORD: ${{ env.DB_AUTH }}
           POSTGRES_DB: scorecard
         ports:
           - 5432:5432
