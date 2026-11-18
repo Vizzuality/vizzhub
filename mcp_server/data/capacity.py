@@ -166,31 +166,13 @@ def _reported_redirect_for_plan() -> str:
     )
 
 
-async def get_planned(
-    session: AsyncSession,
-    start: date | None = None,
-    end: date | None = None,
-    *,
-    user_id: UUID | None = None,
-    project_id: UUID | None = None,
-    fa: str | None = None,
-    today: date | None = None,
-) -> dict:
-    """Weekly planned allocation from the current week onward.
-
-    One entry per person-project assignment with its weekly percentages, plus
-    the weeks where a person is planned above 100%.
-    """
-    first_week = current_monday(today)
-    if end is not None and end < first_week:
-        return {"data_source": PLANNED_SOURCE, "assignments": [], "note": _reported_redirect_for_plan()}
-
-    range_start = max(start, first_week) if start else first_week
-    range_start -= timedelta(days=range_start.weekday())
-    range_end = end or range_start + timedelta(weeks=DEFAULT_PLANNED_WEEKS - 1)
-
-    fa_names = [name for name, short in TARGET_FA_MAPPING.items() if short == fa] if fa else []
-
+def _planned_statement(
+    range_start: date,
+    range_end: date,
+    user_id: UUID | None,
+    project_id: UUID | None,
+    fa: str | None,
+):
     stmt = (
         select(
             CapacityPlanDB.user_id,
@@ -219,28 +201,43 @@ async def get_planned(
     if project_id:
         stmt = stmt.where(CapacityPlanDB.project_id == project_id)
     if fa:
+        fa_names = [name for name, short in TARGET_FA_MAPPING.items() if short == fa]
         stmt = stmt.where(FunctionalAreaDB.name.in_(fa_names))
+    return stmt
 
+
+def _assignment_kind(row) -> str:
+    if row.is_absence:
+        return "absence"
+    if row.is_billable:
+        return "billable"
+    return "other"
+
+
+def _new_assignment(row) -> dict:
+    return {
+        "user_id": str(row.user_id),
+        "user_name": row.user_name,
+        "functional_area": TARGET_FA_MAPPING.get(row.functional_area or "", row.functional_area),
+        "project_id": str(row.project_id),
+        "project_name": row.project_name,
+        "kind": _assignment_kind(row),
+        "weeks": {},
+        "comments": {},
+    }
+
+
+def _group_plan_rows(rows) -> tuple[list[dict], list[dict]]:
+    """Group plan rows into assignments and list the overallocated person-weeks."""
     assignments: dict[tuple, dict] = {}
     weekly_totals: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     names: dict[str, str] = {}
-    for row in (await session.execute(stmt)).all():
-        key = (row.user_id, row.project_id)
+    for row in rows:
         week = row.week_start.isoformat()
-        if key not in assignments:
-            assignments[key] = {
-                "user_id": str(row.user_id),
-                "user_name": row.user_name,
-                "functional_area": TARGET_FA_MAPPING.get(row.functional_area or "", row.functional_area),
-                "project_id": str(row.project_id),
-                "project_name": row.project_name,
-                "kind": "absence" if row.is_absence else "billable" if row.is_billable else "other",
-                "weeks": {},
-                "comments": {},
-            }
-        assignments[key]["weeks"][week] = row.percentage
+        assignment = assignments.setdefault((row.user_id, row.project_id), _new_assignment(row))
+        assignment["weeks"][week] = row.percentage
         if row.comment:
-            assignments[key]["comments"][week] = row.comment
+            assignment["comments"][week] = row.comment
         weekly_totals[str(row.user_id)][week] += row.percentage
         names[str(row.user_id)] = row.user_name
 
@@ -250,11 +247,39 @@ async def get_planned(
         for week, total in sorted(weeks.items())
         if total > 100
     ]
+    return list(assignments.values()), overallocated
+
+
+async def get_planned(
+    session: AsyncSession,
+    start: date | None = None,
+    end: date | None = None,
+    *,
+    user_id: UUID | None = None,
+    project_id: UUID | None = None,
+    fa: str | None = None,
+    today: date | None = None,
+) -> dict:
+    """Weekly planned allocation from the current week onward.
+
+    One entry per person-project assignment with its weekly percentages, plus
+    the weeks where a person is planned above 100%.
+    """
+    first_week = current_monday(today)
+    if end is not None and end < first_week:
+        return {"data_source": PLANNED_SOURCE, "assignments": [], "note": _reported_redirect_for_plan()}
+
+    range_start = max(start, first_week) if start else first_week
+    range_start -= timedelta(days=range_start.weekday())
+    range_end = end or range_start + timedelta(weeks=DEFAULT_PLANNED_WEEKS - 1)
+
+    stmt = _planned_statement(range_start, range_end, user_id, project_id, fa)
+    assignments, overallocated = _group_plan_rows((await session.execute(stmt)).all())
 
     payload: dict = {
         "data_source": PLANNED_SOURCE,
         "range": {"first_week": range_start.isoformat(), "last_week": range_end.isoformat()},
-        "assignments": list(assignments.values()),
+        "assignments": assignments,
         "overallocated_weeks": overallocated,
     }
     if start is not None and start < first_week:

@@ -199,7 +199,7 @@ export default function ProviderSnapshotTab({
                   );
                   return;
                 }
-                exportSnapshots(from, to, provider);
+                void exportSnapshots(from, to, provider);
               }}
               disabled={isExporting}
               className="gap-2"

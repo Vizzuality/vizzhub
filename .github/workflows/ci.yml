@@ -22,7 +22,7 @@ concurrency:
 
 env:
   DB_USER: scorecard
-  DB_PASSWORD: scorecard-ci
+  DB_PASSWORD: ci-${{ github.run_id }}
   DB_NAME: scorecard
 
 jobs:

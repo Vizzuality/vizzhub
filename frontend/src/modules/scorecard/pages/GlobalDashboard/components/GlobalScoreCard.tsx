@@ -22,7 +22,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { cn } from '@/lib/utils';
-import { getScoreColor, getScoreBgColor } from '@/utils/scoreColors';
+import { getScoreBgColor } from '@/utils/scoreColors';
 import { formatPeriod } from '@/utils/formatters';
 import { CHART_TOOLTIP_STYLE } from '@/utils/chartUtils';
 import { useTrendExpand } from '../../../hooks/useTrendExpand';
@@ -189,7 +189,7 @@ export default function GlobalScoreCard({
               <span
                 className={cn(
                   'text-5xl font-semibold',
-                  hasData ? getScoreColor(displayScore, thresholds) : 'text-muted-foreground',
+                  hasData ? 'text-foreground' : 'text-muted-foreground',
                 )}
               >
                 {displayScore ?? '—'}

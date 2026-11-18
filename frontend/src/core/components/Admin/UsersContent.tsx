@@ -294,7 +294,7 @@ export function UsersContent(): JSX.Element {
                         if (user.active) {
                           setUserToDeactivate(user);
                         } else {
-                          handleToggleActive(user.id, true);
+                          void handleToggleActive(user.id, true);
                         }
                       }}
                       disabled={isCurrentUser}
@@ -350,7 +350,7 @@ export function UsersContent(): JSX.Element {
               onClick={(e) => {
                 e.preventDefault();
                 if (userToDeactivate) {
-                  handleToggleActive(userToDeactivate.id, false);
+                  void handleToggleActive(userToDeactivate.id, false);
                   setUserToDeactivate(null);
                 }
               }}

@@ -56,11 +56,9 @@ export function DocEditor({
       if (files.length === 0 || !uploadImage) return;
       setUploading(true);
       try {
-        const markdownParts: string[] = [];
-        for (const file of files) {
-          const url = await uploadImage(file);
-          markdownParts.push(`![${file.name}](${url})`);
-        }
+        const markdownParts = await Promise.all(
+          files.map(async (file) => `![${file.name}](${await uploadImage(file)})`),
+        );
         const markdown = '\n' + markdownParts.join('\n') + '\n';
         setContent((prev) => insertAtCursor(prev, markdown));
         setEditorKey((k) => k + 1);

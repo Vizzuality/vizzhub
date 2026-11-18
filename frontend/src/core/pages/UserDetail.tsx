@@ -391,7 +391,7 @@ export default function UserDetail(): JSX.Element {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={(e) => { e.preventDefault(); handleToggleActive(false); }}
+              onClick={(e) => { e.preventDefault(); void handleToggleActive(false); }}
             >
               Deactivate
             </AlertDialogAction>
@@ -412,7 +412,7 @@ export default function UserDetail(): JSX.Element {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={(e) => { e.preventDefault(); handleDelete(); }}
+              onClick={(e) => { e.preventDefault(); void handleDelete(); }}
               className="bg-destructive text-destructive-foreground"
             >
               Delete

@@ -1,3 +1,4 @@
+import { useFocusOnMount } from '@/shared/hooks/useFocusOnMount';
 import { useEffect, useState, type ReactNode } from 'react';
 import {
   Popover,
@@ -25,6 +26,7 @@ export function PlannerCommentPopover({
   onDelete,
   anchor,
 }: PlannerCommentPopoverProps): JSX.Element {
+  const focusOnMount = useFocusOnMount<HTMLTextAreaElement>();
   const [draft, setDraft] = useState(comment ?? '');
 
   useEffect(() => {
@@ -53,7 +55,7 @@ export function PlannerCommentPopover({
       <PopoverTrigger asChild>{anchor}</PopoverTrigger>
       <PopoverContent className="w-72 p-3" align="start" sideOffset={4}>
         <textarea
-          autoFocus
+          ref={focusOnMount}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={handleKeyDown}

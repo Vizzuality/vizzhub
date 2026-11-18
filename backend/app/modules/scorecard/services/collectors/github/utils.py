@@ -144,23 +144,32 @@ async def get_merged_prs(
         if not prs:
             break
 
-        reached_older = False
-        for pr in prs:
-            if _updated_before(pr, period_start):
-                reached_older = True
-                break
-            filtered = _filter_merged_pr(pr, period_start, period_end)
-            if filtered:
-                merged_prs.append(filtered)
-                if len(merged_prs) >= max_results:
-                    break
-
+        reached_older = _collect_merged_page(prs, merged_prs, max_results, period_start, period_end)
         if reached_older or len(prs) < per_page:
             break
 
         page += 1
 
     return merged_prs
+
+
+def _collect_merged_page(
+    prs: list[dict],
+    merged_prs: list[dict],
+    max_results: int,
+    period_start: date | None,
+    period_end: date | None,
+) -> bool:
+    """Append the merged PRs of one page; True once a PR predates the period."""
+    for pr in prs:
+        if _updated_before(pr, period_start):
+            return True
+        filtered = _filter_merged_pr(pr, period_start, period_end)
+        if filtered:
+            merged_prs.append(filtered)
+            if len(merged_prs) >= max_results:
+                return False
+    return False
 
 
 def _updated_before(pr: dict, period_start: date | None) -> bool:

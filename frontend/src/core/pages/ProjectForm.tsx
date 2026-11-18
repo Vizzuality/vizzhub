@@ -699,7 +699,7 @@ export default function ProjectForm(): JSX.Element {
       return;
     }
 
-    submitForm(data);
+    void submitForm(data);
   };
 
   const buildPayloads = (data: ProjectFormData): {
@@ -787,7 +787,7 @@ export default function ProjectForm(): JSX.Element {
   const handleConfirmProposal = (): void => {
     setProposalDialogOpen(false);
     if (pendingSubmitData) {
-      submitForm(pendingSubmitData);
+      void submitForm(pendingSubmitData);
       setPendingSubmitData(null);
     }
   };

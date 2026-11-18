@@ -1,3 +1,5 @@
+import { useFocusOnMount } from '@/shared/hooks/useFocusOnMount';
+import { toDisplayString } from '@/utils/formatters';
 import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
@@ -38,7 +40,7 @@ interface EditingCell {
 
 function formatCellValue(value: unknown): string {
   if (value === null || value === undefined) return '—';
-  return String(value);
+  return toDisplayString(value);
 }
 
 export function ManualKpiTable({
@@ -48,6 +50,7 @@ export function ManualKpiTable({
   isEditor,
   selectedYear,
 }: ManualKpiTableProps): React.ReactElement {
+  const focusOnMount = useFocusOnMount<HTMLInputElement>();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
 
@@ -64,7 +67,7 @@ export function ManualKpiTable({
 
   function handleCellClick(rowId: string, monthKey: string, currentValue: unknown): void {
     if (!isEditor) return;
-    const strValue = currentValue !== null && currentValue !== undefined ? String(currentValue) : '';
+    const strValue = toDisplayString(currentValue);
     setEditingCell({ rowId, monthKey, value: strValue });
   }
 
@@ -142,7 +145,7 @@ export function ManualKpiTable({
                         col.key === 'name' && 'sticky left-0 z-10 bg-background font-medium',
                         col.key === 'methodology' && 'text-xs text-muted-foreground max-w-[240px] truncate',
                       )}
-                      title={col.key === 'methodology' ? String(row.data[col.key] ?? '') : undefined}
+                      title={col.key === 'methodology' ? toDisplayString(row.data[col.key]) : undefined}
                     >
                       {formatCellValue(row.data[col.key])}
                     </td>
@@ -168,7 +171,7 @@ export function ManualKpiTable({
                             onChange={(e) => handleEditingCellChange(e.target.value)}
                             onBlur={() => handleCellSave(row)}
                             onKeyDown={(e) => handleCellKeyDown(e, row)}
-                            autoFocus
+                            ref={focusOnMount}
                           />
                         ) : (
                           <span

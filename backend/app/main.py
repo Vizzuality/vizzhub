@@ -150,14 +150,15 @@ async def lifespan(app: FastAPI) -> Any:
     # not propagate a mounted sub-app's lifespan, so the manager (created lazily
     # by streamable_http_app() during the mount block below) must be run here.
     mcp_mgr = getattr(app.state, "mcp_session_manager", None)
-    if mcp_mgr is not None:
-        async with mcp_mgr.run():
+    try:
+        if mcp_mgr is not None:
+            async with mcp_mgr.run():
+                yield
+        else:
             yield
-    else:
-        yield
-
-    if redis_client:
-        await redis_client.aclose()
+    finally:
+        if redis_client:
+            await redis_client.aclose()
 
 
 app = FastAPI(

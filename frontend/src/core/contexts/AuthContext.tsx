@@ -133,7 +133,7 @@ export function AuthProvider({ children }: Readonly<AuthProviderProps>): JSX.Ele
       }
     };
 
-    initAuth();
+    void initAuth();
   }, [validateSession]);
 
   const impersonate = useCallback(async (userId: string): Promise<void> => {

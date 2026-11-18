@@ -172,17 +172,19 @@ export function ProgramEditForm({
       if (onWebsite !== (program.profile?.on_website ?? false)) diff.on_website = onWebsite;
       if (Object.keys(diff).length > 0) await updateProfile.mutateAsync(diff);
 
-      for (const tax of active) {
-        const draft = termsDraft(tax);
-        if (termsDiffer(draft, draftFor(program, tax.id))) {
-          await replaceTerms.mutateAsync({
+      const changed = active
+        .map((tax) => ({ tax, draft: termsDraft(tax) }))
+        .filter(({ tax, draft }) => termsDiffer(draft, draftFor(program, tax.id)));
+      await Promise.all(
+        changed.map(({ tax, draft }) =>
+          replaceTerms.mutateAsync({
             taxonomy_id: tax.id,
             term_ids: draft.selected,
             primary_term_id:
               draft.primary && draft.selected.includes(draft.primary) ? draft.primary : null,
-          });
-        }
-      }
+          }),
+        ),
+      );
       onDone();
     } catch (err) {
       setError(

@@ -469,7 +469,7 @@ function PendingRequestBlock({
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
                       <AlertDialogAction
-                        onClick={(e) => { e.preventDefault(); handleApiCall('approve', () => setApproveOpen(false)); }}
+                        onClick={(e) => { e.preventDefault(); void handleApiCall('approve', () => setApproveOpen(false)); }}
                         disabled={submitting}
                       >
                         Approve
@@ -501,7 +501,7 @@ function PendingRequestBlock({
                       <AlertDialogCancel onClick={() => setRejectNote('')}>Cancel</AlertDialogCancel>
                       <AlertDialogAction
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        onClick={(e) => { e.preventDefault(); handleApiCall('reject', () => setRejectOpen(false)); }}
+                        onClick={(e) => { e.preventDefault(); void handleApiCall('reject', () => setRejectOpen(false)); }}
                         disabled={submitting || !rejectNote.trim()}
                       >
                         Reject
@@ -528,7 +528,7 @@ function PendingRequestBlock({
                   <AlertDialogFooter>
                     <AlertDialogCancel>Keep request</AlertDialogCancel>
                     <AlertDialogAction
-                      onClick={(e) => { e.preventDefault(); handleApiCall('cancel', () => setCancelOpen(false)); }}
+                      onClick={(e) => { e.preventDefault(); void handleApiCall('cancel', () => setCancelOpen(false)); }}
                       disabled={submitting}
                     >
                       Cancel request

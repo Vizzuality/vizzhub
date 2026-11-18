@@ -41,4 +41,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # Irreversible: the deleted lines and their cells cannot be rebuilt.
     pass

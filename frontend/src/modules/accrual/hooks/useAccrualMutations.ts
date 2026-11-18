@@ -73,7 +73,7 @@ export function useAccrualMutations(): UseAccrualMutationsReturn {
       amount: string;
       cellKey: string;
     }) => accrualApi.cells.upsertOnLine(lineId, year, month, amount),
-    onMutate: async ({ lineId, year, month, amount }) => {
+    onMutate: ({ lineId, year, month, amount }) => {
       setSavingState('saving');
       queryClient.setQueriesData<AccrualGridResponse>(
         { queryKey: queryKeys.accrual.cells.all },

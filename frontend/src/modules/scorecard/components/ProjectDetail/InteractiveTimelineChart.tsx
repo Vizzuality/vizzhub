@@ -219,7 +219,7 @@ export default function InteractiveTimelineChart({
     if (periodHasData) {
       setShowCollectDialog(true);
     } else if (onCollectMetrics) {
-      onCollectMetrics(effectivePeriod, false);
+      void onCollectMetrics(effectivePeriod, false);
     }
   }, [periodHasData, effectivePeriod, onCollectMetrics]);
 

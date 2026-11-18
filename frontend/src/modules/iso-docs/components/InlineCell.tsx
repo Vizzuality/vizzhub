@@ -1,3 +1,4 @@
+import { toDisplayString } from '@/utils/formatters';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Check, X, ExternalLink, Upload, Trash2, FileText, Image } from 'lucide-react';
 import { Input } from '@/shared/components/ui/input';
@@ -143,11 +144,11 @@ function DisplayValue({
   }
   if (col.type === 'computed') {
     const match = getConditionalColor(value, col.conditional_format);
-    if (match) return <ColorBadge text={String(value)} color={match.color} label={match.label} />;
-    return <TextOrLink value={String(value)} col={col} wrap={wrap} />;
+    if (match) return <ColorBadge text={toDisplayString(value)} color={match.color} label={match.label} />;
+    return <TextOrLink value={toDisplayString(value)} col={col} wrap={wrap} />;
   }
   if (col.type === 'select' && col.option_colors) {
-    const str = String(value);
+    const str = toDisplayString(value);
     const color = col.option_colors[str];
     if (color) return <ColorBadge text={str} color={color} />;
     return <span className={wrap ? 'block whitespace-pre-wrap' : 'block truncate'}>{str}</span>;
@@ -155,7 +156,7 @@ function DisplayValue({
   if (col.type === 'boolean') {
     return value ? <Check className="h-4 w-4 text-green-600" /> : <X className="h-4 w-4 text-muted-foreground" />;
   }
-  return <TextOrLink value={String(value)} col={col} wrap={wrap} />;
+  return <TextOrLink value={toDisplayString(value)} col={col} wrap={wrap} />;
 }
 
 function AttachmentIcon({ contentType }: { readonly contentType: string }): JSX.Element {
@@ -331,7 +332,7 @@ function EditingField({
     case 'number':
       return (
         <Input ref={inputRef} type="number" className="h-7 text-sm w-24"
-          value={draft != null ? String(draft) : ''}
+          value={toDisplayString(draft)}
           onChange={(e) => setDraft(e.target.value ? Number(e.target.value) : null)}
           onClick={(e) => e.stopPropagation()} onBlur={commit} onKeyDown={handleKeyDown} />
       );

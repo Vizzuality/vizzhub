@@ -111,7 +111,7 @@ _ACTIONS = {
 
 async def execute(
     action: str,
-    target: str | None,
+    _target: str | None,
     payload: dict,
     user_id: UUID,
     session: AsyncSession,

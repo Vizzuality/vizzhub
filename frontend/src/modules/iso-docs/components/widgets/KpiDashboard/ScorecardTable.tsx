@@ -1,3 +1,5 @@
+import { useFocusOnMount } from '@/shared/hooks/useFocusOnMount';
+import { toDisplayString } from '@/utils/formatters';
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -77,7 +79,7 @@ function getTarget(key: string, level: ScoreLevel, targets: ScoringConfig['targe
 
 function formatCellValue(value: unknown): string {
   if (value === null || value === undefined) return '—';
-  return String(value);
+  return toDisplayString(value);
 }
 
 interface EditingCell {
@@ -105,6 +107,7 @@ function ManualKpiMonthCell({
   readonly onSave: (row: RegistryRow) => void;
   readonly onKeyDown: (e: React.KeyboardEvent, row: RegistryRow) => void;
 }): React.ReactElement {
+  const focusOnMount = useFocusOnMount<HTMLInputElement>();
   const mKey = monthToDataKey(month.month);
   const cellValue = row.data[mKey];
   const isEditing = editingCell?.rowId === row.id && editingCell?.monthKey === mKey;
@@ -124,7 +127,7 @@ function ManualKpiMonthCell({
           onChange={(e) => onEditingChange({ ...editingCell, value: e.target.value })}
           onBlur={() => onSave(row)}
           onKeyDown={(e) => onKeyDown(e, row)}
-          autoFocus
+          ref={focusOnMount}
         />
       ) : (
         <span className={cn(isEditor && 'cursor-pointer hover:text-foreground')}>
@@ -176,7 +179,7 @@ export function ScorecardTable({
 
   function handleCellClick(rowId: string, monthKey: string, currentValue: unknown): void {
     if (!isEditor) return;
-    const strValue = currentValue != null ? String(currentValue) : '';
+    const strValue = toDisplayString(currentValue);
     setEditingCell({ rowId, monthKey, value: strValue });
   }
 
@@ -299,7 +302,7 @@ export function ScorecardTable({
                         <AlertDialogHeader>
                           <AlertDialogTitle>Delete KPI</AlertDialogTitle>
                           <AlertDialogDescription>
-                            This will delete &quot;{String(row.data.name ?? 'this KPI')}&quot; from the current cycle. This action cannot be undone.
+                            This will delete &quot;{toDisplayString(row.data.name ?? 'this KPI')}&quot; from the current cycle. This action cannot be undone.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>

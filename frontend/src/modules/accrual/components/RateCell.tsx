@@ -1,3 +1,4 @@
+import { useFocusOnMount } from '@/shared/hooks/useFocusOnMount';
 import { useRef, useState } from 'react';
 import type { AccrualGridLine } from '@/modules/accrual/types/accrual';
 
@@ -15,6 +16,7 @@ function isEur(line: AccrualGridLine): boolean {
  * following the period rate shows an interactive accent colour (so it reads as
  * editable, not read-only); a non-editable / EUR line shows muted. */
 export function RateCell({ line, canEdit, onChange }: RateCellProps): JSX.Element {
+  const focusOnMount = useFocusOnMount<HTMLInputElement>();
   const [editing, setEditing] = useState(false);
   const cancelRef = useRef(false);
   const hasOverride = line.rate !== null;
@@ -38,7 +40,7 @@ export function RateCell({ line, canEdit, onChange }: RateCellProps): JSX.Elemen
         type="number"
         step="0.0001"
         min="0"
-        autoFocus
+        ref={focusOnMount}
         defaultValue={hasOverride ? String(line.rate) : ''}
         aria-label="FX rate override"
         className="h-7 w-20 rounded border bg-background px-1 text-right tabular-nums"

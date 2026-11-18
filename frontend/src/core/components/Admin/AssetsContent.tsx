@@ -154,7 +154,7 @@ function AttachmentsTab(): JSX.Element {
 
   const deleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      for (const id of ids) await assetsApi.delete(id);
+      await Promise.all(ids.map((id) => assetsApi.delete(id)));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.assets.all });
