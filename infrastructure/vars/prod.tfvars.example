@@ -46,7 +46,7 @@ domain_name = "hub.vizzuality.com"
 # =============================================================================
 github_org   = "Vizzuality"
 github_repo  = "vizzhub"
-github_token = ""  # Personal access token with repo scope
+# github_token: leave unset and export GITHUB_TOKEN=$(gh auth token) when running tofu
 
 # =============================================================================
 # Google OAuth (from Google Cloud Console)

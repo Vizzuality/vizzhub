@@ -147,9 +147,10 @@ variable "jira_client_secret" {
 
 # GitHub
 variable "github_token" {
-  description = "GitHub personal access token for API access"
+  description = "Leave unset: the GitHub provider then reads GITHUB_TOKEN, e.g. GITHUB_TOKEN=$(gh auth token)"
   type        = string
   sensitive   = true
+  default     = null
 }
 
 # Grafana Cloud

@@ -13,7 +13,7 @@ Step-by-step guide to deploy Hub infrastructure from scratch.
 
 | Secret | Source |
 |--------|--------|
-| `github_token` | GitHub → Settings → Developer settings → Personal access tokens |
+| `github_token` | Not in tfvars: run tofu with `GITHUB_TOKEN=$(gh auth token)` |
 | `google_client_id` | Google Cloud Console → APIs & Services → Credentials |
 | `google_client_secret` | Google Cloud Console → APIs & Services → Credentials |
 | `jira_client_id` | Atlassian Developer Console → OAuth 2.0 apps |
