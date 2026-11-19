@@ -3,11 +3,16 @@
 *.tfstate
 *.tfstate.*
 *.tfplan
+tfplan
+*.plan
+*.out
 .terraform.lock.hcl
 
 # Secrets - never commit!
 vars/prod.tfvars
 vars/staging.tfvars
+*.tfvars
+!*.tfvars.example
 *.auto.tfvars
 
 # Override files
