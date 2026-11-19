@@ -20,6 +20,9 @@ resource "aws_db_instance" "main" {
   vpc_security_group_ids = [aws_security_group.rds.id]
   publicly_accessible    = false
 
+  # Cerebro logs in with IAM tokens, so its role has no password.
+  iam_database_authentication_enabled = true
+
   # Backup
   backup_retention_period = var.rds_backup_retention
   backup_window           = "03:00-04:00"
