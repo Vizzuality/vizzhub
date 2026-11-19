@@ -15,6 +15,11 @@ resource "random_password" "session_secret" {
   special = false
 }
 
+# Fernet key for OAuth tokens at rest (32 bytes, url-safe base64)
+resource "random_bytes" "oauth_encryption_key" {
+  length = 32
+}
+
 # Secret - Database Password (auto-generated)
 resource "aws_secretsmanager_secret" "db_password" {
   name        = "/${var.project_name}/${var.environment}/db-password"
@@ -49,8 +54,9 @@ resource "aws_secretsmanager_secret" "jwt_secrets" {
 resource "aws_secretsmanager_secret_version" "jwt_secrets" {
   secret_id = aws_secretsmanager_secret.jwt_secrets.id
   secret_string = jsonencode({
-    jwt_secret_key     = random_password.jwt_secret.result
-    session_secret_key = random_password.session_secret.result
+    jwt_secret_key       = random_password.jwt_secret.result
+    session_secret_key   = random_password.session_secret.result
+    oauth_encryption_key = replace(replace(random_bytes.oauth_encryption_key.base64, "+", "-"), "/", "_")
   })
 }
 
@@ -147,9 +153,9 @@ resource "aws_secretsmanager_secret_version" "grafana_cloud" {
   secret_id = aws_secretsmanager_secret.grafana_cloud.id
   secret_string = jsonencode({
     api_token           = var.grafana_cloud_api_token
-    prometheus_username  = var.grafana_cloud_prometheus_username
-    prometheus_endpoint  = "https://prometheus-prod-58-prod-eu-central-0.grafana.net/api/prom/push"
-    loki_username        = var.grafana_cloud_loki_username
-    loki_endpoint        = "https://logs-prod-039.grafana.net/loki/api/v1/push"
+    prometheus_username = var.grafana_cloud_prometheus_username
+    prometheus_endpoint = "https://prometheus-prod-58-prod-eu-central-0.grafana.net/api/prom/push"
+    loki_username       = var.grafana_cloud_loki_username
+    loki_endpoint       = "https://logs-prod-039.grafana.net/loki/api/v1/push"
   })
 }
