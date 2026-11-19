@@ -24,7 +24,7 @@ variable "aws_account_id" {
 
 variable "aws_profile" {
   description = "AWS CLI profile name"
-  type = string
+  type        = string
 }
 
 # Network
@@ -150,14 +150,6 @@ variable "github_token" {
   description = "GitHub personal access token for API access"
   type        = string
   sensitive   = true
-}
-
-# Slack (optional)
-variable "slack_bot_token" {
-  description = "Slack bot token (optional)"
-  type        = string
-  sensitive   = true
-  default     = ""
 }
 
 # Grafana Cloud

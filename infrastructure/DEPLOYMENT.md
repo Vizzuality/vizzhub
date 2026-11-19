@@ -18,7 +18,6 @@ Step-by-step guide to deploy Hub infrastructure from scratch.
 | `google_client_secret` | Google Cloud Console → APIs & Services → Credentials |
 | `jira_client_id` | Atlassian Developer Console → OAuth 2.0 apps |
 | `jira_client_secret` | Atlassian Developer Console → OAuth 2.0 apps |
-| `slack_bot_token` | Slack API → Your Apps → OAuth & Permissions (optional) |
 
 ---
 
@@ -110,14 +109,10 @@ terraform apply -var-file=environments/prod.tfvars \
   -target=aws_secretsmanager_secret.jwt_secrets \
   -target=aws_secretsmanager_secret.google_oauth \
   -target=aws_secretsmanager_secret.jira_oauth \
-  -target=aws_secretsmanager_secret.github \
-  -target=aws_secretsmanager_secret.slack \
   -target=aws_secretsmanager_secret_version.db_password \
   -target=aws_secretsmanager_secret_version.jwt_secrets \
   -target=aws_secretsmanager_secret_version.google_oauth \
-  -target=aws_secretsmanager_secret_version.jira_oauth \
-  -target=aws_secretsmanager_secret_version.github \
-  -target=aws_secretsmanager_secret_version.slack
+  -target=aws_secretsmanager_secret_version.jira_oauth
 ```
 
 ---

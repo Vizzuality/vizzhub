@@ -88,33 +88,6 @@ resource "aws_secretsmanager_secret_version" "jira_oauth" {
   })
 }
 
-# Secret - GitHub (from tfvars)
-resource "aws_secretsmanager_secret" "github" {
-  name        = "/${var.project_name}/${var.environment}/github"
-  description = "GitHub token for ${var.project_name}"
-}
-
-resource "aws_secretsmanager_secret_version" "github" {
-  secret_id = aws_secretsmanager_secret.github.id
-  secret_string = jsonencode({
-    token = var.github_token
-    org   = var.github_org
-  })
-}
-
-# Secret - Slack (from tfvars, optional)
-resource "aws_secretsmanager_secret" "slack" {
-  name        = "/${var.project_name}/${var.environment}/slack"
-  description = "Slack bot token for ${var.project_name}"
-}
-
-resource "aws_secretsmanager_secret_version" "slack" {
-  secret_id = aws_secretsmanager_secret.slack.id
-  secret_string = jsonencode({
-    bot_token = var.slack_bot_token
-  })
-}
-
 # Secret - MCP OAuth Client (auto-generated)
 resource "random_password" "mcp_oauth_client_id" {
   length  = 32

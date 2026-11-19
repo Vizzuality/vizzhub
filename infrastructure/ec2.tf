@@ -87,8 +87,6 @@ resource "aws_iam_role_policy" "ec2_secrets" {
           aws_secretsmanager_secret.jwt_secrets.arn,
           aws_secretsmanager_secret.google_oauth.arn,
           aws_secretsmanager_secret.jira_oauth.arn,
-          aws_secretsmanager_secret.github.arn,
-          aws_secretsmanager_secret.slack.arn,
           aws_secretsmanager_secret.grafana_cloud.arn,
           aws_secretsmanager_secret.mcp_oauth.arn
         ]

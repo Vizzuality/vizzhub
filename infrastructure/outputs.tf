@@ -68,8 +68,6 @@ output "secrets_arns" {
     jwt_secrets  = aws_secretsmanager_secret.jwt_secrets.arn
     google_oauth = aws_secretsmanager_secret.google_oauth.arn
     jira_oauth   = aws_secretsmanager_secret.jira_oauth.arn
-    github       = aws_secretsmanager_secret.github.arn
-    slack        = aws_secretsmanager_secret.slack.arn
     mcp_oauth    = aws_secretsmanager_secret.mcp_oauth.arn
   }
 }
