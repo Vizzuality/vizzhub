@@ -347,3 +347,134 @@ async def test_upsert_keeps_non_billable_line_with_frozen_months(
             select(AccrualLineProjectDB).where(AccrualLineProjectDB.line_id == line.id)
         )
     ).first() is not None
+
+
+async def _make_unlinked_line(db: AsyncSession, *, code: str, source: str) -> AccrualLineDB:
+    line = AccrualLineDB(
+        name="forecast",
+        source=source,
+        excel_code=code,
+        value_eur=Decimal("5000"),
+        window_start=date(2026, 1, 1),
+        window_end=date(2026, 4, 1),
+    )
+    db.add(line)
+    await db.flush()
+    db.add(AccrualCellDB(line_id=line.id, year=2026, month=1, amount=Decimal("5000")))
+    await db.flush()
+    return line
+
+
+async def _linked_lines(db: AsyncSession, project_id) -> list[AccrualLineDB]:
+    result = await db.execute(
+        select(AccrualLineDB)
+        .join(AccrualLineProjectDB, AccrualLineProjectDB.line_id == AccrualLineDB.id)
+        .where(AccrualLineProjectDB.project_id == project_id)
+    )
+    return list(result.scalars().all())
+
+
+@pytest.mark.asyncio
+async def test_upsert_adopts_unlinked_line_with_project_code(db_session: AsyncSession) -> None:
+    # An Excel forecast row seeded before the project existed must be linked to the
+    # new project, not doubled by a derived team_budget line.
+    db_session.add(
+        AccrualPeriodDB(start_date=date(2026, 1, 1), status="open", fx_rates={"USD": "1.00"})
+    )
+    forecast = await _make_unlinked_line(db_session, code="P.1", source=LineSource.EXCEL.value)
+    project = await _make_project(db_session, code="P.1")
+
+    assert await budget_derivation.upsert_derived_line(db_session, project_id=project.id) is None
+
+    lines = (await db_session.execute(select(AccrualLineDB))).scalars().all()
+    assert [line.id for line in lines] == [forecast.id]
+    assert [line.id for line in await _linked_lines(db_session, project.id)] == [forecast.id]
+
+
+@pytest.mark.asyncio
+async def test_upsert_ignores_unlinked_line_with_other_code(db_session: AsyncSession) -> None:
+    db_session.add(
+        AccrualPeriodDB(start_date=date(2026, 1, 1), status="open", fx_rates={"USD": "1.00"})
+    )
+    other = await _make_unlinked_line(db_session, code="OTHER.1", source=LineSource.EXCEL.value)
+    project = await _make_project(db_session, code="P.1")
+
+    line = await budget_derivation.upsert_derived_line(db_session, project_id=project.id)
+
+    assert line is not None and line.source == LineSource.TEAM_BUDGET.value
+    assert [x.id for x in await _linked_lines(db_session, project.id)] == [line.id]
+    assert (
+        await db_session.execute(
+            select(AccrualLineProjectDB).where(AccrualLineProjectDB.line_id == other.id)
+        )
+    ).first() is None
+
+
+@pytest.mark.asyncio
+async def test_drop_project_line_deletes_derived_line_and_cells(db_session: AsyncSession) -> None:
+    db_session.add(
+        AccrualPeriodDB(start_date=date(2026, 1, 1), status="open", fx_rates={"USD": "1.00"})
+    )
+    project = await _make_project(db_session)
+    line = await budget_derivation.upsert_derived_line(db_session, project_id=project.id)
+    line_id = line.id
+
+    await budget_derivation.drop_project_derived_line(db_session, project_id=project.id)
+
+    db_session.expire_all()
+    assert await db_session.get(AccrualLineDB, line_id) is None
+    assert (
+        await db_session.execute(select(AccrualCellDB).where(AccrualCellDB.line_id == line_id))
+    ).first() is None
+
+
+@pytest.mark.asyncio
+async def test_drop_project_line_keeps_line_with_frozen_months(db_session: AsyncSession) -> None:
+    db_session.add(
+        AccrualPeriodDB(start_date=date(2026, 1, 1), status="open", fx_rates={"USD": "1.00"})
+    )
+    project = await _make_project(db_session)
+    line = await budget_derivation.upsert_derived_line(db_session, project_id=project.id)
+    cell = (
+        (await db_session.execute(select(AccrualCellDB).where(AccrualCellDB.line_id == line.id)))
+        .scalars()
+        .first()
+    )
+    cell.is_frozen = True
+    cell.frozen_at = datetime.now(UTC)
+    cell.frozen_eur_amount = cell.amount
+    await db_session.flush()
+
+    await budget_derivation.drop_project_derived_line(db_session, project_id=project.id)
+
+    assert await db_session.get(AccrualLineDB, line.id) is not None
+
+
+@pytest.mark.asyncio
+async def test_drop_project_line_leaves_contract_lines(db_session: AsyncSession) -> None:
+    project = await _make_project(db_session, code="P.1")
+    excel_line = await _make_unlinked_line(db_session, code="P.1", source=LineSource.EXCEL.value)
+    db_session.add(AccrualLineProjectDB(line_id=excel_line.id, project_id=project.id))
+    await db_session.flush()
+
+    await budget_derivation.drop_project_derived_line(db_session, project_id=project.id)
+
+    assert await db_session.get(AccrualLineDB, excel_line.id) is not None
+
+
+@pytest.mark.asyncio
+async def test_drop_project_line_keeps_line_shared_with_other_projects(
+    db_session: AsyncSession,
+) -> None:
+    db_session.add(
+        AccrualPeriodDB(start_date=date(2026, 1, 1), status="open", fx_rates={"USD": "1.00"})
+    )
+    project = await _make_project(db_session)
+    other = await _make_project(db_session, code="P.2")
+    line = await budget_derivation.upsert_derived_line(db_session, project_id=project.id)
+    db_session.add(AccrualLineProjectDB(line_id=line.id, project_id=other.id))
+    await db_session.flush()
+
+    await budget_derivation.drop_project_derived_line(db_session, project_id=project.id)
+
+    assert await db_session.get(AccrualLineDB, line.id) is not None

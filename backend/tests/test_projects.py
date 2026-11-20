@@ -422,6 +422,36 @@ class TestOriginalBudgetProvisioning:
         assert lines[0].value_eur == Decimal("800.00")
 
     @pytest.mark.asyncio
+    async def test_delete_project_removes_its_derived_line(
+        self, client: AsyncClient, db_session
+    ) -> None:
+        from sqlalchemy import select
+
+        from app.modules.accrual.models.accrual_cell import AccrualCellDB
+        from app.modules.accrual.models.accrual_line import AccrualLineDB
+
+        resp = await client.post(
+            "/api/projects",
+            json={
+                "program_id": DEFAULT_PROGRAM_ID,
+                "name": "Gone",
+                "code": "GONE.1",
+                "currency": "euro",
+                "original_budget": 3000,
+                "start_date": "2026-01-01",
+                "end_date": "2026-03-01",
+            },
+        )
+        assert resp.status_code == 201, resp.text
+        assert len((await db_session.execute(select(AccrualLineDB))).scalars().all()) == 1
+
+        assert (await client.delete(f"/api/projects/{resp.json()['id']}")).status_code == 204
+
+        db_session.expire_all()
+        assert (await db_session.execute(select(AccrualLineDB))).first() is None
+        assert (await db_session.execute(select(AccrualCellDB))).first() is None
+
+    @pytest.mark.asyncio
     async def test_replace_without_rate_preserves_existing_budget(
         self, client: AsyncClient
     ) -> None:

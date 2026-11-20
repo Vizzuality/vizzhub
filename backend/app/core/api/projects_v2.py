@@ -28,7 +28,7 @@ from app.core.models.project import ProjectCreateV2, ProjectDB, ProjectResponse,
 from app.core.models.user import UserDB
 from app.core.services.project_provisioning import provision_project_accrual
 from app.core.sql_helpers import user_display_name_expr
-from app.modules.accrual.public import convert_original_budget
+from app.modules.accrual.public import convert_original_budget, drop_project_derived_line
 from app.modules.scorecard.public import (
     PaginatedProjectsResponse,
     ProjectSummary,
@@ -469,6 +469,7 @@ async def delete_project(
 
     empty_parts = await delete_empty_report_parts(project_id, db)
     await delete_project_metrics(db, project_id)
+    await drop_project_derived_line(db, project_id=project_id)
     await db.delete(project)
     if cache:
         await cache.invalidate(str(project_id))

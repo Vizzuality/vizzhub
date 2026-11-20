@@ -100,7 +100,36 @@ async def _project_has_any_line(db: AsyncSession, project_id: UUID) -> bool:
     return result.first() is not None
 
 
-async def _drop_derived_line(db: AsyncSession, line: AccrualLineDB) -> None:
+async def _adopt_unlinked_lines(db: AsyncSession, project: ProjectDB) -> bool:
+    """Link lines that carry the project's code but no project yet (forecasts entered
+    before the project existed). True if any were linked."""
+    if not project.code:
+        return False
+    has_link = select(AccrualLineProjectDB.line_id).where(
+        AccrualLineProjectDB.line_id == AccrualLineDB.id
+    )
+    orphans = (
+        (
+            await db.execute(
+                select(AccrualLineDB).where(
+                    AccrualLineDB.excel_code == project.code, ~has_link.exists()
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for line in orphans:
+        db.add(AccrualLineProjectDB(line_id=line.id, project_id=project.id))
+        logger.info(
+            "accrual_unlinked_line_adopted", line_id=str(line.id), project_id=str(project.id)
+        )
+    if orphans:
+        await db.flush()
+    return bool(orphans)
+
+
+async def _drop_derived_line(db: AsyncSession, line: AccrualLineDB, *, reason: str) -> None:
     """Delete a derived line, unless a closed (frozen) month already recognised it."""
     has_frozen = await db.scalar(
         select(AccrualCellDB.id)
@@ -112,7 +141,27 @@ async def _drop_derived_line(db: AsyncSession, line: AccrualLineDB) -> None:
         return
     await db.delete(line)
     await db.flush()
-    logger.info("accrual_derived_line_dropped_non_billable", line_id=str(line.id))
+    logger.info("accrual_derived_line_dropped", line_id=str(line.id), reason=reason)
+
+
+async def drop_project_derived_line(db: AsyncSession, *, project_id: UUID) -> None:
+    """Remove the project's derived line before the project is deleted, so it does not
+    survive as an unlinked line that keeps counting. Contract lines (Excel/manual) are
+    left alone: they stand on their own as forecasts."""
+    line = await _find_derived_line(db, project_id)
+    if line is None:
+        return
+    shared = await db.scalar(
+        select(AccrualLineProjectDB.project_id)
+        .where(
+            AccrualLineProjectDB.line_id == line.id,
+            AccrualLineProjectDB.project_id != project_id,
+        )
+        .limit(1)
+    )
+    if shared is not None:  # someone linked it to other projects too; it is theirs now
+        return
+    await _drop_derived_line(db, line, reason="project_deleted")
 
 
 async def _refresh_derived_line(
@@ -168,7 +217,7 @@ async def upsert_derived_line(db: AsyncSession, *, project_id: UUID) -> AccrualL
     # Non-billable work recognises no revenue, so it gets no accrual line.
     if not project.is_billable:
         if existing is not None:
-            await _drop_derived_line(db, existing)
+            await _drop_derived_line(db, existing, reason="non_billable")
         return None
 
     code = currency_to_code(project.currency)
@@ -195,6 +244,8 @@ async def upsert_derived_line(db: AsyncSession, *, project_id: UUID) -> AccrualL
     # second, derived line — that would double-count its revenue.
     if await _project_has_any_line(db, project_id):
         logger.info("accrual_derived_line_skipped_existing_line", project_id=str(project_id))
+        return None
+    if await _adopt_unlinked_lines(db, project):
         return None
 
     line = AccrualLineDB(
