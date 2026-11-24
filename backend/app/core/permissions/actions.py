@@ -18,7 +18,8 @@ class Action:
     ISO_MANAGE = "iso:manage"
 
     PROJECTS_VIEW = "projects:view"
-    PROJECTS_MANAGE = "projects:manage"
+    PROJECTS_EDIT = "projects:edit"
+    PROJECTS_MANAGE = "projects:manage"  # edit + create
 
     PLAYBOOK_EDIT = "playbook:edit"
 

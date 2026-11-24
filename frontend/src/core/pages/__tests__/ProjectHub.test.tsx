@@ -8,7 +8,8 @@ vi.mock('@/core/hooks/useProjects', () => ({
 }));
 vi.mock('@/core/permissions', () => ({
   usePermission: () => true,
-  Action: { PROJECTS_MANAGE: 'projects:manage', SCORECARD_VIEW: 's', TRACKER_VIEW: 't', PORTFOLIO_VIEW: 'p' },
+  useAnyPermission: () => true,
+  Action: { PROJECTS_EDIT: 'projects:edit', PROJECTS_MANAGE: 'projects:manage', SCORECARD_VIEW: 's', TRACKER_VIEW: 't', PORTFOLIO_VIEW: 'p' },
 }));
 vi.mock('@/modules/scorecard/hooks/useProjectScoresMap', () => ({
   useProjectScoresMap: () => ({ scoresMap: {} }),

@@ -18,7 +18,7 @@ ROLE_PERMISSIONS: dict[str, set[str]] = {
     },
     "manager": {
         Action.PROJECTS_VIEW,
-        Action.PROJECTS_MANAGE,
+        Action.PROJECTS_EDIT,
         Action.TRACKER_VIEW,
         Action.TRACKER_MANAGE,
         Action.TRACKER_MANAGE_ALL_REPORTS,

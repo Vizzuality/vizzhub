@@ -22,7 +22,7 @@ import {
 import { useProjectScoresMap } from '@/modules/scorecard/hooks/useProjectScoresMap';
 import { useProjectCostsMap, useProjectProgressMap } from '@/modules/tracker/public';
 import ProjectCard from '@/core/components/ProjectCard';
-import { usePermission, Action } from '@/core/permissions';
+import { useAnyPermission, usePermission, Action } from '@/core/permissions';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import {
@@ -57,8 +57,10 @@ function getSortIcon(isActive: boolean, sortOrder: SortOrder): JSX.Element {
 export default function Projects(): JSX.Element {
   const navigate = useNavigate();
   const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
-  const canManageProjects = usePermission(Action.PROJECTS_MANAGE);
-  const isAdmin = bypassAuth || canManageProjects;
+  const canEditProjects = useAnyPermission(Action.PROJECTS_EDIT, Action.PROJECTS_MANAGE);
+  const canCreateProjects = usePermission(Action.PROJECTS_MANAGE);
+  const isAdmin = bypassAuth || canEditProjects;
+  const canCreate = bypassAuth || canCreateProjects;
 
   const [viewMode, setViewMode] = useState<ViewMode>(
     () => (localStorage.getItem(VIEW_MODE_STORAGE_KEY) as ViewMode) || 'grid'
@@ -210,7 +212,7 @@ export default function Projects(): JSX.Element {
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12">
           <p className="text-muted-foreground mb-4">No projects yet</p>
-          {isAdmin && (
+          {canCreate && (
             <Button onClick={() => navigate('/projects/new')}>
               Create your first project
             </Button>
@@ -317,7 +319,7 @@ export default function Projects(): JSX.Element {
                 <LayoutGrid className="w-4 h-4" />
               </button>
             </div>
-            {isAdmin && (
+            {canCreate && (
               <Button size="sm" onClick={() => navigate('/projects/new')}>
                 <Plus className="w-4 h-4 mr-1.5" />
                 Create Project

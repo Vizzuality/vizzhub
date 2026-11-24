@@ -13,7 +13,7 @@ from app.config import ScoringConfig, get_scoring_config
 from app.core.auth import TokenData, get_current_user
 from app.core.exceptions import ProjectNotFoundError
 from app.core.models.project import ProjectDB
-from app.core.permissions import Action, require_permission
+from app.core.permissions import Action, require_any_permission, require_permission
 from app.database import get_db
 from app.modules.scorecard.services.score_cache import ScoreCacheService
 
@@ -24,7 +24,11 @@ DBSession = Annotated[AsyncSession, Depends(get_db)]
 ScoringConfigDep = Annotated[ScoringConfig, Depends(get_scoring_config)]
 CurrentUser = Annotated[TokenData, Depends(get_current_user)]
 AdminUser = Annotated[TokenData, Depends(require_permission(Action.ALL))]
-ProjectManager = Annotated[TokenData, Depends(require_permission(Action.PROJECTS_MANAGE))]
+ProjectManager = Annotated[
+    TokenData,
+    Depends(require_any_permission(Action.PROJECTS_EDIT, Action.PROJECTS_MANAGE)),
+]
+ProjectCreator = Annotated[TokenData, Depends(require_permission(Action.PROJECTS_MANAGE))]
 
 
 def get_score_cache(request: Request) -> ScoreCacheService | None:

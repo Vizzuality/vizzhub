@@ -4,7 +4,7 @@ import { Button } from '@/shared/components/ui/button';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/utils/formatters';
 import { getStatusLabel } from '@/utils/projectStatus';
-import { usePermission, Action } from '@/core/permissions';
+import { useAnyPermission, Action } from '@/core/permissions';
 import { useProjectContext } from '@/core/contexts/ProjectContext';
 import { ProjectHeaderKpis } from '@/core/components/ProjectHeaderKpis';
 
@@ -16,7 +16,7 @@ const STATUS_DOT: Record<string, string> = {
 
 export function ProjectHeader(): JSX.Element {
   const { project } = useProjectContext();
-  const canManage = usePermission(Action.PROJECTS_MANAGE);
+  const canManage = useAnyPermission(Action.PROJECTS_EDIT, Action.PROJECTS_MANAGE);
   const hasDateRange = project.start_date || project.end_date;
   const clientName = project.client_name;
 

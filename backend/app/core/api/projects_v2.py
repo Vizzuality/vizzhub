@@ -18,6 +18,7 @@ from app.core.api.deps import (
     CurrentUser,
     DBSession,
     OptionalScoreCache,
+    ProjectCreator,
     ProjectManager,
     get_project_or_404,
     limiter,
@@ -265,7 +266,7 @@ async def list_project_managers(
 )
 @limiter.limit("20/minute")
 async def create_project(
-    request: Request, project: ProjectCreateV2, admin: ProjectManager, db: DBSession
+    request: Request, project: ProjectCreateV2, admin: ProjectCreator, db: DBSession
 ) -> ProjectResponse:
     db_project = ProjectDB()
     _apply_project_data(db_project, project)

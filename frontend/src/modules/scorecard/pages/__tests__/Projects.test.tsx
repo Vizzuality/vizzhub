@@ -68,6 +68,16 @@ vi.mock('@/core/services/integrations', () => ({
   },
 }));
 
+let mockPermissions: string[] = ['projects:manage'];
+
+vi.mock('@/core/permissions', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/core/permissions')>();
+  return {
+    ...actual,
+    usePermission: (perm: string) => mockPermissions.includes('*') || mockPermissions.includes(perm),
+  };
+});
+
 function createQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
@@ -91,6 +101,7 @@ describe('Projects', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    mockPermissions = ['projects:manage'];
     mockUsePaginatedProjects.mockReturnValue({
       data: mockPaginatedResponse,
       isLoading: false,
@@ -206,6 +217,13 @@ describe('Projects', () => {
 
       const createButton = screen.getByRole('button', { name: /create project/i });
       expect(createButton).toBeInTheDocument();
+    });
+
+    it('hides Create Project for users who can edit but not create projects', () => {
+      mockPermissions = ['projects:view', 'projects:edit'];
+      renderWithProviders(<Projects />);
+
+      expect(screen.queryByRole('button', { name: /create project/i })).not.toBeInTheDocument();
     });
   });
 

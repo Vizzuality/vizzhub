@@ -5,7 +5,7 @@ from fastapi import HTTPException
 
 from app.core.auth import TokenData
 from app.core.permissions.actions import Action
-from app.core.permissions.dependencies import require_permission
+from app.core.permissions.dependencies import require_any_permission, require_permission
 
 
 def test_admin_wildcard_passes_any_permission():
@@ -46,3 +46,23 @@ def test_multiple_permissions_all_present_passes():
     checker = require_permission(Action.SCORECARD_VIEW, Action.TRACKER_VIEW)
     result = checker(user)
     assert result.user_id == "1"
+
+
+def test_any_permission_passes_with_one_of_them():
+    user = TokenData(user_id="1", permissions=["projects:manage"])
+    checker = require_any_permission(Action.PROJECTS_EDIT, Action.PROJECTS_MANAGE)
+    assert checker(user).user_id == "1"
+
+
+def test_any_permission_raises_403_with_none_of_them():
+    user = TokenData(user_id="1", permissions=["projects:view"])
+    checker = require_any_permission(Action.PROJECTS_EDIT, Action.PROJECTS_MANAGE)
+    with pytest.raises(HTTPException) as exc_info:
+        checker(user)
+    assert exc_info.value.status_code == 403
+
+
+def test_any_permission_admin_wildcard_passes():
+    user = TokenData(user_id="1", permissions=["*"])
+    checker = require_any_permission(Action.PROJECTS_EDIT)
+    assert checker(user).user_id == "1"

@@ -23,7 +23,9 @@ vi.mock('@/core/hooks/useProjects', () => ({
 
 vi.mock('@/core/permissions', () => ({
   usePermission: () => true,
+  useAnyPermission: () => true,
   Action: {
+    PROJECTS_EDIT: 'projects:edit',
     PROJECTS_MANAGE: 'projects:manage',
     SCORECARD_VIEW: 'scorecard:view',
     TRACKER_VIEW: 'tracker:view',

@@ -68,3 +68,9 @@ def test_all_permission_values_are_valid_actions():
     for role, perms in ROLE_PERMISSIONS.items():
         for perm in perms:
             assert perm in valid_actions, f"Role '{role}' has unknown permission '{perm}'"
+
+
+def test_manager_edits_projects_but_cannot_create():
+    perms = ROLE_PERMISSIONS["manager"]
+    assert Action.PROJECTS_EDIT in perms
+    assert Action.PROJECTS_MANAGE not in perms

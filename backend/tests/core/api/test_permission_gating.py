@@ -42,7 +42,8 @@ async def project_in_db(db_session: AsyncSession):
     project = ProjectDB(
         id=UUID("00000000-0000-0000-0000-000000000099"),
         name="Test Project",
-        status="active",
+        code="TST",
+        program_id=UUID(DEFAULT_PROGRAM_ID),
     )
     db_session.add(project)
     await db_session.commit()
@@ -113,11 +114,22 @@ class TestManagerAccess:
         app.dependency_overrides.pop(get_current_user, None)
 
     @pytest.mark.asyncio
-    async def test_manager_can_create_project(self, client: AsyncClient):
+    async def test_manager_cannot_create_project(self, client: AsyncClient):
         resp = await client.post(
             "/api/projects",
             json={"program_id": DEFAULT_PROGRAM_ID, "name": "Manager Project", "code": "MGR"},
         )
+        assert resp.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_manager_can_edit_project(self, client: AsyncClient, project_in_db):
+        resp = await client.patch(f"/api/projects/{project_in_db.id}", json={"name": "Renamed"})
+        assert resp.status_code == 200
+        assert resp.json()["name"] == "Renamed"
+
+    @pytest.mark.asyncio
+    async def test_manager_can_create_program(self, client: AsyncClient):
+        resp = await client.post("/api/programs", json={"name": "Manager Program"})
         assert resp.status_code in (200, 201)
 
     @pytest.mark.asyncio
@@ -129,3 +141,34 @@ class TestManagerAccess:
     async def test_manager_cannot_list_roles(self, client: AsyncClient):
         resp = await client.get("/api/admin/users/roles")
         assert resp.status_code == 403
+
+
+class TestProjectsManageImpliesEdit:
+    """projects:manage alone (portfolio_manager) still edits, not just creates."""
+
+    @pytest_asyncio.fixture(autouse=True)
+    async def _override_portfolio_manager(self):
+        async def mock_portfolio_manager():
+            return TokenData(
+                user_id="00000000-0000-0000-0000-000000000030",
+                email="portfolio@test.com",
+                roles=["portfolio_manager"],
+                permissions=sorted(ROLE_PERMISSIONS["portfolio_manager"]),
+            )
+
+        app.dependency_overrides[get_current_user] = mock_portfolio_manager
+        yield
+        app.dependency_overrides.pop(get_current_user, None)
+
+    @pytest.mark.asyncio
+    async def test_portfolio_manager_can_create_project(self, client: AsyncClient):
+        resp = await client.post(
+            "/api/projects",
+            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Portfolio Project", "code": "PPJ"},
+        )
+        assert resp.status_code == 201
+
+    @pytest.mark.asyncio
+    async def test_portfolio_manager_can_edit_project(self, client: AsyncClient, project_in_db):
+        resp = await client.patch(f"/api/projects/{project_in_db.id}", json={"name": "Moved"})
+        assert resp.status_code == 200

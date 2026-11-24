@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import func, select
 
-from app.core.api.deps import DBSession, limiter
+from app.core.api.deps import DBSession, ProjectManager, limiter
 from app.core.auth import TokenData
 from app.core.models.client import Client, ClientCreate, ClientDB, ClientUpdate
 from app.core.models.project import ProjectDB
@@ -19,7 +19,6 @@ from app.core.services.client_service import merge_clients
 
 PortfolioViewer = Annotated[TokenData, Depends(require_permission(Action.PORTFOLIO_VIEW))]
 PortfolioManager = Annotated[TokenData, Depends(require_permission(Action.PORTFOLIO_MANAGE))]
-ProjectManager = Annotated[TokenData, Depends(require_permission(Action.PROJECTS_MANAGE))]
 
 router = APIRouter()
 logger = structlog.get_logger()

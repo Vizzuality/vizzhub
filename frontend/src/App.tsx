@@ -154,8 +154,16 @@ function AppRoutes(): JSX.Element {
             path="/admin/portfolio/programs/:programId"
             element={<LegacyPortfolioProgramRedirect />}
           />
-          <Route path="/projects/new" element={<ProjectFormPage />} />
-          <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
+          <Route element={<PermissionRoute require={Action.PROJECTS_MANAGE} />}>
+            <Route path="/projects/new" element={<ProjectFormPage />} />
+          </Route>
+          <Route
+            element={
+              <PermissionRoute requireAny={[Action.PROJECTS_EDIT, Action.PROJECTS_MANAGE]} />
+            }
+          >
+            <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
+          </Route>
           <Route path="/projects/:id" element={<ProjectHubLayout />}>
             <Route index element={<Navigate to="tracker" replace />} />
             <Route path="overview" element={<Navigate to="../tracker" replace />} />
@@ -225,8 +233,16 @@ function AppRoutes(): JSX.Element {
             path="/admin/portfolio/programs/:programId"
             element={<LegacyPortfolioProgramRedirect />}
           />
-          <Route path="/projects/new" element={<ProjectFormPage />} />
-          <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
+          <Route element={<PermissionRoute require={Action.PROJECTS_MANAGE} />}>
+            <Route path="/projects/new" element={<ProjectFormPage />} />
+          </Route>
+          <Route
+            element={
+              <PermissionRoute requireAny={[Action.PROJECTS_EDIT, Action.PROJECTS_MANAGE]} />
+            }
+          >
+            <Route path="/projects/:id/edit" element={<ProjectFormPage />} />
+          </Route>
           <Route path="/projects/:id" element={<ProjectHubLayout />}>
             <Route index element={<Navigate to="tracker" replace />} />
             <Route path="overview" element={<Navigate to="../tracker" replace />} />

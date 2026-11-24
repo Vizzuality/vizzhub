@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { usePermission, Action } from '@/core/permissions';
 import { useUrlState } from '@/shared/hooks/useUrlState';
 import {
   Plus,
@@ -47,6 +48,7 @@ function getSortIcon(isActive: boolean, sortOrder: SortOrder): JSX.Element {
 
 export default function Projects(): JSX.Element {
   const navigate = useNavigate();
+  const canCreate = usePermission(Action.PROJECTS_MANAGE);
   const [viewModeSchema] = useState(() => ({
     view: { defaultValue: (localStorage.getItem('projectsViewMode') as ViewMode) || 'grid' },
   }));
@@ -200,9 +202,11 @@ export default function Projects(): JSX.Element {
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12">
           <p className="text-muted-foreground mb-4">No projects yet</p>
-          <Button onClick={() => navigate('/projects/new')}>
-            Create your first project
-          </Button>
+          {canCreate && (
+            <Button onClick={() => navigate('/projects/new')}>
+              Create your first project
+            </Button>
+          )}
         </CardContent>
       </Card>
     );
@@ -314,10 +318,12 @@ export default function Projects(): JSX.Element {
                 <LayoutGrid className="w-4 h-4" />
               </button>
             </div>
-            <Button onClick={() => navigate('/projects/new')}>
-              <Plus className="w-5 h-5 mr-2" />
-              Create Project
-            </Button>
+            {canCreate && (
+              <Button onClick={() => navigate('/projects/new')}>
+                <Plus className="w-5 h-5 mr-2" />
+                Create Project
+              </Button>
+            )}
           </div>
         </div>
       </div>

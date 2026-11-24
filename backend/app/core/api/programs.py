@@ -7,13 +7,12 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import delete, exists, select
 
-from app.core.api.deps import CurrentUser, DBSession, limiter
+from app.core.api.deps import CurrentUser, DBSession, ProjectManager, limiter
 from app.core.auth import TokenData
 from app.core.models.program import Program, ProgramCreate, ProgramDB, ProgramUpdate
 from app.core.models.project import ProjectDB
 from app.core.permissions import Action, require_permission
 
-ProjectManager = Annotated[TokenData, Depends(require_permission(Action.PROJECTS_MANAGE))]
 PortfolioManager = Annotated[TokenData, Depends(require_permission(Action.PORTFOLIO_MANAGE))]
 
 router = APIRouter()

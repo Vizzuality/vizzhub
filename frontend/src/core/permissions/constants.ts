@@ -13,6 +13,7 @@ export const Action = {
   ISO_MANAGE: 'iso:manage',
 
   PROJECTS_VIEW: 'projects:view',
+  PROJECTS_EDIT: 'projects:edit',
   PROJECTS_MANAGE: 'projects:manage',
 
   PLAYBOOK_EDIT: 'playbook:edit',
