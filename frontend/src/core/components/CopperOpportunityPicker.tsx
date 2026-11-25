@@ -103,7 +103,7 @@ export function CopperOpportunityPicker({
         {error && (
           <p className="text-sm text-destructive">Could not read Copper right now.</p>
         )}
-        {data && data.length === 0 && (
+        {data?.length === 0 && (
           <p className="text-sm text-muted-foreground">No deals waiting to become a project.</p>
         )}
         {data &&

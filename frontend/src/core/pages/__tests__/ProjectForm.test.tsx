@@ -474,6 +474,8 @@ describe('ProjectForm', () => {
       server.use(
         http.get(`${BASE}/admin/integrations/status`, () => HttpResponse.json(slackDisconnected)),
         http.get(`${BASE}/projects/copper-opportunities`, () => HttpResponse.json([wrip])),
+        // A known FX rate, so the no-rate guard never disables submit mid-test.
+        http.get(`${BASE}/projects/budget-preview`, () => HttpResponse.json({ budget_eur: 48040 })),
         http.post(`${BASE}/clients`, async ({ request }) => {
           clientPayload = (await request.json()) as Record<string, unknown>;
           return HttpResponse.json({ id: 'client-new', ...clientPayload }, { status: 201 });
@@ -522,6 +524,8 @@ describe('ProjectForm', () => {
       server.use(
         http.get(`${BASE}/admin/integrations/status`, () => HttpResponse.json(slackDisconnected)),
         http.get(`${BASE}/projects/copper-opportunities`, () => HttpResponse.json([wrip])),
+        // A known FX rate, so the no-rate guard never disables submit mid-test.
+        http.get(`${BASE}/projects/budget-preview`, () => HttpResponse.json({ budget_eur: 48040 })),
         http.post(`${BASE}/clients`, async ({ request }) => {
           clientCreates += 1;
           const body = (await request.json()) as Record<string, unknown>;
