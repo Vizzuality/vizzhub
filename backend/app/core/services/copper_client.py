@@ -20,6 +20,7 @@ COPPER_API_BASE = "https://api.copper.com/developer_api/v1"
 COPPER_PROVIDER = "copper"
 COPPER_USER_EMAIL_KEY = "user_email"
 PAGE_SIZE = 200
+OPPORTUNITY_STATUS_OPEN = 0
 MAX_PAGES = 50
 
 
@@ -109,14 +110,13 @@ class CopperClient:
     async def search_companies(self) -> list[dict]:
         return await self._search("/companies/search", {"sort_by": "name"})
 
-    async def search_opportunities(
-        self, *, pipeline_stage_ids: list[int], minimum_stage_change_date: int
-    ) -> list[dict]:
+    async def search_opportunities(self, *, pipeline_stage_ids: list[int]) -> list[dict]:
+        """Open opportunities in the given stages (closed ones can linger in a stage)."""
         return await self._search(
             "/opportunities/search",
             {
                 "pipeline_stage_ids": pipeline_stage_ids,
-                "minimum_stage_change_date": minimum_stage_change_date,
+                "status_ids": [OPPORTUNITY_STATUS_OPEN],
                 "sort_by": "date_modified",
                 "sort_direction": "desc",
             },

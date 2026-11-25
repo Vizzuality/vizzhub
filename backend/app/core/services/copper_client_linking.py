@@ -95,26 +95,7 @@ async def link_clients_to_copper(db: AsyncSession, companies: list[dict]) -> Lin
             clients_by_name[name_key(client.name)].append((client, n_projects))
 
     for key, group in clients_by_name.items():
-        candidates = by_name.get(key, [])
-        if len(candidates) > 1:
-            # Spelling only disambiguates the 1:1 copies the initial import made.
-            unresolved = (
-                _link_by_exact_spelling(group, candidates, report)
-                if len(group) == len(candidates)
-                else group
-            )
-            report.review += [_item(c, "ambiguous_in_copper", candidates) for c, _ in unresolved]
-            continue
-        if not candidates:
-            reason: ReviewReason = "duplicate_in_vizzhub" if key in taken_names else "not_in_copper"
-            report.review += [_item(c, reason, []) for c, _ in group]
-            continue
-        company = candidates[0]
-        ranked = sorted(group, key=lambda pair: (-pair[1], pair[0].name))
-        winner = ranked[0][0]
-        winner.copper_company_id = company.id
-        report.linked += 1
-        report.review += [_item(c, "duplicate_in_vizzhub", [company]) for c, _ in ranked[1:]]
+        _resolve_group(group, by_name.get(key, []), key in taken_names, report)
 
     await db.flush()
     logger.info(
@@ -124,6 +105,33 @@ async def link_clients_to_copper(db: AsyncSession, companies: list[dict]) -> Lin
         review=len(report.review),
     )
     return report
+
+
+def _resolve_group(
+    group: list[tuple[ClientDB, int]],
+    candidates: list[CopperCompanyRef],
+    name_already_linked: bool,
+    report: LinkReport,
+) -> None:
+    """Link or queue for review every unlinked client sharing one normalized name."""
+    if len(candidates) > 1:
+        # Spelling only disambiguates the 1:1 copies the initial import made.
+        unresolved = (
+            _link_by_exact_spelling(group, candidates, report)
+            if len(group) == len(candidates)
+            else group
+        )
+        report.review += [_item(c, "ambiguous_in_copper", candidates) for c, _ in unresolved]
+        return
+    if not candidates:
+        reason: ReviewReason = "duplicate_in_vizzhub" if name_already_linked else "not_in_copper"
+        report.review += [_item(c, reason, []) for c, _ in group]
+        return
+    company = candidates[0]
+    ranked = sorted(group, key=lambda pair: (-pair[1], pair[0].name))
+    ranked[0][0].copper_company_id = company.id
+    report.linked += 1
+    report.review += [_item(c, "duplicate_in_vizzhub", [company]) for c, _ in ranked[1:]]
 
 
 def _link_by_exact_spelling(

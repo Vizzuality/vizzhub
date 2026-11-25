@@ -8,6 +8,7 @@ import pytest
 from app.core.services.copper_client import (
     COPPER_PROVIDER,
     COPPER_USER_EMAIL_KEY,
+    OPPORTUNITY_STATUS_OPEN,
     CopperAuthError,
     CopperClient,
     CopperError,
@@ -62,14 +63,12 @@ async def test_search_opportunities_pages_until_a_short_page() -> None:
         return httpx.Response(200, json=[{"id": start + i} for i in range(size)])
 
     async with _client(handler) as copper:
-        opps = await copper.search_opportunities(
-            pipeline_stage_ids=[124540], minimum_stage_change_date=1_700_000_000
-        )
+        opps = await copper.search_opportunities(pipeline_stage_ids=[124540])
 
     assert len(opps) == 203
     assert [b["page_number"] for b in bodies] == [1, 2]
     assert bodies[0]["pipeline_stage_ids"] == [124540]
-    assert bodies[0]["minimum_stage_change_date"] == 1_700_000_000
+    assert bodies[0]["status_ids"] == [OPPORTUNITY_STATUS_OPEN]
     assert bodies[0]["page_size"] == 200
 
 
