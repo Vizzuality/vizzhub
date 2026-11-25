@@ -4,7 +4,16 @@ from enum import Enum
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, field_validator, model_validator
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Numeric, String, Text
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Numeric,
+    String,
+    Text,
+)
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, validates
 from sqlalchemy.sql import func
@@ -83,6 +92,8 @@ class ProjectDB(Base):
         nullable=True,
     )
     code: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # Not unique: one contract can be tracked as several projects (phases, extensions).
+    copper_opportunity_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True, index=True)
     is_billable: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_absence: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     has_scorecard: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
@@ -145,6 +156,7 @@ class ProjectBase(BaseModel):
     slack_channel_id: str | None = Field(None, max_length=50)
     project_manager_id: UUID | None = None
     client_id: UUID | None = None
+    copper_opportunity_id: int | None = Field(None, gt=0)
 
     @field_validator("jira_project_key")
     @classmethod
@@ -215,6 +227,7 @@ class ProjectUpdate(BaseModel):
     slack_channel_id: str | None = Field(None, max_length=50)
     project_manager_id: UUID | None = None
     client_id: UUID | None = None
+    copper_opportunity_id: int | None = Field(None, gt=0)
     clear_finished_at: bool = False
 
     @field_validator("jira_project_key")

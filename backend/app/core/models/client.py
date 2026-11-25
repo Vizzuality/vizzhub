@@ -55,6 +55,7 @@ class ClientCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     code: str | None = Field(None, max_length=255)
     primary_contact: str | None = Field(None, max_length=255)
+    copper_company_id: int | None = Field(None, gt=0)
 
 
 class ClientUpdate(BaseModel):

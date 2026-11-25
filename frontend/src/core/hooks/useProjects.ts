@@ -127,3 +127,25 @@ export function useUpdateProjectStatus(id: string) {
     },
   });
 }
+
+/** Copper deals importable into a new project; 409 = Copper not connected (no retry). */
+export function useCopperOpportunities() {
+  return useQuery({
+    queryKey: queryKeys.projects.copperOpportunities,
+    queryFn: () => projectsApi.listCopperOpportunities(),
+    retry: false,
+    staleTime: 60_000,
+  });
+}
+
+export function useLinkCopperOpportunity() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ projectId, opportunityId }: { projectId: string; opportunityId: number }) =>
+      projectsApi.update(projectId, { copper_opportunity_id: opportunityId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+    },
+  });
+}

@@ -447,6 +447,128 @@ describe('ProjectForm', () => {
     });
   });
 
+  describe('Create Mode — Import from Copper', () => {
+    const wrip = {
+      opportunity_id: 39491052,
+      name: 'WRIP Design',
+      group: 'pending_signature',
+      stage_changed_on: '2026-11-23',
+      company_name: 'Systemiq.earth',
+      code: 'Sys.WRIP.39491052',
+      currency: 'euro',
+      original_budget: 48040,
+      start_date: '2026-11-30',
+      end_date: '2026-12-31',
+      client_id: null,
+      client_name: null,
+      new_client: { name: 'Systemiq.earth', code: 'Sys', copper_company_id: 77916335 },
+      linked_projects: [],
+      suggestion: null,
+    };
+
+    it('prefills from the opportunity, creates the new client and links the project', async () => {
+      const user = userEvent.setup();
+      let clientPayload: Record<string, unknown> | null = null;
+      let projectPayload: Record<string, unknown> | null = null;
+
+      server.use(
+        http.get(`${BASE}/admin/integrations/status`, () => HttpResponse.json(slackDisconnected)),
+        http.get(`${BASE}/projects/copper-opportunities`, () => HttpResponse.json([wrip])),
+        http.post(`${BASE}/clients`, async ({ request }) => {
+          clientPayload = (await request.json()) as Record<string, unknown>;
+          return HttpResponse.json({ id: 'client-new', ...clientPayload }, { status: 201 });
+        }),
+        http.post(`${BASE}/projects`, async ({ request }) => {
+          projectPayload = (await request.json()) as Record<string, unknown>;
+          return HttpResponse.json(
+            { id: 'new-id', ...projectPayload, created_at: '', updated_at: '' },
+            { status: 201 },
+          );
+        }),
+      );
+
+      renderCreate();
+      await user.click(await screen.findByRole('button', { name: /import wrip design/i }));
+
+      expect(screen.getByLabelText(/name \*/i)).toHaveValue('WRIP Design');
+      expect(screen.getByLabelText(/code \*/i)).toHaveValue('Sys.WRIP.39491052');
+      expect(screen.getByText(/new client "Systemiq.earth" will be created/i)).toBeInTheDocument();
+
+      await selectProgram(user);
+      await user.click(screen.getByLabelText('Dependabot Alerts'));
+      await user.click(screen.getByRole('button', { name: /create project/i }));
+      await user.click(await screen.findByRole('button', { name: /save as proposal/i }));
+
+      await waitFor(() => expect(screen.getByTestId('projects-list')).toBeInTheDocument());
+      expect(clientPayload).toEqual({
+        name: 'Systemiq.earth',
+        code: 'Sys',
+        copper_company_id: 77916335,
+      });
+      expect(projectPayload).toMatchObject({
+        client_id: 'client-new',
+        copper_opportunity_id: 39491052,
+        currency: 'euro',
+        original_budget: 48040,
+        start_date: '2026-11-30',
+        status: 'proposal',
+      });
+    });
+
+    it('does not create the client twice when the project create is retried', async () => {
+      const user = userEvent.setup();
+      let clientCreates = 0;
+      let projectAttempts = 0;
+      server.use(
+        http.get(`${BASE}/admin/integrations/status`, () => HttpResponse.json(slackDisconnected)),
+        http.get(`${BASE}/projects/copper-opportunities`, () => HttpResponse.json([wrip])),
+        http.post(`${BASE}/clients`, async ({ request }) => {
+          clientCreates += 1;
+          const body = (await request.json()) as Record<string, unknown>;
+          return HttpResponse.json({ id: 'client-new', ...body }, { status: 201 });
+        }),
+        http.post(`${BASE}/projects`, async ({ request }) => {
+          projectAttempts += 1;
+          if (projectAttempts === 1) {
+            return HttpResponse.json({ detail: 'Temporary failure' }, { status: 400 });
+          }
+          const body = (await request.json()) as Record<string, unknown>;
+          return HttpResponse.json({ id: 'new-id', ...body }, { status: 201 });
+        }),
+      );
+
+      renderCreate();
+      await user.click(await screen.findByRole('button', { name: /import wrip design/i }));
+      await selectProgram(user);
+      await user.click(screen.getByLabelText('Dependabot Alerts'));
+      await user.click(screen.getByRole('button', { name: /create project/i }));
+      await user.click(await screen.findByRole('button', { name: /save as proposal/i }));
+      await waitFor(() => expect(projectAttempts).toBe(1));
+
+      await user.click(screen.getByRole('button', { name: /create project/i }));
+      await user.click(await screen.findByRole('button', { name: /save as proposal/i }));
+
+      await waitFor(() => expect(screen.getByTestId('projects-list')).toBeInTheDocument());
+      expect(clientCreates).toBe(1);
+    });
+
+    it('does not offer the import when Copper is not connected', async () => {
+      let asked = false;
+      server.use(
+        http.get(`${BASE}/projects/copper-opportunities`, () => {
+          asked = true;
+          return HttpResponse.json({ detail: 'Copper is not connected' }, { status: 409 });
+        }),
+      );
+
+      renderCreate();
+      await screen.findByText('New Project');
+      await waitFor(() => expect(asked).toBe(true));
+
+      expect(screen.queryByText(/import from copper/i)).not.toBeInTheDocument();
+    });
+  });
+
   describe('Create Mode — API Error Handling', () => {
     it('shows API error message when creation fails', async () => {
       const user = userEvent.setup();

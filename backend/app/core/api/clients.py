@@ -38,6 +38,9 @@ def _clean(value: str | None) -> str | None:
     return (value or "").strip() or None
 
 
+_COPPER_TAKEN_DETAIL = "This Copper company is already linked to another client"
+
+
 async def _code_taken(db: DBSession, code: str, exclude_id: UUID | None = None) -> bool:
     """Whether another client already uses this (non-null) code."""
     stmt = select(ClientDB.id).where(ClientDB.code == code)
@@ -127,11 +130,16 @@ async def create_client(
     code = _clean(payload.code)
     if code is not None and await _code_taken(db, code):
         raise HTTPException(status_code=409, detail="A client with this code already exists")
+    if payload.copper_company_id is not None and await _copper_company_taken(
+        db, payload.copper_company_id
+    ):
+        raise HTTPException(status_code=409, detail=_COPPER_TAKEN_DETAIL)
     obj = ClientDB(
         name=payload.name.strip(),
         slug=slug,
         code=code,
         primary_contact=_clean(payload.primary_contact),
+        copper_company_id=payload.copper_company_id,
     )
     db.add(obj)
     await db.flush()
@@ -180,11 +188,13 @@ async def update_client(
     return Client.model_validate(obj)
 
 
-async def _copper_company_taken(db: DBSession, copper_company_id: int, exclude_id: UUID) -> bool:
+async def _copper_company_taken(
+    db: DBSession, copper_company_id: int, exclude_id: UUID | None = None
+) -> bool:
     """Whether another client is already linked to this Copper company."""
-    stmt = select(ClientDB.id).where(
-        ClientDB.copper_company_id == copper_company_id, ClientDB.id != exclude_id
-    )
+    stmt = select(ClientDB.id).where(ClientDB.copper_company_id == copper_company_id)
+    if exclude_id is not None:
+        stmt = stmt.where(ClientDB.id != exclude_id)
     return (await db.execute(stmt)).first() is not None
 
 
@@ -192,9 +202,7 @@ async def _set_copper_link(db: DBSession, client: ClientDB, copper_company_id: i
     if copper_company_id is not None and await _copper_company_taken(
         db, copper_company_id, client.id
     ):
-        raise HTTPException(
-            status_code=409, detail="This Copper company is already linked to another client"
-        )
+        raise HTTPException(status_code=409, detail=_COPPER_TAKEN_DETAIL)
     client.copper_company_id = copper_company_id
 
 

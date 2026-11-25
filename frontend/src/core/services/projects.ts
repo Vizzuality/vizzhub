@@ -8,6 +8,7 @@ import type {
   ProjectUpdate,
 } from '@/types';
 import api from './client';
+import type { CopperOpportunity } from '@/core/types/copper';
 
 export const projectsApi = {
   list: async (params: ProjectListParams = {}): Promise<PaginatedProjects> => {
@@ -61,6 +62,11 @@ export const projectsApi = {
     const response = await api.get<BudgetPreviewResponse>('/projects/budget-preview', {
       params,
     });
+    return response.data;
+  },
+
+  listCopperOpportunities: async (): Promise<CopperOpportunity[]> => {
+    const response = await api.get<CopperOpportunity[]>('/projects/copper-opportunities');
     return response.data;
   },
 

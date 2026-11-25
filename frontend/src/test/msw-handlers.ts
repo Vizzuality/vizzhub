@@ -414,6 +414,10 @@ export const handlers = [
     return HttpResponse.json({ budget_eur: null });
   }),
 
+  // Copper is not connected by default; registered before /projects/:id so it matches first.
+  http.get(`${BASE}/projects/copper-opportunities`, () =>
+    HttpResponse.json({ detail: 'Copper is not connected' }, { status: 409 }),
+  ),
   http.get(`${BASE}/projects/:id`, ({ params }) => {
     return HttpResponse.json({ ...defaultProject, id: params.id });
   }),

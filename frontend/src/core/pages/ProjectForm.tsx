@@ -31,6 +31,9 @@ import { projectsApi } from '@/core/services/projects';
 import { useBudgetLines, useReplaceBudgetLines } from '@/modules/tracker/hooks/useBudgetLines';
 import { useProjectSettings, useUpdateProjectSettings } from '@/modules/tracker/hooks/useProjectCosts';
 import { useClientOptions } from '@/modules/portfolio/hooks/useClientOptions';
+import { useCreateClient } from '@/modules/portfolio/hooks/useClients';
+import { CopperOpportunityPicker } from '@/core/components/CopperOpportunityPicker';
+import type { CopperNewClient, CopperOpportunity } from '@/core/types/copper';
 import { useBudgetPreview } from '@/core/hooks/useBudgetPreview';
 import { trackerApi } from '@/modules/tracker/services/tracker';
 import BudgetLinesEditor from '@/modules/tracker/components/BudgetLinesEditor';
@@ -114,6 +117,22 @@ const STATUS_OPTIONS: { value: ProjectStatus; label: string }[] = [
   { value: 'live', label: 'Live' },
   { value: 'finished', label: 'Finished' },
 ];
+
+/** Form fields an imported Copper deal fills in; the program is always left to the user. */
+function copperFormValues(opportunity: CopperOpportunity): Partial<ProjectFormData> {
+  const values: Partial<ProjectFormData> = {
+    name: opportunity.name,
+    code: opportunity.code ?? '',
+    status: 'proposal',
+    client_id: opportunity.client_id ?? '',
+    start_date: opportunity.start_date ?? '',
+    end_date: opportunity.end_date ?? '',
+    original_budget:
+      opportunity.original_budget === null ? '' : String(opportunity.original_budget),
+  };
+  if (opportunity.currency) values.currency = opportunity.currency;
+  return values;
+}
 
 function buildCurrencyOptions(dbCodes: string[]): { value: string; label: string }[] {
   const opts: { value: string; label: string }[] = [
@@ -487,6 +506,9 @@ export default function ProjectForm(): JSX.Element {
   const { data: currentMetrics } = useCurrentPeriodMetrics(id ?? '');
 
   const createMutation = useCreateProject();
+  const createClientMutation = useCreateClient();
+  const [copperOpportunityId, setCopperOpportunityId] = useState<number | null>(null);
+  const [pendingNewClient, setPendingNewClient] = useState<CopperNewClient | null>(null);
   const replaceMutation = useReplaceProject(id ?? '');
   const deleteMutation = useDeleteProject();
   const statusMutation = useUpdateProjectStatus(id ?? '');
@@ -636,6 +658,14 @@ export default function ProjectForm(): JSX.Element {
   const currentClientId = watch('client_id');
   const { data: clientOptions = [] } = useClientOptions();
 
+  const handleImportOpportunity = (opportunity: CopperOpportunity): void => {
+    for (const [field, value] of Object.entries(copperFormValues(opportunity))) {
+      setValue(field as keyof ProjectFormData, value as string, { shouldDirty: true });
+    }
+    setCopperOpportunityId(opportunity.opportunity_id);
+    setPendingNewClient(opportunity.client_id ? null : opportunity.new_client);
+  };
+
   const isMutating = createMutation.isPending || replaceMutation.isPending || budgetMutation.isPending || budgetLinesMutation.isPending || settingsMutation.isPending;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
@@ -756,7 +786,15 @@ export default function ProjectForm(): JSX.Element {
   };
 
   const submitCreate = async (payloads: ReturnType<typeof buildPayloads>): Promise<void> => {
-    const newProject = await createMutation.mutateAsync(payloads.project);
+    const project = { ...payloads.project, copper_opportunity_id: copperOpportunityId };
+    if (pendingNewClient && !project.client_id) {
+      const client = await createClientMutation.mutateAsync(pendingNewClient);
+      project.client_id = client.id;
+      // Keep it selected so a retry after a failed project create reuses it.
+      setValue('client_id', client.id);
+      setPendingNewClient(null);
+    }
+    const newProject = await createMutation.mutateAsync(project);
     if (!newProject?.id) return;
     const extras: Promise<unknown>[] = [];
     if (payloads.milestones) extras.push(projectsApi.updateBudget(newProject.id, payloads.milestones));
@@ -887,6 +925,7 @@ export default function ProjectForm(): JSX.Element {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left column — main fields */}
           <div className="lg:col-span-2 space-y-10">
+            {!isEditMode && <CopperOpportunityPicker onImport={handleImportOpportunity} />}
 
             {/* General */}
             <section>
@@ -1032,6 +1071,7 @@ export default function ProjectForm(): JSX.Element {
                                 value="__none__"
                                 onSelect={() => {
                                   setValue('client_id', '');
+                                  setPendingNewClient(null);
                                   setClientOpen(false);
                                 }}
                               >
@@ -1044,6 +1084,7 @@ export default function ProjectForm(): JSX.Element {
                                   value={`${c.name} ${c.code ?? ''}`}
                                   onSelect={() => {
                                     setValue('client_id', c.id);
+                                    setPendingNewClient(null);
                                     setClientOpen(false);
                                   }}
                                 >
@@ -1057,6 +1098,20 @@ export default function ProjectForm(): JSX.Element {
                         </Command>
                       </PopoverContent>
                     </Popover>
+                    {pendingNewClient && !currentClientId && (
+                      <p className="text-xs text-muted-foreground">
+                        New client "{pendingNewClient.name}" will be created
+                        {pendingNewClient.code ? ` (code ${pendingNewClient.code})` : ''} and linked
+                        to Copper.{' '}
+                        <button
+                          type="button"
+                          className="underline"
+                          onClick={() => setPendingNewClient(null)}
+                        >
+                          Don't create it
+                        </button>
+                      </p>
+                    )}
                   </div>
 
                   {/* Row: Budget (original currency), Currency */}

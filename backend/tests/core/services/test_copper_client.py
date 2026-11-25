@@ -9,6 +9,7 @@ from app.core.services.copper_client import (
     COPPER_PROVIDER,
     COPPER_USER_EMAIL_KEY,
     OPPORTUNITY_STATUS_OPEN,
+    OPPORTUNITY_STATUS_WON,
     CopperAuthError,
     CopperClient,
     CopperError,
@@ -63,7 +64,9 @@ async def test_search_opportunities_pages_until_a_short_page() -> None:
         return httpx.Response(200, json=[{"id": start + i} for i in range(size)])
 
     async with _client(handler) as copper:
-        opps = await copper.search_opportunities(pipeline_stage_ids=[124540])
+        opps = await copper.search_opportunities(
+            pipeline_stage_ids=[124540], status_ids=[OPPORTUNITY_STATUS_OPEN]
+        )
 
     assert len(opps) == 203
     assert [b["page_number"] for b in bodies] == [1, 2]
@@ -106,3 +109,22 @@ async def test_network_failures_surface_as_copper_errors() -> None:
     async with _client(handler) as copper:
         with pytest.raises(CopperError):
             await copper.get_account()
+
+
+@pytest.mark.asyncio
+async def test_search_opportunities_can_bound_the_stage_change_date() -> None:
+    bodies: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        bodies.append(json.loads(request.content))
+        return httpx.Response(200, json=[])
+
+    async with _client(handler) as copper:
+        await copper.search_opportunities(
+            pipeline_stage_ids=[124566],
+            status_ids=[OPPORTUNITY_STATUS_WON],
+            minimum_stage_change_date=1_700_000_000,
+        )
+
+    assert bodies[0]["status_ids"] == [OPPORTUNITY_STATUS_WON]
+    assert bodies[0]["minimum_stage_change_date"] == 1_700_000_000

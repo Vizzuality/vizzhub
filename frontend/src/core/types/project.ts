@@ -22,6 +22,7 @@ export interface Project {
   project_manager_id: string | null;
   project_manager_name: string | null;
   client_id: string | null;
+  copper_opportunity_id: number | null;
   client_name: string | null;
   start_date: string | null;
   end_date: string | null;
@@ -49,6 +50,7 @@ export interface ProjectCreate {
   slack_channel_id?: string;
   project_manager_id?: string | null;
   client_id?: string | null;
+  copper_opportunity_id?: number | null;
   start_date?: string;
   end_date?: string;
   status?: ProjectStatus;
@@ -71,6 +73,7 @@ export interface ProjectUpdate {
   slack_channel_id?: string | null;
   project_manager_id?: string | null;
   client_id?: string | null;
+  copper_opportunity_id?: number | null;
   start_date?: string;
   end_date?: string;
   status?: ProjectStatus;

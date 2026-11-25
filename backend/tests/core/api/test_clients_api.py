@@ -403,3 +403,28 @@ async def test_patch_rejects_copper_company_linked_elsewhere(
     )
 
     assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_create_client_linked_to_copper(portfolio_manager_client: AsyncClient) -> None:
+    resp = await portfolio_manager_client.post(
+        "/api/clients",
+        json={"name": "Systemiq.earth", "code": "Sys", "copper_company_id": 77916335},
+    )
+
+    assert resp.status_code == 201
+    assert resp.json()["copper_company_id"] == 77916335
+
+
+@pytest.mark.asyncio
+async def test_create_client_rejects_copper_company_already_linked(
+    portfolio_manager_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    db_session.add(ClientDB(name="Systemiq", slug="systemiq-linked", copper_company_id=77916335))
+    await db_session.commit()
+
+    resp = await portfolio_manager_client.post(
+        "/api/clients", json={"name": "Systemiq.earth", "copper_company_id": 77916335}
+    )
+
+    assert resp.status_code == 409

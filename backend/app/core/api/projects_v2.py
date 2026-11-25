@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import aliased
 
-from app.core.api import projects_budget, projects_links
+from app.core.api import projects_budget, projects_copper, projects_links
 from app.core.api.deps import (
     CurrentUser,
     DBSession,
@@ -42,6 +42,7 @@ logger = structlog.get_logger()
 router = APIRouter()
 router.include_router(projects_budget.router)
 router.include_router(projects_links.router)
+router.include_router(projects_copper.router)
 
 ALLOWED_SORT_FIELDS = {"name", "created_at", "status"}
 MAX_PAGE_SIZE = 100
@@ -110,6 +111,9 @@ def _apply_project_data(project: ProjectDB, data: ProjectCreateV2) -> None:
     project.slack_channel_id = data.slack_channel_id
     project.project_manager_id = data.project_manager_id
     project.client_id = data.client_id
+    # Only the Copper import sends it; the edit form omits it and must not unlink.
+    if data.copper_opportunity_id is not None:
+        project.copper_opportunity_id = data.copper_opportunity_id
 
 
 LIVE_GATE_FIELDS = {
@@ -407,6 +411,7 @@ async def update_project(
         "has_budget_alerts",
         "project_manager_id",
         "client_id",
+        "copper_opportunity_id",
     }
 
     project = await get_project_or_404(db, project_id)

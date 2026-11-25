@@ -21,6 +21,7 @@ COPPER_PROVIDER = "copper"
 COPPER_USER_EMAIL_KEY = "user_email"
 PAGE_SIZE = 200
 OPPORTUNITY_STATUS_OPEN = 0
+OPPORTUNITY_STATUS_WON = 1
 MAX_PAGES = 50
 
 
@@ -110,14 +111,26 @@ class CopperClient:
     async def search_companies(self) -> list[dict]:
         return await self._search("/companies/search", {"sort_by": "name"})
 
-    async def search_opportunities(self, *, pipeline_stage_ids: list[int]) -> list[dict]:
-        """Open opportunities in the given stages (closed ones can linger in a stage)."""
-        return await self._search(
-            "/opportunities/search",
-            {
-                "pipeline_stage_ids": pipeline_stage_ids,
-                "status_ids": [OPPORTUNITY_STATUS_OPEN],
-                "sort_by": "date_modified",
-                "sort_direction": "desc",
-            },
-        )
+    async def list_pipeline_stages(self) -> list[dict]:
+        return await self._request("GET", "/pipeline_stages")
+
+    async def search_opportunities(
+        self,
+        *,
+        pipeline_stage_ids: list[int],
+        status_ids: list[int],
+        minimum_stage_change_date: int | None = None,
+    ) -> list[dict]:
+        """Opportunities in the given stages and statuses.
+
+        Filter by status too: closed deals can linger in a stage.
+        """
+        filters: dict = {
+            "pipeline_stage_ids": pipeline_stage_ids,
+            "status_ids": status_ids,
+            "sort_by": "date_modified",
+            "sort_direction": "desc",
+        }
+        if minimum_stage_change_date is not None:
+            filters["minimum_stage_change_date"] = minimum_stage_change_date
+        return await self._search("/opportunities/search", filters)
