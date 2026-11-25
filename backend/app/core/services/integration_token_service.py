@@ -107,6 +107,15 @@ class IntegrationTokenService:
         await db.flush()
 
     @staticmethod
+    async def delete_setting(db: AsyncSession, provider: str, key: str) -> None:
+        await db.execute(
+            delete(IntegrationSettingDB).where(
+                IntegrationSettingDB.provider == provider,
+                IntegrationSettingDB.key == key,
+            )
+        )
+
+    @staticmethod
     async def get_provider_status(db: AsyncSession, provider: str) -> dict:
         """Return status dict with: connected, expires_at, token_type, site_url, created_at."""
         record = await IntegrationTokenService.get_token_record(db, provider)

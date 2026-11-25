@@ -12,6 +12,7 @@ import { useClients } from '../hooks/useClients';
 import type { Client } from '../types/portfolio';
 import { ClientFormDialog } from '../components/ClientFormDialog';
 import { ClientMergeDialog } from '../components/ClientMergeDialog';
+import { CopperLinkDialog } from '../components/CopperLinkDialog';
 
 const SEARCH_DEBOUNCE_MS = 300;
 const PAGE_SIZE = 50;
@@ -53,6 +54,7 @@ export default function PortfolioClients(): JSX.Element {
   useEffect(() => setSelected({}), [page]);
   const [editing, setEditing] = useState<Client | null>(null);
   const [mergeOpen, setMergeOpen] = useState(false);
+  const [copperOpen, setCopperOpen] = useState(false);
 
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
@@ -83,6 +85,9 @@ export default function PortfolioClients(): JSX.Element {
                 Merge selected ({selectedClients.length})
               </Button>
             )}
+            <Button size="sm" variant="outline" onClick={() => setCopperOpen(true)}>
+              Link with Copper
+            </Button>
             <Button
               size="sm"
               onClick={() => {
@@ -199,6 +204,7 @@ export default function PortfolioClients(): JSX.Element {
 
       {canManage && (
         <>
+          <CopperLinkDialog open={copperOpen} onOpenChange={setCopperOpen} />
           <ClientFormDialog open={formOpen} onOpenChange={setFormOpen} client={editing} />
           <ClientMergeDialog
             open={mergeOpen}

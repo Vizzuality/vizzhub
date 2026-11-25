@@ -378,6 +378,8 @@ const defaultIntegrationsStatus = {
   github: { connected: true, expires_at: null, token_type: 'pat', site_url: null, created_at: '2026-01-01T00:00:00Z' },
   slack: { connected: true, expires_at: null, token_type: 'bot', site_url: null, created_at: '2026-01-01T00:00:00Z' },
   slack_settings: { leadership_channel_id: 'C123' },
+  copper: { connected: false, expires_at: null, token_type: null, site_url: null, created_at: null },
+  copper_settings: { user_email: null },
 };
 
 const defaultSlackChannels = [

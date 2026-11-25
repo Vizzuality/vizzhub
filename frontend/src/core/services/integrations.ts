@@ -17,6 +17,10 @@ export interface AllIntegrationsStatus {
   slack_settings: {
     leadership_channel_id: string | null;
   };
+  copper: ProviderStatus;
+  copper_settings: {
+    user_email: string | null;
+  };
 }
 
 export interface SlackTestResult {
@@ -39,6 +43,18 @@ export const integrationsApi = {
 
   deleteGitHub: async (): Promise<void> => {
     await api.delete('/admin/integrations/github');
+  },
+
+  saveCopperCredentials: async (apiKey: string, userEmail: string): Promise<ProviderStatus> => {
+    const response = await api.put<ProviderStatus>('/admin/integrations/copper', {
+      api_key: apiKey,
+      user_email: userEmail,
+    });
+    return response.data;
+  },
+
+  deleteCopper: async (): Promise<void> => {
+    await api.delete('/admin/integrations/copper');
   },
 
   saveSlackToken: async (token: string): Promise<ProviderStatus> => {

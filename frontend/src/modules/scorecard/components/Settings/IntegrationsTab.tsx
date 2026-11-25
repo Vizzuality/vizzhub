@@ -5,6 +5,7 @@ import JiraCard from './JiraCard';
 import GoogleWorkspaceCard from './GoogleWorkspaceCard';
 import GoogleDriveCard from './GoogleDriveCard';
 import GitHubCard from './GitHubCard';
+import CopperCard from './CopperCard';
 import SlackTab from './SlackTab';
 import { LoadingSpinner } from '@/shared/components/ui/loading-spinner';
 
@@ -25,6 +26,10 @@ export default function IntegrationsTab(): JSX.Element {
       <GoogleDriveCard />
       <GitHubCard status={status?.github} />
       <SlackTab status={status?.slack} />
+      <CopperCard
+        status={status?.copper}
+        userEmail={status?.copper_settings?.user_email ?? null}
+      />
     </div>
   );
 }

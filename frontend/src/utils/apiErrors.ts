@@ -22,3 +22,9 @@ export function getApiErrorMessage(
   }
   return defaults.fallback;
 }
+
+/** The backend's `detail` message when it is a plain string, otherwise `fallback`. */
+export function getApiErrorDetail(error: unknown, fallback: string): string {
+  const detail = (error as AxiosError<ApiErrorResponse> | null)?.response?.data?.detail;
+  return typeof detail === 'string' ? detail : fallback;
+}

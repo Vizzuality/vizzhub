@@ -31,6 +31,7 @@ vi.mock('../../hooks/useClients', () => ({
   useCreateClient: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateClient: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useMergeClients: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useLinkClientsWithCopper: () => ({ mutateAsync: vi.fn(), isPending: false, isError: false }),
 }));
 
 vi.mock('@/core/permissions/usePermission', () => ({

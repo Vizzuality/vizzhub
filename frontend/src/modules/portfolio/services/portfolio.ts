@@ -7,6 +7,7 @@ import type {
   ClientListResponse,
   ClientOption,
   ClientUpdate,
+  CopperLinkReport,
   MergeRequest,
   MergeResponse,
   ProgramIndexFilters,
@@ -41,6 +42,11 @@ export const portfolioApi = {
 
   updateClient: async (id: string, data: ClientUpdate): Promise<Client> => {
     const response = await api.patch<Client>(`/clients/${id}`, data);
+    return response.data;
+  },
+
+  linkClientsWithCopper: async (): Promise<CopperLinkReport> => {
+    const response = await api.post<CopperLinkReport>('/clients/copper-link');
     return response.data;
   },
 

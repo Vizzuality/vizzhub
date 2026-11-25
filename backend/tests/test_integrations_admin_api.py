@@ -4,10 +4,12 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.oauth import OAuthTokenDB
-from app.core.token_encryption import encrypt_token
+from app.core.services.copper_client import CopperAuthError
+from app.core.token_encryption import decrypt_token, encrypt_token
 
 
 class TestIntegrationsStatus:
@@ -183,3 +185,68 @@ class TestSlackIntegration:
         data = response.json()
         assert data["ok"] is False
         assert "No Slack token configured" in data["error"]
+
+
+class TestCopperIntegration:
+    """Tests for the Copper API key endpoints."""
+
+    @pytest.mark.asyncio
+    async def test_save_copper_credentials_encrypts_key(
+        self, client: AsyncClient, db_session: AsyncSession
+    ) -> None:
+        with patch(
+            "app.core.services.copper_client.CopperClient.get_account",
+            new=AsyncMock(return_value={"id": 12973, "name": "Vizzuality"}),
+        ):
+            response = await client.put(
+                "/api/admin/integrations/copper",
+                json={"api_key": "copper-key-1", "user_email": "owner@example.com"},
+            )
+
+        assert response.status_code == 200
+        assert response.json()["connected"] is True
+        record = (
+            await db_session.execute(select(OAuthTokenDB).where(OAuthTokenDB.provider == "copper"))
+        ).scalar_one()
+        assert record.access_token != "copper-key-1"
+        assert decrypt_token(record.access_token) == "copper-key-1"
+
+        status_resp = await client.get("/api/admin/integrations/status")
+        data = status_resp.json()
+        assert data["copper"]["connected"] is True
+        assert data["copper_settings"] == {"user_email": "owner@example.com"}
+
+    @pytest.mark.asyncio
+    async def test_save_copper_rejects_credentials_copper_refuses(
+        self, client: AsyncClient, db_session: AsyncSession
+    ) -> None:
+        with patch(
+            "app.core.services.copper_client.CopperClient.get_account",
+            new=AsyncMock(side_effect=CopperAuthError("authentication error")),
+        ):
+            response = await client.put(
+                "/api/admin/integrations/copper",
+                json={"api_key": "bad", "user_email": "typo@example.com"},
+            )
+
+        assert response.status_code == 400
+        stored = (
+            await db_session.execute(select(OAuthTokenDB).where(OAuthTokenDB.provider == "copper"))
+        ).scalar_one_or_none()
+        assert stored is None
+
+    @pytest.mark.asyncio
+    async def test_delete_copper_credentials(
+        self, client: AsyncClient, db_session: AsyncSession
+    ) -> None:
+        db_session.add(
+            OAuthTokenDB(provider="copper", access_token=encrypt_token("k"), token_type="api_key")
+        )
+        await db_session.commit()
+
+        response = await client.delete("/api/admin/integrations/copper")
+
+        assert response.status_code == 200
+        data = (await client.get("/api/admin/integrations/status")).json()
+        assert data["copper"]["connected"] is False
+        assert data["copper_settings"] == {"user_email": None}

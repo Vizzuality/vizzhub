@@ -1,5 +1,7 @@
 """Integration tests for /api/clients CRUD endpoints."""
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
@@ -307,3 +309,97 @@ async def test_client_options_returns_active_flat_list(
     assert names == ["Acme Foundation", "Beta Org"]  # active only, name-sorted
     assert body[0]["code"] == "ACME"
     assert set(body[0].keys()) == {"id", "name", "code"}
+
+
+@pytest.mark.asyncio
+async def test_list_clients_exposes_copper_company_id(
+    portfolio_manager_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    db_session.add(ClientDB(name="Systemiq", slug="systemiq", copper_company_id=77916335))
+    await db_session.commit()
+
+    resp = await portfolio_manager_client.get("/api/clients", params={"search": "Systemiq"})
+
+    assert resp.status_code == 200
+    item = resp.json()["items"][0]
+    assert item["copper_company_id"] == 77916335
+
+
+class _FakeCopper:
+    def __init__(self, companies: list[dict]) -> None:
+        self._companies = companies
+
+    async def __aenter__(self) -> "_FakeCopper":
+        return self
+
+    async def __aexit__(self, *exc: object) -> None:
+        return None
+
+    async def search_companies(self) -> list[dict]:
+        return self._companies
+
+
+@pytest.mark.asyncio
+async def test_copper_link_requires_copper_connection(
+    portfolio_manager_client: AsyncClient,
+) -> None:
+    with patch("app.core.api.clients.CopperClient.from_db", new=AsyncMock(return_value=None)):
+        resp = await portfolio_manager_client.post("/api/clients/copper-link")
+
+    assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_copper_link_links_and_reports_review(
+    portfolio_manager_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    db_session.add_all(
+        [
+            ClientDB(name="Systemiq", slug="systemiq"),
+            ClientDB(name="Wwfint", slug="wwfint"),
+        ]
+    )
+    await db_session.commit()
+    fake = _FakeCopper([{"id": 77916335, "name": "Systemiq"}])
+
+    with patch("app.core.api.clients.CopperClient.from_db", new=AsyncMock(return_value=fake)):
+        resp = await portfolio_manager_client.post("/api/clients/copper-link")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["linked"] == 1
+    assert [(r["client_name"], r["reason"]) for r in body["review"]] == [
+        ("Wwfint", "not_in_copper")
+    ]
+
+
+@pytest.mark.asyncio
+async def test_patch_links_client_to_copper_company(
+    portfolio_manager_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    client = ClientDB(name="WWF International", slug="wwf-int")
+    db_session.add(client)
+    await db_session.commit()
+
+    resp = await portfolio_manager_client.patch(
+        f"/api/clients/{client.id}", json={"copper_company_id": 123}
+    )
+
+    assert resp.status_code == 200
+    assert resp.json()["copper_company_id"] == 123
+
+
+@pytest.mark.asyncio
+async def test_patch_rejects_copper_company_linked_elsewhere(
+    portfolio_manager_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    owner = ClientDB(name="World Bank Group", slug="wbg-a", copper_company_id=649763)
+    other = ClientDB(name="World Bank Group", slug="wbg-b")
+    db_session.add_all([owner, other])
+    await db_session.commit()
+
+    resp = await portfolio_manager_client.patch(
+        f"/api/clients/{other.id}", json={"copper_company_id": 649763}
+    )
+
+    assert resp.status_code == 409

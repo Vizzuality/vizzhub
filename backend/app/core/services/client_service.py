@@ -33,6 +33,7 @@ async def merge_clients(db: AsyncSession, *, target_id: UUID, source_ids: list[U
     )
     moved = result.rowcount or 0
     await db.execute(update(ClientDB).where(ClientDB.id.in_(source_ids)).values(is_active=False))
+    await _inherit_copper_link(db, target_id=target_id, source_ids=source_ids)
     logger.info(
         "clients_merged",
         target_id=str(target_id),
@@ -40,3 +41,35 @@ async def merge_clients(db: AsyncSession, *, target_id: UUID, source_ids: list[U
         moved_projects=moved,
     )
     return moved
+
+
+async def _inherit_copper_link(
+    db: AsyncSession, *, target_id: UUID, source_ids: list[UUID]
+) -> None:
+    """Give an unlinked target the Copper company of the first linked source.
+
+    The link moves rather than copies: a Copper company maps to one client.
+    """
+    target = await db.get(ClientDB, target_id)
+    if target is None or target.copper_company_id is not None:
+        return
+    source = (
+        await db.execute(
+            select(ClientDB)
+            .where(ClientDB.id.in_(source_ids), ClientDB.copper_company_id.is_not(None))
+            .order_by(ClientDB.name)
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if source is None:
+        return
+    copper_company_id = source.copper_company_id
+    source.copper_company_id = None
+    await db.flush()
+    target.copper_company_id = copper_company_id
+    logger.info(
+        "client_copper_link_moved",
+        target_id=str(target_id),
+        source_id=str(source.id),
+        copper_company_id=copper_company_id,
+    )

@@ -56,3 +56,35 @@ async def test_merge_rejects_nonexistent_ids(db_session):
     await db_session.flush()
     with pytest.raises(ValueError, match="do not exist"):
         await merge_clients(db_session, target_id=c.id, source_ids=[uuid4()])
+
+
+@pytest.mark.asyncio
+async def test_merge_moves_copper_link_to_unlinked_target(db_session):
+    target = ClientDB(name="World Bank Group", slug="world-bank-group")
+    source = ClientDB(name="World Bank", slug="world-bank", copper_company_id=649763)
+    db_session.add_all([target, source])
+    await db_session.flush()
+
+    await merge_clients(db_session, target_id=target.id, source_ids=[source.id])
+    await db_session.flush()
+
+    await db_session.refresh(target)
+    await db_session.refresh(source)
+    assert target.copper_company_id == 649763
+    assert source.copper_company_id is None
+
+
+@pytest.mark.asyncio
+async def test_merge_keeps_existing_copper_link_on_target(db_session):
+    target = ClientDB(name="Canonical Co", slug="canonical-co", copper_company_id=1)
+    source = ClientDB(name="Variant Co", slug="variant-co", copper_company_id=2)
+    db_session.add_all([target, source])
+    await db_session.flush()
+
+    await merge_clients(db_session, target_id=target.id, source_ids=[source.id])
+    await db_session.flush()
+
+    await db_session.refresh(target)
+    await db_session.refresh(source)
+    assert target.copper_company_id == 1
+    assert source.copper_company_id == 2

@@ -10,6 +10,7 @@ export interface Client {
   slug: string;
   code: string | null;
   primary_contact: string | null;
+  copper_company_id: number | null;
   is_active: boolean;
   project_count: number;
   created_at: string;
@@ -26,7 +27,31 @@ export interface ClientUpdate {
   name?: string;
   code?: string | null;
   primary_contact?: string | null;
+  copper_company_id?: number | null;
   is_active?: boolean;
+}
+
+export type CopperLinkReason = 'ambiguous_in_copper' | 'duplicate_in_vizzhub' | 'not_in_copper';
+
+export interface CopperCompanyCandidate {
+  id: number;
+  name: string;
+  email_domain: string | null;
+  created_on: string | null;
+  interaction_count: number;
+}
+
+export interface CopperLinkReviewItem {
+  client_id: string;
+  client_name: string;
+  reason: CopperLinkReason;
+  candidates: CopperCompanyCandidate[];
+}
+
+export interface CopperLinkReport {
+  linked: number;
+  already_linked: number;
+  review: CopperLinkReviewItem[];
 }
 
 export interface ClientListParams {

@@ -2,12 +2,13 @@
 
 import re
 import unicodedata
+from datetime import date
 from typing import Annotated
 from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import func, select
 
 from app.core.api.deps import DBSession, ProjectManager, limiter
@@ -16,6 +17,8 @@ from app.core.models.client import Client, ClientCreate, ClientDB, ClientUpdate
 from app.core.models.project import ProjectDB
 from app.core.permissions import Action, require_permission
 from app.core.services.client_service import merge_clients
+from app.core.services.copper_client import CopperClient, CopperError
+from app.core.services.copper_client_linking import link_clients_to_copper
 
 PortfolioViewer = Annotated[TokenData, Depends(require_permission(Action.PORTFOLIO_VIEW))]
 PortfolioManager = Annotated[TokenData, Depends(require_permission(Action.PORTFOLIO_MANAGE))]
@@ -167,12 +170,92 @@ async def update_client(
         obj.code = new_code
     if "primary_contact" in payload.model_fields_set:
         obj.primary_contact = _clean(payload.primary_contact)
+    if "copper_company_id" in payload.model_fields_set:
+        await _set_copper_link(db, obj, payload.copper_company_id)
     if payload.is_active is not None:
         obj.is_active = payload.is_active
     await db.flush()
     await db.refresh(obj)
     logger.info("client_updated", client_id=str(obj.id), user_id=current_user.user_id)
     return Client.model_validate(obj)
+
+
+async def _copper_company_taken(db: DBSession, copper_company_id: int, exclude_id: UUID) -> bool:
+    """Whether another client is already linked to this Copper company."""
+    stmt = select(ClientDB.id).where(
+        ClientDB.copper_company_id == copper_company_id, ClientDB.id != exclude_id
+    )
+    return (await db.execute(stmt)).first() is not None
+
+
+async def _set_copper_link(db: DBSession, client: ClientDB, copper_company_id: int | None) -> None:
+    if copper_company_id is not None and await _copper_company_taken(
+        db, copper_company_id, client.id
+    ):
+        raise HTTPException(
+            status_code=409, detail="This Copper company is already linked to another client"
+        )
+    client.copper_company_id = copper_company_id
+
+
+class CopperCompanyOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    email_domain: str | None
+    created_on: date | None
+    interaction_count: int
+
+
+class CopperLinkReviewOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    client_id: UUID
+    client_name: str
+    reason: str
+    candidates: list[CopperCompanyOut]
+
+
+class CopperLinkReportOut(BaseModel):
+    linked: int
+    already_linked: int
+    review: list[CopperLinkReviewOut]
+
+
+@router.post(
+    "/copper-link",
+    responses={
+        409: {"description": "Copper is not connected"},
+        502: {"description": "Copper could not be reached"},
+    },
+)
+@limiter.limit("5/minute")
+async def link_clients_with_copper(
+    request: Request, current_user: PortfolioManager, db: DBSession
+) -> CopperLinkReportOut:
+    """Link unlinked clients to Copper companies with exactly the same name."""
+    copper = await CopperClient.from_db(db)
+    if copper is None:
+        raise HTTPException(status_code=409, detail="Copper is not connected")
+    try:
+        async with copper:
+            companies = await copper.search_companies()
+    except CopperError as exc:
+        raise HTTPException(status_code=502, detail="Could not read companies from Copper") from exc
+    report = await link_clients_to_copper(db, companies)
+    logger.info(
+        "clients_copper_link_run",
+        user_id=current_user.user_id,
+        linked=report.linked,
+        review=len(report.review),
+    )
+    review = sorted(report.review, key=lambda item: item.client_name.lower())
+    return CopperLinkReportOut(
+        linked=report.linked,
+        already_linked=report.already_linked,
+        review=[CopperLinkReviewOut.model_validate(item) for item in review],
+    )
 
 
 class MergeRequest(BaseModel):

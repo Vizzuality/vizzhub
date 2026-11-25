@@ -32,6 +32,14 @@ export function useUpdateClient() {
   });
 }
 
+export function useLinkClientsWithCopper() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => portfolioApi.linkClientsWithCopper(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.portfolio.clients.all }),
+  });
+}
+
 export function useMergeClients() {
   const qc = useQueryClient();
   return useMutation({

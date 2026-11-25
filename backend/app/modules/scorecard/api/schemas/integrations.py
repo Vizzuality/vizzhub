@@ -21,6 +21,8 @@ class AllIntegrationsStatus(BaseModel):
     github: ProviderStatus
     slack: ProviderStatus
     slack_settings: dict[str, str | None] = {}
+    copper: ProviderStatus
+    copper_settings: dict[str, str | None] = {}
 
 
 class GitHubTokenInput(BaseModel):
@@ -39,3 +41,10 @@ class SlackSettingsUpdate(BaseModel):
     """Update Slack integration settings."""
 
     leadership_channel_id: str | None = Field(None, max_length=50)
+
+
+class CopperCredentialsInput(BaseModel):
+    """Copper API key plus the email of the Copper user who generated it."""
+
+    api_key: str = Field(..., min_length=1, max_length=200)
+    user_email: str = Field(..., min_length=3, max_length=255, pattern=r"^[^@\s]+@[^@\s]+$")

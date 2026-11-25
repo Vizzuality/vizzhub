@@ -10,10 +10,18 @@ from app.core.auth import TokenData
 from app.core.permissions import Action, require_permission
 
 IntegrationAdmin = Annotated[TokenData, Depends(require_permission(Action.ADMIN_INTEGRATIONS))]
+from app.core.services.copper_client import (
+    COPPER_PROVIDER,
+    COPPER_USER_EMAIL_KEY,
+    CopperAuthError,
+    CopperClient,
+    CopperError,
+)
 from app.core.services.integration_token_service import IntegrationTokenService
 from app.modules.notifications.public import SlackChannel, SlackService, SlackTestResult
 from app.modules.scorecard.api.schemas.integrations import (
     AllIntegrationsStatus,
+    CopperCredentialsInput,
     GitHubTokenInput,
     ProviderStatus,
     SlackSettingsUpdate,
@@ -50,6 +58,10 @@ async def get_all_integrations_status(
     google_raw = await IntegrationTokenService.get_provider_status(db, "google_workspace")
     github_raw = await IntegrationTokenService.get_provider_status(db, "github")
     slack_raw = await IntegrationTokenService.get_provider_status(db, "slack")
+    copper_raw = await IntegrationTokenService.get_provider_status(db, COPPER_PROVIDER)
+    copper_email = await IntegrationTokenService.get_setting(
+        db, COPPER_PROVIDER, COPPER_USER_EMAIL_KEY
+    )
 
     leadership_channel_id = await IntegrationTokenService.get_setting(
         db, "slack", "leadership_channel_id"
@@ -61,6 +73,8 @@ async def get_all_integrations_status(
         github=_format_provider_status(github_raw),
         slack=_format_provider_status(slack_raw),
         slack_settings={"leadership_channel_id": leadership_channel_id},
+        copper=_format_provider_status(copper_raw),
+        copper_settings={"user_email": copper_email},
     )
 
 
@@ -233,3 +247,78 @@ async def test_slack_connection(
     except Exception as e:
         logger.exception("slack_connection_test_failed")
         return SlackTestResult(ok=False, error=str(e))
+
+
+@router.put(
+    "/copper",
+    responses={
+        400: {"description": "Copper rejected the credentials"},
+        502: {"description": "Copper could not be reached"},
+    },
+)
+@limiter.limit("10/minute")
+async def save_copper_credentials(
+    request: Request,
+    current_user: IntegrationAdmin,
+    db: DBSession,
+    body: CopperCredentialsInput,
+) -> ProviderStatus:
+    """Validate the Copper API key against Copper, then store it encrypted."""
+    api_key = body.api_key.strip()
+    user_email = body.user_email.strip()
+    try:
+        async with CopperClient(api_key, user_email) as copper:
+            account = await copper.get_account()
+    except CopperAuthError as exc:
+        logger.info("copper_credentials_rejected", user_id=current_user.user_id)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Copper rejected this API key and email. The email must be the one "
+            "of the Copper user who generated the key.",
+        ) from exc
+    except CopperError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail="Could not reach Copper"
+        ) from exc
+
+    record = await IntegrationTokenService.save_token(
+        db,
+        provider=COPPER_PROVIDER,
+        token=api_key,
+        token_type="api_key",
+        expires_in_days=None,
+    )
+    await IntegrationTokenService.set_setting(
+        db, COPPER_PROVIDER, COPPER_USER_EMAIL_KEY, user_email
+    )
+    logger.info(
+        "copper_integration_connected",
+        user_id=current_user.user_id,
+        copper_account_id=account.get("id"),
+    )
+    return _format_provider_status(
+        {
+            "connected": True,
+            "expires_at": record.expires_at,
+            "token_type": record.token_type,
+            "site_url": record.site_url,
+            "created_at": record.created_at,
+        }
+    )
+
+
+@router.delete("/copper", responses={404: {"description": "Copper is not connected"}})
+@limiter.limit("10/minute")
+async def delete_copper_credentials(
+    request: Request,
+    current_user: IntegrationAdmin,
+    db: DBSession,
+) -> dict[str, str]:
+    """Disconnect Copper: remove the stored key and user email."""
+    deleted = await IntegrationTokenService.delete_token(db, COPPER_PROVIDER)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Copper is not connected")
+    await IntegrationTokenService.delete_setting(db, COPPER_PROVIDER, COPPER_USER_EMAIL_KEY)
+    await db.flush()
+    logger.info("copper_integration_disconnected", user_id=current_user.user_id)
+    return {"status": "disconnected"}
