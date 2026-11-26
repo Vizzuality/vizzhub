@@ -10,6 +10,8 @@ import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { useCreateClient, useUpdateClient } from '../hooks/useClients';
+import { getApiErrorDetail } from '@/utils/apiErrors';
+import { CopperCompanyField } from './CopperCompanyField';
 import type { Client, ClientCreate } from '../types/portfolio';
 
 interface ClientFormDialogProps {
@@ -25,8 +27,12 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
   const [code, setCode] = useState('');
   const [primaryContact, setPrimaryContact] = useState('');
   const [isActive, setIsActive] = useState(true);
+  const [copperCompanyId, setCopperCompanyId] = useState<number | null>(null);
   const isEdit = client !== null;
   const saving = create.isPending || update.isPending;
+  const saveError = create.error ?? update.error;
+  const { reset: resetCreate } = create;
+  const { reset: resetUpdate } = update;
 
   useEffect(() => {
     if (open) {
@@ -34,12 +40,24 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
       setCode(client?.code ?? '');
       setPrimaryContact(client?.primary_contact ?? '');
       setIsActive(client?.is_active ?? true);
+      setCopperCompanyId(client?.copper_company_id ?? null);
+      resetCreate();
+      resetUpdate();
     }
-  }, [open, client]);
+  }, [open, client, resetCreate, resetUpdate]);
 
   const handleSave = async (): Promise<void> => {
     const trimmed = name.trim();
     if (!trimmed) return;
+    try {
+      await save(trimmed);
+    } catch {
+      return; // shown below the form
+    }
+    onOpenChange(false);
+  };
+
+  const save = async (trimmed: string): Promise<void> => {
     if (isEdit && client) {
       await update.mutateAsync({
         id: client.id,
@@ -48,6 +66,9 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
           code: code.trim() || null,
           primary_contact: primaryContact.trim() || null,
           is_active: isActive,
+          ...(copperCompanyId === client.copper_company_id
+            ? {}
+            : { copper_company_id: copperCompanyId }),
         },
       });
     } else {
@@ -56,7 +77,6 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
       if (primaryContact.trim()) payload.primary_contact = primaryContact.trim();
       await create.mutateAsync(payload);
     }
-    onOpenChange(false);
   };
 
   return (
@@ -96,6 +116,13 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
               className="h-8 text-sm"
             />
           </div>
+          {isEdit && client && open && (
+            <CopperCompanyField
+              value={copperCompanyId}
+              onChange={setCopperCompanyId}
+              clientName={client.name}
+            />
+          )}
           {isEdit && (
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -105,6 +132,11 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
               />
               <span>Active</span>
             </label>
+          )}
+          {saveError && (
+            <p className="text-sm text-destructive">
+              {getApiErrorDetail(saveError, 'Could not save the client.')}
+            </p>
           )}
         </div>
         <DialogFooter>

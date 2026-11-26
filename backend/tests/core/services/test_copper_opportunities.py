@@ -229,3 +229,26 @@ async def test_only_a_dot_separated_trailing_number_counts_as_an_opportunity_id(
     [result] = await list_importable_opportunities(db_session, FakeCopper([opp]), now=NOW)
 
     assert result.linked_projects == []
+
+
+@pytest.mark.asyncio
+async def test_several_projects_on_the_parent_contract_suggest_the_latest(db_session):
+    phase8 = ProjectDB(
+        name="Global Mangrove Watch Phase 8", code="TNC.GMW.33647500", start_date=date(2025, 6, 1)
+    )
+    phase9 = ProjectDB(
+        name="Global Mangrove Watch Phase 9", code="TNC.GMW.33647500", start_date=date(2026, 11, 2)
+    )
+    db_session.add_all([phase8, phase9])
+    await db_session.flush()
+    ext = _opp(
+        39000002,
+        "Global Mangrove Watch updates 2026",
+        company_id=None,
+        company="TNC",
+        code="TNC .GMW2026.TNC.GMW.33647500",
+    )
+
+    [result] = await list_importable_opportunities(db_session, FakeCopper([ext]), now=NOW)
+
+    assert result.suggestion.id == phase9.id

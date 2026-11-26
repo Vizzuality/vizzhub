@@ -31,6 +31,13 @@ export interface ClientUpdate {
   is_active?: boolean;
 }
 
+export interface CopperCompanyOption {
+  id: number;
+  name: string;
+  email_domain: string | null;
+  linked_client_name: string | null;
+}
+
 export type CopperLinkReason = 'ambiguous_in_copper' | 'duplicate_in_vizzhub' | 'not_in_copper';
 
 export interface CopperCompanyCandidate {

@@ -31,10 +31,11 @@ export function useProjectSummaries() {
   });
 }
 
-export function useAllProjectSummaries() {
+export function useAllProjectSummaries(enabled = true) {
   return useQuery({
     queryKey: queryKeys.projects.allSummary,
     queryFn: projectsApi.listAllSummary,
+    enabled,
   });
 }
 

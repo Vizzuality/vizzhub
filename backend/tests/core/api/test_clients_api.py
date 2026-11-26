@@ -428,3 +428,41 @@ async def test_create_client_rejects_copper_company_already_linked(
     )
 
     assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_copper_companies_lists_names_and_current_links(
+    portfolio_manager_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    db_session.add(ClientDB(name="WWF-Canada", slug="wwf-canada", copper_company_id=65673505))
+    await db_session.commit()
+    fake = _FakeCopper(
+        [
+            {"id": 65673505, "name": "WWF-Canada", "email_domain": "wwf.ca"},
+            {"id": 39906146, "name": "WWF", "email_domain": "wwfint.org"},
+        ]
+    )
+
+    with patch("app.core.api.clients.CopperClient.from_db", new=AsyncMock(return_value=fake)):
+        resp = await portfolio_manager_client.get("/api/clients/copper-companies")
+
+    assert resp.status_code == 200
+    assert resp.json() == [
+        {"id": 39906146, "name": "WWF", "email_domain": "wwfint.org", "linked_client_name": None},
+        {
+            "id": 65673505,
+            "name": "WWF-Canada",
+            "email_domain": "wwf.ca",
+            "linked_client_name": "WWF-Canada",
+        },
+    ]
+
+
+@pytest.mark.asyncio
+async def test_copper_companies_requires_copper_connection(
+    portfolio_manager_client: AsyncClient,
+) -> None:
+    with patch("app.core.api.clients.CopperClient.from_db", new=AsyncMock(return_value=None)):
+        resp = await portfolio_manager_client.get("/api/clients/copper-companies")
+
+    assert resp.status_code == 409

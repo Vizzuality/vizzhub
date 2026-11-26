@@ -58,6 +58,7 @@ class _ProjectRow(Protocol):
     name: str
     code: str | None
     copper_opportunity_id: int | None
+    start_date: date | None
 
 
 @dataclass(frozen=True)
@@ -174,7 +175,8 @@ class _ProjectIndex:
     def __init__(self, rows: list[_ProjectRow]) -> None:
         self._by_opportunity: dict[int, list[ProjectRef]] = {}
         self._names: list[tuple[str, ProjectRef]] = []
-        for project in rows:
+        # Latest iteration first, so a contract's newest project is the suggestion.
+        for project in sorted(rows, key=lambda p: p.start_date or date.min, reverse=True):
             ref = ProjectRef(id=project.id, name=project.name)
             self._names.append((project.name, ref))
             for opp_id in _opportunity_ids(project):
@@ -182,7 +184,13 @@ class _ProjectIndex:
 
     @classmethod
     async def load(cls, db: AsyncSession) -> "_ProjectIndex":
-        stmt = select(ProjectDB.id, ProjectDB.name, ProjectDB.code, ProjectDB.copper_opportunity_id)
+        stmt = select(
+            ProjectDB.id,
+            ProjectDB.name,
+            ProjectDB.code,
+            ProjectDB.copper_opportunity_id,
+            ProjectDB.start_date,
+        )
         rows = (await db.execute(stmt)).all()
         return cls(list(rows))
 

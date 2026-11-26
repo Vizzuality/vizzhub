@@ -7,6 +7,7 @@ import type {
   ClientListResponse,
   ClientOption,
   ClientUpdate,
+  CopperCompanyOption,
   CopperLinkReport,
   MergeRequest,
   MergeResponse,
@@ -42,6 +43,11 @@ export const portfolioApi = {
 
   updateClient: async (id: string, data: ClientUpdate): Promise<Client> => {
     const response = await api.patch<Client>(`/clients/${id}`, data);
+    return response.data;
+  },
+
+  listCopperCompanies: async (): Promise<CopperCompanyOption[]> => {
+    const response = await api.get<CopperCompanyOption[]>('/clients/copper-companies');
     return response.data;
   },
 

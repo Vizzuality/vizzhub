@@ -56,6 +56,9 @@ export function ClientMergeDialog({
                 />
                 <span className="font-medium text-foreground">{c.name}</span>
                 <span className="text-muted-foreground">({c.project_count} projects)</span>
+                {Boolean(c.copper_company_id) && (
+                  <span className="text-xs text-muted-foreground">· linked to Copper</span>
+                )}
               </label>
             ))}
           </div>

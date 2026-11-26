@@ -60,9 +60,9 @@ class LinkReport:
 
 
 def name_key(name: str) -> str:
-    """Case-, accent- and punctuation-insensitive key for exact name matching."""
+    """Case-, accent-, spacing- and punctuation-insensitive key ("Sky Truth" == "SkyTruth")."""
     value = unicodedata.normalize("NFKD", name or "").encode("ascii", "ignore").decode()
-    return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
+    return re.sub(r"[^a-z0-9]+", "", value.lower())
 
 
 async def link_clients_to_copper(db: AsyncSession, companies: list[dict]) -> LinkReport:

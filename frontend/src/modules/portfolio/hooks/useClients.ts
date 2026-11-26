@@ -32,6 +32,16 @@ export function useUpdateClient() {
   });
 }
 
+export function useCopperCompanies(enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.portfolio.clients.copperCompanies(),
+    queryFn: () => portfolioApi.listCopperCompanies(),
+    enabled,
+    retry: false,
+    staleTime: 60_000,
+  });
+}
+
 export function useLinkClientsWithCopper() {
   const qc = useQueryClient();
   return useMutation({

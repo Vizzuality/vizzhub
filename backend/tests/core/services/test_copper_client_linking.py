@@ -160,3 +160,24 @@ async def test_identical_pairs_stay_in_review(db_session):
     await db_session.refresh(first)
     assert first.copper_company_id is None
     assert len(report.review) == 2
+
+
+@pytest.mark.asyncio
+async def test_names_match_ignoring_spaces(db_session):
+    client = await _client(db_session, "Sky Truth", "sky-truth")
+
+    report = await link_clients_to_copper(db_session, [{"id": 2801827, "name": "SkyTruth"}])
+
+    await db_session.refresh(client)
+    assert client.copper_company_id == 2801827
+    assert report.linked == 1
+
+
+@pytest.mark.asyncio
+async def test_spacing_variant_of_a_linked_client_is_a_duplicate(db_session):
+    await _client(db_session, "SkyTruth", "skytruth", copper_company_id=2801827)
+    variant = await _client(db_session, "Sky Truth", "sky-truth")
+
+    report = await link_clients_to_copper(db_session, [{"id": 2801827, "name": "SkyTruth"}])
+
+    assert _review(report, variant).reason == "duplicate_in_vizzhub"

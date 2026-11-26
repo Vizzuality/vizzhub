@@ -124,4 +124,38 @@ describe('CopperOpportunityPicker', () => {
 
     expect(await screen.findByText(/could not link/i)).toBeInTheDocument();
   });
+
+  it('links an opportunity to any project picked from the search', async () => {
+    let patched: { id: string; body: unknown } | null = null;
+    server.use(
+      http.get(`${BASE}/projects/copper-opportunities`, () =>
+        HttpResponse.json([
+          opp({
+            opportunity_id: 33647599,
+            name: 'GMW updates 2026',
+            suggestion: { id: 'gmw8', name: 'GMW Phase 8' },
+          }),
+        ]),
+      ),
+      http.get(`${BASE}/projects`, () =>
+        HttpResponse.json([
+          { id: 'gmw8', name: 'GMW Phase 8', code: 'TNC.GMW.33647500' },
+          { id: 'gmw9', name: 'GMW Phase 9', code: 'TNC.GMW.33647500' },
+        ]),
+      ),
+      http.patch(`${BASE}/projects/:id`, async ({ params, request }) => {
+        patched = { id: params.id as string, body: await request.json() };
+        return HttpResponse.json({ id: params.id });
+      }),
+    );
+    renderPicker();
+
+    await userEvent.click(await screen.findByRole('button', { name: /link to a project/i }));
+    await userEvent.type(screen.getByPlaceholderText(/search projects/i), 'phase 9');
+    await userEvent.click(await screen.findByRole('option', { name: /gmw phase 9/i }));
+
+    await waitFor(() =>
+      expect(patched).toEqual({ id: 'gmw9', body: { copper_opportunity_id: 33647599 } }),
+    );
+  });
 });

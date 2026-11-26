@@ -231,27 +231,65 @@ class CopperLinkReportOut(BaseModel):
     review: list[CopperLinkReviewOut]
 
 
-@router.post(
-    "/copper-link",
-    responses={
-        409: {"description": "Copper is not connected"},
-        502: {"description": "Copper could not be reached"},
-    },
-)
-@limiter.limit("5/minute")
-async def link_clients_with_copper(
-    request: Request, current_user: PortfolioManager, db: DBSession
-) -> CopperLinkReportOut:
-    """Link unlinked clients to Copper companies with exactly the same name."""
+_COPPER_RESPONSES = {
+    409: {"description": "Copper is not connected"},
+    502: {"description": "Copper could not be reached"},
+}
+
+
+async def _read_copper_companies(db: DBSession) -> list[dict]:
     copper = await CopperClient.from_db(db)
     if copper is None:
         raise HTTPException(status_code=409, detail="Copper is not connected")
     try:
         async with copper:
-            companies = await copper.search_companies()
+            return await copper.search_companies()
     except CopperError as exc:
         raise HTTPException(status_code=502, detail="Could not read companies from Copper") from exc
-    report = await link_clients_to_copper(db, companies)
+
+
+class CopperCompanyOption(BaseModel):
+    id: int
+    name: str
+    email_domain: str | None
+    linked_client_name: str | None
+
+
+@router.get("/copper-companies", responses=_COPPER_RESPONSES)
+@limiter.limit("20/minute")
+async def list_copper_companies(
+    request: Request, current_user: PortfolioManager, db: DBSession
+) -> list[CopperCompanyOption]:
+    """Every Copper company, with the client already linked to it, for manual linking."""
+    companies = await _read_copper_companies(db)
+    linked = dict(
+        (
+            await db.execute(
+                select(ClientDB.copper_company_id, ClientDB.name).where(
+                    ClientDB.copper_company_id.is_not(None)
+                )
+            )
+        ).all()
+    )
+    options = [
+        CopperCompanyOption(
+            id=c["id"],
+            name=c["name"],
+            email_domain=c.get("email_domain") or None,
+            linked_client_name=linked.get(c["id"]),
+        )
+        for c in companies
+    ]
+    return sorted(options, key=lambda o: (o.name.lower(), o.id))
+
+
+@router.post("/copper-link", responses=_COPPER_RESPONSES)
+@limiter.limit("5/minute")
+async def link_clients_with_copper(
+    request: Request, current_user: PortfolioManager, db: DBSession
+) -> CopperLinkReportOut:
+    """Link unlinked clients to Copper companies with exactly the same name."""
+    report = await link_clients_to_copper(db, await _read_copper_companies(db))
     logger.info(
         "clients_copper_link_run",
         user_id=current_user.user_id,

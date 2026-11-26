@@ -25,4 +25,12 @@ describe('ClientMergeDialog', () => {
       expect(mergeMutate).toHaveBeenCalledWith({ targetId: 'a', data: { source_ids: ['b'] } }),
     );
   });
+
+  it('marks the client already linked to Copper', () => {
+    const linked = [{ ...candidates[0], copper_company_id: 42 }, candidates[1]];
+    render(
+      <ClientMergeDialog open onOpenChange={() => {}} candidates={linked} onMerged={() => {}} />,
+    );
+    expect(screen.getAllByText(/linked to copper/i)).toHaveLength(1);
+  });
 });
