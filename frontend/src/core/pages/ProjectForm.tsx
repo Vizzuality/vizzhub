@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useNavigationGuard } from '@/core/contexts/NavigationGuardContext';
 import { useForm, useFieldArray, Controller, type Control } from 'react-hook-form';
@@ -669,12 +669,16 @@ export default function ProjectForm(): JSX.Element {
   const currentClientId = watch('client_id');
   const { data: clientOptions = [] } = useClientOptions();
 
+  const generalSectionRef = useRef<HTMLElement>(null);
+
   const handleImportOpportunity = (opportunity: CopperOpportunity): void => {
     for (const [field, value] of Object.entries(copperFormValues(opportunity))) {
       setValue(field as keyof ProjectFormData, value as string, { shouldDirty: true });
     }
     setCopperOpportunityId(opportunity.opportunity_id);
     setPendingNewClient(opportunity.client_id ? null : opportunity.new_client);
+    // The form sits below the Copper card; without this the import looks like a no-op.
+    generalSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const isMutating = createMutation.isPending || replaceMutation.isPending || budgetMutation.isPending || budgetLinesMutation.isPending || settingsMutation.isPending;
@@ -938,7 +942,7 @@ export default function ProjectForm(): JSX.Element {
             {!isEditMode && <CopperOpportunityPicker onImport={handleImportOpportunity} />}
 
             {/* General */}
-            <section>
+            <section ref={generalSectionRef} className="scroll-mt-6">
               <h2 className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-4">General</h2>
               <Card>
                 <CardContent className="pt-6 space-y-6">

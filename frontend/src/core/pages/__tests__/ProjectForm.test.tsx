@@ -522,9 +522,21 @@ describe('ProjectForm', () => {
         }),
       );
 
+      const scrolled: Element[] = [];
+      const scrollSpy = vi
+        .spyOn(Element.prototype, 'scrollIntoView')
+        .mockImplementation(function (this: Element) {
+          scrolled.push(this);
+        });
+
       renderCreate();
       await user.click(await screen.findByRole('button', { name: /import wrip design/i }));
 
+      // The form sits below the Copper card: bring it into view after importing.
+      expect(scrolled.map((el) => el.textContent)).toContainEqual(
+        expect.stringMatching(/^General/),
+      );
+      scrollSpy.mockRestore();
       expect(screen.getByLabelText(/name \*/i)).toHaveValue('WRIP Design');
       expect(screen.getByLabelText(/code \*/i)).toHaveValue('Sys.WRIP.39491052');
       expect(screen.getByText(/new client "Systemiq.earth" will be created/i)).toBeInTheDocument();
