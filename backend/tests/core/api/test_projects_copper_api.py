@@ -7,6 +7,7 @@ from httpx import AsyncClient
 
 from app.core.auth import TokenData, get_current_user
 from app.core.permissions.roles import ROLE_PERMISSIONS
+from app.core.services.copper_client import CopperAuthError, CopperError
 from app.main import app
 from tests.core.services.test_copper_opportunities import WRIP, FakeCopper
 
@@ -59,3 +60,31 @@ async def test_managers_who_cannot_create_projects_are_refused(client: AsyncClie
         app.dependency_overrides.pop(get_current_user, None)
 
     assert resp.status_code == 403
+
+
+class _FailingCopper(_ContextCopper):
+    def __init__(self, error: Exception) -> None:
+        super().__init__([])
+        self._error = error
+
+    async def list_pipeline_stages(self) -> list[dict]:
+        raise self._error
+
+
+@pytest.mark.asyncio
+async def test_rejected_key_says_where_to_fix_it(client: AsyncClient) -> None:
+    failing = _FailingCopper(CopperAuthError("401"))
+    with patch(FROM_DB, new=AsyncMock(return_value=failing)):
+        resp = await client.get("/api/projects/copper-opportunities")
+
+    assert resp.status_code == 502
+    assert "Admin" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_other_copper_failures_are_502(client: AsyncClient) -> None:
+    with patch(FROM_DB, new=AsyncMock(return_value=_FailingCopper(CopperError("timeout")))):
+        resp = await client.get("/api/projects/copper-opportunities")
+
+    assert resp.status_code == 502
+    assert resp.json()["detail"] == "Could not read opportunities from Copper. Try again later."

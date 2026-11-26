@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { http, HttpResponse } from 'msw';
+import { delay, http, HttpResponse } from 'msw';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { server } from '@/test/setup';
 import { CopperOpportunityPicker } from '../CopperOpportunityPicker';
@@ -157,5 +157,44 @@ describe('CopperOpportunityPicker', () => {
     await waitFor(() =>
       expect(patched).toEqual({ id: 'gmw9', body: { copper_opportunity_id: 33647599 } }),
     );
+  });
+
+  it('shows the card while Copper is answering, then says when nothing is waiting', async () => {
+    server.use(
+      http.get(`${BASE}/projects/copper-opportunities`, async () => {
+        await delay(50);
+        return HttpResponse.json([]);
+      }),
+    );
+    renderPicker();
+
+    expect(screen.getByText('Import from Copper')).toBeInTheDocument();
+    expect(screen.getByText(/loading opportunities/i)).toBeInTheDocument();
+    expect(await screen.findByText(/no opportunities found/i)).toBeInTheDocument();
+    expect(screen.queryByText(/loading opportunities/i)).not.toBeInTheDocument();
+  });
+
+  it('shows why Copper could not be read', async () => {
+    server.use(
+      http.get(`${BASE}/projects/copper-opportunities`, () =>
+        HttpResponse.json({ detail: 'Could not read opportunities from Copper' }, { status: 502 }),
+      ),
+    );
+    renderPicker();
+
+    expect(
+      await screen.findByText('Could not read opportunities from Copper'),
+    ).toBeInTheDocument();
+  });
+
+  it('disappears when Copper is not connected', async () => {
+    server.use(
+      http.get(`${BASE}/projects/copper-opportunities`, () =>
+        HttpResponse.json({ detail: 'Copper is not connected' }, { status: 409 }),
+      ),
+    );
+    renderPicker();
+
+    await waitFor(() => expect(screen.queryByText('Import from Copper')).not.toBeInTheDocument());
   });
 });

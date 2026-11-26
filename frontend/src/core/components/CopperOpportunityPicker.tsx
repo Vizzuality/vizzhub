@@ -16,6 +16,7 @@ import {
   useCopperOpportunities,
   useLinkCopperOpportunity,
 } from '@/core/hooks/useProjects';
+import { getApiErrorDetail } from '@/utils/apiErrors';
 import { formatCurrency } from '@/shared/utils/evmCalculations';
 import type { CopperOpportunity, CopperOpportunityGroup, CopperProjectRef } from '@/core/types/copper';
 
@@ -157,8 +158,7 @@ export function CopperOpportunityPicker({
 }: CopperOpportunityPickerProps): JSX.Element | null {
   const { data, error, isLoading } = useCopperOpportunities();
 
-  // Render nothing until Copper answers: unconnected setups must not flash the card.
-  if (isLoading || isNotConnected(error)) return null;
+  if (isNotConnected(error)) return null;
 
   return (
     <Card>
@@ -166,11 +166,16 @@ export function CopperOpportunityPicker({
         <CardTitle className="text-base">Import from Copper</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {isLoading && (
+          <p className="text-sm text-muted-foreground">Loading opportunities…</p>
+        )}
         {error && (
-          <p className="text-sm text-destructive">Could not read Copper right now.</p>
+          <p className="text-sm text-destructive">
+            {getApiErrorDetail(error, 'Could not read Copper right now.')}
+          </p>
         )}
         {data?.length === 0 && (
-          <p className="text-sm text-muted-foreground">No deals waiting to become a project.</p>
+          <p className="text-sm text-muted-foreground">No opportunities found.</p>
         )}
         {data &&
           GROUPS.map(({ key, title }) => {

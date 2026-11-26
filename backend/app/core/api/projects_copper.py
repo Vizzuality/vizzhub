@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict
 
 from app.core.api.deps import DBSession, ProjectCreator, limiter
-from app.core.services.copper_client import CopperClient, CopperError
+from app.core.services.copper_client import CopperAuthError, CopperClient, CopperError
 from app.core.services.copper_opportunities import list_importable_opportunities
 
 logger = structlog.get_logger()
@@ -68,7 +68,15 @@ async def list_copper_opportunities(
     try:
         async with copper:
             opportunities = await list_importable_opportunities(db, copper, now=datetime.now(UTC))
+    except CopperAuthError as exc:
+        logger.warning("copper_opportunities_failed", user_id=current_user.user_id, auth=True)
+        raise HTTPException(
+            status_code=502,
+            detail="Copper rejected the saved API key. Update it in Admin → Integrations → Copper.",
+        ) from exc
     except CopperError as exc:
         logger.warning("copper_opportunities_failed", user_id=current_user.user_id)
-        raise HTTPException(status_code=502, detail="Could not read Copper") from exc
+        raise HTTPException(
+            status_code=502, detail="Could not read opportunities from Copper. Try again later."
+        ) from exc
     return [CopperOpportunityOut.model_validate(o) for o in opportunities]
