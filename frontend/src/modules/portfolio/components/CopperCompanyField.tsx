@@ -22,8 +22,10 @@ interface CopperCompanyFieldProps {
   readonly clientName: string;
 }
 
+// Copper allows same-name companies; the id (also in Copper's URL) tells them apart.
 function companyLabel(company: CopperCompanyOption): string {
-  return company.email_domain ? `${company.name} (${company.email_domain})` : company.name;
+  const domain = company.email_domain ? ` (${company.email_domain})` : '';
+  return `${company.name}${domain} · #${company.id}`;
 }
 
 /** Manual link to a Copper company, for clients the name matching could not resolve. */
@@ -41,7 +43,7 @@ export function CopperCompanyField({
   let triggerText = 'Not linked';
   if (isLoading) triggerText = 'Loading Copper companies…';
   else if (selected) triggerText = companyLabel(selected);
-  else if (value !== null) triggerText = `Copper company ${value}`;
+  else if (value !== null) triggerText = `Copper company #${value}`;
 
   const select = (companyId: number | null): void => {
     onChange(companyId);

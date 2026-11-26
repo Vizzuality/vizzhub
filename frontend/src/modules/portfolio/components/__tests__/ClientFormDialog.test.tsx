@@ -75,7 +75,7 @@ describe('ClientFormDialog', () => {
       'aria-disabled',
       'true',
     );
-    await userEvent.click(screen.getByRole('option', { name: /^wwf \(wwfint\.org\)/i }));
+    await userEvent.click(screen.getByRole('option', { name: /^wwf \(wwfint\.org\) · #39906146/i }));
     await userEvent.click(screen.getByRole('button', { name: /save/i }));
 
     await waitFor(() => expect(patched?.copper_company_id).toBe(39906146));
@@ -96,6 +96,16 @@ describe('ClientFormDialog', () => {
 
     await waitFor(() => expect(patched).not.toBeNull());
     expect(patched).not.toHaveProperty('copper_company_id');
+  });
+
+  it('shows the Copper id of the linked company so same-name companies can be told apart', async () => {
+    server.use(
+      http.get(`${BASE}/clients/copper-companies`, () => HttpResponse.json(COMPANIES)),
+    );
+    renderDialog({ ...WWFINT, copper_company_id: 65673505 });
+
+    const trigger = await screen.findByRole('combobox', { name: /copper company/i });
+    await waitFor(() => expect(trigger).toHaveTextContent('WWF-Canada (wwf.ca) · #65673505'));
   });
 
   it('hides the Copper field when Copper is not connected', async () => {
