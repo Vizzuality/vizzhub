@@ -31,6 +31,11 @@ export interface ClientUpdate {
   is_active?: boolean;
 }
 
+export interface UnusedClient {
+  id: string;
+  name: string;
+}
+
 export interface CopperCompanyOption {
   id: number;
   name: string;

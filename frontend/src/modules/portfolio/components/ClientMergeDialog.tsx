@@ -43,7 +43,7 @@ export function ClientMergeDialog({
         </DialogHeader>
         <div className="space-y-3 py-2">
           <p className="text-sm text-muted-foreground">
-            Choose the canonical client. The others are merged into it and their projects reassigned.
+            Choose the canonical client. The others are deleted and their projects reassigned to it.
           </p>
           <div className="space-y-2">
             {candidates.map((c) => (

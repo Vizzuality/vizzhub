@@ -32,6 +32,22 @@ export function useUpdateClient() {
   });
 }
 
+export function useUnusedClients(enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.portfolio.clients.unused(),
+    queryFn: () => portfolioApi.listUnusedClients(),
+    enabled,
+  });
+}
+
+export function useDeleteUnusedClients() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => portfolioApi.deleteUnusedClients(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.portfolio.all }),
+  });
+}
+
 export function useCopperCompanies(enabled: boolean) {
   return useQuery({
     queryKey: queryKeys.portfolio.clients.copperCompanies(),

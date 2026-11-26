@@ -9,7 +9,7 @@ from uuid import UUID
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 
 from app.core.api.deps import DBSession, ProjectManager, limiter
 from app.core.auth import TokenData
@@ -117,6 +117,47 @@ async def list_client_options(
         )
     ).all()
     return [ClientOption(id=r.id, name=r.name, code=r.code) for r in rows]
+
+
+def _without_projects():
+    """Clients no project points to; Copper is the client catalogue, so these are noise."""
+    has_project = select(ProjectDB.id).where(ProjectDB.client_id == ClientDB.id).exists()
+    return ~has_project
+
+
+class UnusedClient(BaseModel):
+    id: UUID
+    name: str
+
+
+class DeletedClients(BaseModel):
+    deleted: int
+
+
+@router.get("/unused")
+@limiter.limit("30/minute")
+async def list_unused_clients(
+    request: Request, current_user: PortfolioManager, db: DBSession
+) -> list[UnusedClient]:
+    """Preview of what DELETE /unused would remove."""
+    rows = (
+        await db.execute(
+            select(ClientDB.id, ClientDB.name).where(_without_projects()).order_by(ClientDB.name)
+        )
+    ).all()
+    return [UnusedClient(id=r.id, name=r.name) for r in rows]
+
+
+@router.delete("/unused")
+@limiter.limit("5/minute")
+async def delete_unused_clients(
+    request: Request, current_user: PortfolioManager, db: DBSession
+) -> DeletedClients:
+    """Delete every client without projects; the Copper import recreates them on demand."""
+    result = await db.execute(delete(ClientDB).where(_without_projects()))
+    deleted = result.rowcount or 0
+    logger.info("clients_unused_deleted", deleted=deleted, user_id=current_user.user_id)
+    return DeletedClients(deleted=deleted)
 
 
 @router.post("", status_code=201, responses={409: {"description": "Duplicate client"}})

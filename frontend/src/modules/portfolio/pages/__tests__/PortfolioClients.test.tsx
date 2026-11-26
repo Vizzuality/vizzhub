@@ -33,6 +33,8 @@ vi.mock('../../hooks/useClients', () => ({
   useUpdateClient: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useMergeClients: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useLinkClientsWithCopper: () => ({ mutateAsync: vi.fn(), isPending: false, isError: false }),
+  useUnusedClients: () => ({ data: [], isLoading: false }),
+  useDeleteUnusedClients: () => ({ mutate: vi.fn(), reset: vi.fn(), isPending: false }),
 }));
 
 vi.mock('@/core/permissions/usePermission', () => ({
@@ -69,6 +71,7 @@ describe('PortfolioClients', () => {
     mockUsePermission.mockReturnValue(false);
     renderPage();
     expect(screen.queryByText('New client')).not.toBeInTheDocument();
+    expect(screen.queryByText('Delete unused')).not.toBeInTheDocument();
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
   });
 });

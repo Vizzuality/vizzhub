@@ -11,6 +11,7 @@ import type {
   CopperLinkReport,
   MergeRequest,
   MergeResponse,
+  UnusedClient,
   ProgramIndexFilters,
   ProgramIndexResponse,
   ProgramOption,
@@ -43,6 +44,16 @@ export const portfolioApi = {
 
   updateClient: async (id: string, data: ClientUpdate): Promise<Client> => {
     const response = await api.patch<Client>(`/clients/${id}`, data);
+    return response.data;
+  },
+
+  listUnusedClients: async (): Promise<UnusedClient[]> => {
+    const response = await api.get<UnusedClient[]>('/clients/unused');
+    return response.data;
+  },
+
+  deleteUnusedClients: async (): Promise<{ deleted: number }> => {
+    const response = await api.delete<{ deleted: number }>('/clients/unused');
     return response.data;
   },
 

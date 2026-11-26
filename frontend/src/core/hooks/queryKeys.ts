@@ -265,6 +265,7 @@ export const queryKeys = {
         ['portfolio', 'clients', 'list', params] as const,
       options: () => [...queryKeys.portfolio.clients.all, 'options'] as const,
       copperCompanies: () => [...queryKeys.portfolio.clients.all, 'copper-companies'] as const,
+      unused: () => [...queryKeys.portfolio.clients.all, 'unused'] as const,
     },
     taxonomies: ['portfolio', 'taxonomies'] as const,
     dashboard: {

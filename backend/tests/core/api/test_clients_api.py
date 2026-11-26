@@ -466,3 +466,60 @@ async def test_copper_companies_requires_copper_connection(
         resp = await portfolio_manager_client.get("/api/clients/copper-companies")
 
     assert resp.status_code == 409
+
+
+async def _clients_with_and_without_projects(db_session: AsyncSession) -> None:
+    from app.core.models.project import ProjectDB
+
+    used = ClientDB(name="Has Work", slug="has-work")
+    db_session.add_all([used, ClientDB(name="Zeta Empty", slug="zeta-empty")])
+    db_session.add(ClientDB(name="Alpha Empty", slug="alpha-empty"))
+    await db_session.flush()
+    db_session.add(ProjectDB(name="Work", client_id=used.id))
+    await db_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_unused_clients_lists_the_ones_without_projects(
+    portfolio_manager_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    await _clients_with_and_without_projects(db_session)
+
+    resp = await portfolio_manager_client.get("/api/clients/unused")
+
+    assert resp.status_code == 200
+    assert [c["name"] for c in resp.json()] == ["Alpha Empty", "Zeta Empty"]
+
+
+@pytest.mark.asyncio
+async def test_delete_unused_clients_keeps_the_ones_with_projects(
+    portfolio_manager_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    await _clients_with_and_without_projects(db_session)
+
+    resp = await portfolio_manager_client.delete("/api/clients/unused")
+
+    assert resp.status_code == 200
+    assert resp.json() == {"deleted": 2}
+    listed = await portfolio_manager_client.get("/api/clients")
+    assert [c["name"] for c in listed.json()["items"]] == ["Has Work"]
+
+
+@pytest.mark.asyncio
+async def test_delete_unused_clients_forbidden_without_manage_permission(
+    client: AsyncClient,
+) -> None:
+    async def _viewer_only() -> TokenData:
+        return TokenData(
+            user_id="00000000-0000-0000-0000-000000000010",
+            email="viewer@test.com",
+            roles=["user"],
+            permissions=["portfolio:view"],
+        )
+
+    app.dependency_overrides[get_current_user] = _viewer_only
+    try:
+        resp = await client.delete("/api/clients/unused")
+        assert resp.status_code == 403
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)

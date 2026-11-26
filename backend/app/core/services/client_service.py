@@ -3,7 +3,7 @@
 from uuid import UUID
 
 import structlog
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models.client import ClientDB
@@ -13,7 +13,7 @@ logger = structlog.get_logger()
 
 
 async def merge_clients(db: AsyncSession, *, target_id: UUID, source_ids: list[UUID]) -> int:
-    """Reassign all projects from source clients to target, then deactivate sources.
+    """Reassign all projects from source clients to target, then delete the sources.
 
     Returns the number of projects reassigned.
     Raises ValueError if target is among sources, source_ids is empty, or any id missing.
@@ -32,8 +32,8 @@ async def merge_clients(db: AsyncSession, *, target_id: UUID, source_ids: list[U
         update(ProjectDB).where(ProjectDB.client_id.in_(source_ids)).values(client_id=target_id)
     )
     moved = result.rowcount or 0
-    await db.execute(update(ClientDB).where(ClientDB.id.in_(source_ids)).values(is_active=False))
     await _inherit_copper_link(db, target_id=target_id, source_ids=source_ids)
+    await db.execute(delete(ClientDB).where(ClientDB.id.in_(source_ids)))
     logger.info(
         "clients_merged",
         target_id=str(target_id),
@@ -48,7 +48,7 @@ async def _inherit_copper_link(
 ) -> None:
     """Give an unlinked target the Copper company of the first linked source.
 
-    The link moves rather than copies: a Copper company maps to one client.
+    Runs before the sources are deleted, which drops any link they still hold.
     """
     target = await db.get(ClientDB, target_id)
     if target is None or target.copper_company_id is not None:

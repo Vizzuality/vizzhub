@@ -9,7 +9,7 @@ from app.core.services.client_service import merge_clients
 
 
 @pytest.mark.asyncio
-async def test_merge_reassigns_projects_and_deactivates_source(db_session):
+async def test_merge_reassigns_projects_and_deletes_source(db_session):
     target = ClientDB(name="Canonical", slug="canonical")
     source = ClientDB(name="Variant", slug="variant")
     db_session.add_all([target, source])
@@ -21,8 +21,8 @@ async def test_merge_reassigns_projects_and_deactivates_source(db_session):
     await db_session.flush()
 
     assert moved == 1
-    refreshed_source = await db_session.get(ClientDB, source.id)
-    assert refreshed_source.is_active is False
+    db_session.expunge_all()
+    assert await db_session.get(ClientDB, source.id) is None
     project = (
         await db_session.execute(select(ProjectDB).where(ProjectDB.client_id == target.id))
     ).scalar_one()
@@ -69,9 +69,7 @@ async def test_merge_moves_copper_link_to_unlinked_target(db_session):
     await db_session.flush()
 
     await db_session.refresh(target)
-    await db_session.refresh(source)
     assert target.copper_company_id == 649763
-    assert source.copper_company_id is None
 
 
 @pytest.mark.asyncio
@@ -85,6 +83,4 @@ async def test_merge_keeps_existing_copper_link_on_target(db_session):
     await db_session.flush()
 
     await db_session.refresh(target)
-    await db_session.refresh(source)
     assert target.copper_company_id == 1
-    assert source.copper_company_id == 2

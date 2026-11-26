@@ -13,6 +13,7 @@ import type { Client } from '../types/portfolio';
 import { ClientFormDialog } from '../components/ClientFormDialog';
 import { ClientMergeDialog } from '../components/ClientMergeDialog';
 import { CopperLinkDialog } from '../components/CopperLinkDialog';
+import { DeleteUnusedClientsDialog } from '../components/DeleteUnusedClientsDialog';
 
 const SEARCH_DEBOUNCE_MS = 300;
 const PAGE_SIZE = 50;
@@ -55,6 +56,7 @@ export default function PortfolioClients(): JSX.Element {
   const [editing, setEditing] = useState<Client | null>(null);
   const [mergeOpen, setMergeOpen] = useState(false);
   const [copperOpen, setCopperOpen] = useState(false);
+  const [unusedOpen, setUnusedOpen] = useState(false);
 
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
@@ -87,6 +89,9 @@ export default function PortfolioClients(): JSX.Element {
             )}
             <Button size="sm" variant="outline" onClick={() => setCopperOpen(true)}>
               Link with Copper
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setUnusedOpen(true)}>
+              Delete unused
             </Button>
             <Button
               size="sm"
@@ -209,6 +214,7 @@ export default function PortfolioClients(): JSX.Element {
       {canManage && (
         <>
           <CopperLinkDialog open={copperOpen} onOpenChange={setCopperOpen} />
+          <DeleteUnusedClientsDialog open={unusedOpen} onOpenChange={setUnusedOpen} />
           <ClientFormDialog open={formOpen} onOpenChange={setFormOpen} client={editing} />
           <ClientMergeDialog
             open={mergeOpen}
