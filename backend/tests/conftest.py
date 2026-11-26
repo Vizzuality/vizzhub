@@ -219,7 +219,7 @@ async def db_session() -> AsyncGenerator[AsyncSession]:
     await engine.dispose()
 
 
-# Shared program for tests exercising project creation (program_id is required).
+# Shared program for tests exercising project creation (live projects need one).
 DEFAULT_PROGRAM_ID = "00000000-0000-0000-0000-000000000777"
 
 

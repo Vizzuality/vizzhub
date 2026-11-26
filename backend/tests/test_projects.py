@@ -531,13 +531,56 @@ class TestBudgetPreview:
         assert resp.json() == {"budget_eur": None}
 
 
+LIVE_PLAIN = {"status": "live", "has_scorecard": False, "has_dependabot_alerts": False}
+
+
 class TestLiveIntegrationGate:
-    """Live projects need jira/github when scorecard/dependabot are enabled."""
+    """Live projects need a program, a PM when billable, and jira/github per feature."""
 
     @pytest.mark.asyncio
-    async def test_create_requires_program(self, client: AsyncClient) -> None:
+    async def test_proposal_without_program_allowed(self, client: AsyncClient) -> None:
         resp = await client.post("/api/projects", json={"name": "Orphan", "code": "ORP"})
-        assert resp.status_code == 400  # FastAPI validation mapped to 400 by global handler
+        assert resp.status_code == 201
+        assert resp.json()["program_id"] is None
+
+    @pytest.mark.asyncio
+    async def test_create_live_without_program_rejected(
+        self, client: AsyncClient, pm_user: dict
+    ) -> None:
+        resp = await client.post(
+            "/api/projects",
+            json={
+                **LIVE_PLAIN,
+                "name": "Live orphan",
+                "code": "LOR",
+                "project_manager_id": pm_user["id"],
+            },
+        )
+        assert resp.status_code == 400
+        assert "Program" in resp.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_create_live_billable_without_pm_rejected(self, client: AsyncClient) -> None:
+        resp = await client.post(
+            "/api/projects",
+            json={**LIVE_PLAIN, "program_id": DEFAULT_PROGRAM_ID, "name": "No PM", "code": "NPM"},
+        )
+        assert resp.status_code == 400
+        assert "Project manager" in resp.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_create_live_internal_without_pm_allowed(self, client: AsyncClient) -> None:
+        resp = await client.post(
+            "/api/projects",
+            json={
+                **LIVE_PLAIN,
+                "program_id": DEFAULT_PROGRAM_ID,
+                "name": "Internal",
+                "code": "INT",
+                "is_billable": False,
+            },
+        )
+        assert resp.status_code == 201
 
     @pytest.mark.asyncio
     async def test_create_live_without_jira_rejected(self, client: AsyncClient) -> None:
@@ -579,11 +622,14 @@ class TestLiveIntegrationGate:
         assert resp.json()["status"] == "proposal"
 
     @pytest.mark.asyncio
-    async def test_create_live_with_toggles_off_allowed(self, client: AsyncClient) -> None:
+    async def test_create_live_with_toggles_off_allowed(
+        self, client: AsyncClient, pm_user: dict
+    ) -> None:
         resp = await client.post(
             "/api/projects",
             json={
                 "program_id": DEFAULT_PROGRAM_ID,
+                "project_manager_id": pm_user["id"],
                 "name": "Live plain",
                 "code": "LPL",
                 "status": "live",
@@ -607,11 +653,16 @@ class TestLiveIntegrationGate:
 
     @pytest.mark.asyncio
     async def test_transition_to_live_with_fields_in_same_patch_ok(
-        self, client: AsyncClient
+        self, client: AsyncClient, pm_user: dict
     ) -> None:
         created = await client.post(
             "/api/projects",
-            json={"program_id": DEFAULT_PROGRAM_ID, "name": "Prop3", "code": "PROP3"},
+            json={
+                "program_id": DEFAULT_PROGRAM_ID,
+                "project_manager_id": pm_user["id"],
+                "name": "Prop3",
+                "code": "PROP3",
+            },
         )
         pid = created.json()["id"]
         resp = await client.patch(
@@ -642,12 +693,13 @@ class TestLiveIntegrationGate:
 
     @pytest.mark.asyncio
     async def test_blanking_jira_on_live_scorecard_project_rejected(
-        self, client: AsyncClient
+        self, client: AsyncClient, pm_user: dict
     ) -> None:
         created = await client.post(
             "/api/projects",
             json={
                 "program_id": DEFAULT_PROGRAM_ID,
+                "project_manager_id": pm_user["id"],
                 "name": "Live full",
                 "code": "LFU",
                 "status": "live",

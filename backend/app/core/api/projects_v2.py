@@ -126,14 +126,21 @@ LIVE_GATE_FIELDS = {
 
 
 def _require_live_integrations(project: ProjectDB) -> None:
-    """A live project must carry the integration fields its features consume.
+    """A live project must carry its program, its PM when billable, and the
+    integration fields its features consume.
 
     Proposals may stay blank; the gate fires when a write leaves the project
-    live (create/replace, or a PATCH touching status or the involved fields).
+    live (create/replace, or a PATCH touching status or the integration fields).
+    Program and PM stay out of LIVE_GATE_FIELDS so portfolio unassign keeps
+    working on live projects.
     """
     if project.status != "live":
         return
     missing = []
+    if not project.program_id:
+        missing.append("Program")
+    if project.is_billable and not project.project_manager_id:
+        missing.append("Project manager (required for billable projects)")
     if project.has_scorecard and not project.jira_project_key:
         missing.append("Jira project key (required by Scorecard)")
     if project.has_dependabot_alerts and not project.github_repo:
@@ -266,7 +273,7 @@ async def list_project_managers(
 @router.post(
     "",
     status_code=status.HTTP_201_CREATED,
-    responses={400: {"description": "Live project missing required integration fields"}},
+    responses={400: {"description": "Live project missing required fields"}},
 )
 @limiter.limit("20/minute")
 async def create_project(
@@ -343,7 +350,7 @@ async def get_project(
 
 @router.put(
     "/{project_id}",
-    responses={400: {"description": "Live project missing required integration fields"}},
+    responses={400: {"description": "Live project missing required fields"}},
 )
 @limiter.limit("30/minute")
 async def replace_project(
@@ -378,7 +385,7 @@ async def replace_project(
 
 @router.patch(
     "/{project_id}",
-    responses={400: {"description": "Live project missing required integration fields"}},
+    responses={400: {"description": "Live project missing required fields"}},
 )
 @limiter.limit("30/minute")
 async def update_project(

@@ -23,6 +23,7 @@ const projectNoDependabot = {
   code: 'TST.001',
   program_id: 'prog-1',
   program_name: 'Program Alpha',
+  project_manager_id: 'user-pm',
   is_billable: true,
   has_scorecard: true,
   has_dependabot_alerts: false,
@@ -80,8 +81,20 @@ function renderEdit(projectId = 'project-123'): ReturnType<typeof render> {
 
 async function selectProgram(user: ReturnType<typeof userEvent.setup>): Promise<void> {
   // Program is mandatory; the field is a searchable combobox (Popover/Command).
-  await user.click(screen.getByRole('combobox', { name: /program \*/i }));
+  await user.click(screen.getByRole('combobox', { name: /^program/i }));
   await user.click(await screen.findByRole('option', { name: 'Program Alpha' }));
+}
+
+const PM_USER = {
+  id: 'user-pm',
+  email: 'pm@example.com',
+  first_name: 'Alice',
+  last_name: 'Manager',
+};
+
+async function selectManager(user: ReturnType<typeof userEvent.setup>): Promise<void> {
+  await user.click(screen.getByRole('combobox', { name: /^project manager/i }));
+  await user.click(await screen.findByRole('option', { name: 'Alice Manager' }));
 }
 
 async function fillRequiredFields(
@@ -92,6 +105,7 @@ async function fillRequiredFields(
   await user.type(screen.getByLabelText(/code \*/i), overrides.code ?? 'TST.001');
   await selectProgram(user);
   // Filled so tests may switch the status to live without tripping the gate.
+  await selectManager(user);
   await user.type(screen.getByLabelText(/jira project key/i), 'TST');
   await user.type(screen.getByLabelText(/github repository/i), 'org/tst');
   await user.type(
@@ -106,6 +120,7 @@ describe('ProjectForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     server.resetHandlers();
+    server.use(http.get(`${BASE}/users`, () => HttpResponse.json([PM_USER])));
   });
 
   describe('Create Mode — Rendering', () => {
@@ -255,7 +270,7 @@ describe('ProjectForm', () => {
       ).toBeInTheDocument();
     });
 
-    it('requires a program before submitting', async () => {
+    it('requires a program and a project manager only when live', async () => {
       const user = userEvent.setup();
       renderCreate();
       await screen.findByText('New Project');
@@ -263,8 +278,26 @@ describe('ProjectForm', () => {
       await user.type(screen.getByLabelText(/name \*/i), 'Test');
       await user.type(screen.getByLabelText(/code \*/i), 'TST');
       await user.click(screen.getByRole('button', { name: /create project/i }));
+      expect(screen.queryByText('Required when the project is live')).not.toBeInTheDocument();
+      expect(screen.queryByText('Required when a billable project is live')).not.toBeInTheDocument();
 
-      expect(await screen.findByText('Program is required')).toBeInTheDocument();
+      await user.selectOptions(screen.getByLabelText(/status/i), 'live');
+      await user.click(screen.getByRole('button', { name: /create project/i }));
+      expect(await screen.findByText('Required when the project is live')).toBeInTheDocument();
+      expect(screen.getByText('Required when a billable project is live')).toBeInTheDocument();
+      expect(screen.getByRole('combobox', { name: /^program \*/i })).toBeInTheDocument();
+    });
+
+    it('does not require a project manager for a live non-billable project', async () => {
+      const user = userEvent.setup();
+      renderCreate();
+      await screen.findByText('New Project');
+
+      await user.selectOptions(screen.getByLabelText(/status/i), 'live');
+      await user.click(screen.getByRole('switch', { name: /billable/i }));
+      await user.click(screen.getByRole('button', { name: /create project/i }));
+      expect(await screen.findByText('Required when the project is live')).toBeInTheDocument();
+      expect(screen.queryByText('Required when a billable project is live')).not.toBeInTheDocument();
     });
 
     it('requires jira and github for live projects with scorecard/dependabot enabled', async () => {
@@ -876,12 +909,12 @@ describe('ProjectForm', () => {
       renderCreate();
       await screen.findByText('New Project');
 
-      await user.click(screen.getByRole('combobox', { name: /program \*/i }));
+      await user.click(screen.getByRole('combobox', { name: /^program/i }));
       expect(await screen.findByRole('option', { name: 'Program Alpha' })).toBeInTheDocument();
       expect(screen.getByPlaceholderText('Search programs...')).toBeInTheDocument();
 
       await user.click(screen.getByRole('option', { name: 'Program Alpha' }));
-      expect(screen.getByRole('combobox', { name: /program \*/i })).toHaveTextContent(
+      expect(screen.getByRole('combobox', { name: /^program/i })).toHaveTextContent(
         'Program Alpha',
       );
     });
@@ -929,6 +962,7 @@ describe('ProjectForm', () => {
       await user.type(screen.getByLabelText(/^Name/i), 'P1');
       await user.type(screen.getByLabelText(/^Code/i), 'P.1');
       await selectProgram(user);
+      await selectManager(user);
       await user.selectOptions(screen.getByLabelText(/status/i), 'live');
       await user.type(screen.getByLabelText(/jira project key/i), 'P1');
       await user.type(screen.getByLabelText(/Budget in original currency/i), '1000');

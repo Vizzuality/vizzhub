@@ -186,14 +186,14 @@ class ProjectCreate(ProjectBase):
 
 
 class ProjectCreateV2(ProjectBase):
-    """Schema for creating a project via /api/projects (code and program required).
+    """Schema for creating a project via /api/projects (code required).
 
-    Also used by PUT replace, so edits of legacy program-less projects force
-    picking a program. PATCH keeps program_id nullable (portfolio unassign).
+    Also used by PUT replace. Program and project manager are only required
+    once the project is live (see the live gate in projects_v2).
     """
 
     code: str = Field(..., min_length=1, max_length=100)
-    program_id: UUID
+    program_id: UUID | None = None
 
 
 class ProjectUpdate(BaseModel):

@@ -473,6 +473,7 @@ async def test_grid_filter_by_status(
             "program_id": DEFAULT_PROGRAM_ID,
             "name": "Live one",
             "code": "TEST.AC.GRID.LIVE",
+            "is_billable": False,  # live billable projects need a PM
             "has_scorecard": False,
             "has_dependabot_alerts": False,
             "currency": "USD",

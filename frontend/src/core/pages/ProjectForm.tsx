@@ -215,15 +215,26 @@ function requiredMark(required: boolean): string {
   return required ? ' *' : '';
 }
 
-// Integration requirements only bind live projects; proposals may stay blank.
+interface LiveRequirements {
+  programRequired: boolean;
+  managerRequired: boolean;
+  jiraRequired: boolean;
+  githubRequired: boolean;
+  needsSlackChannel: boolean;
+}
+
+// These fields only bind live projects; proposals may stay blank.
 function liveRequirements(
   status: ProjectStatus,
+  isBillable: boolean,
   hasScorecard: boolean,
   hasDependabotAlerts: boolean,
   slackChannelId: string,
-): { jiraRequired: boolean; githubRequired: boolean; needsSlackChannel: boolean } {
+): LiveRequirements {
   const isLive = status === 'live';
   return {
+    programRequired: isLive,
+    managerRequired: isLive && isBillable,
     jiraRequired: isLive && hasScorecard,
     githubRequired: isLive && hasDependabotAlerts,
     needsSlackChannel: isLive && hasDependabotAlerts && !slackChannelId,
@@ -355,12 +366,14 @@ function ProgramField({
   control,
   programs,
   errorMessage,
+  required,
   isCreating,
   onCreateProgram,
 }: Readonly<{
   control: Control<ProjectFormData>;
   programs: ProgramSummary[];
   errorMessage?: string;
+  required: boolean;
   isCreating: boolean;
   onCreateProgram: (name: string) => Promise<void>;
 }>): JSX.Element {
@@ -378,7 +391,7 @@ function ProgramField({
       <div className="space-y-2 min-w-0">
         <TooltipProvider>
           <div className="h-5 flex items-center gap-2">
-            <Label htmlFor="program_id">Program *</Label>
+            <Label htmlFor="program_id">Program{requiredMark(required)}</Label>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
@@ -386,7 +399,7 @@ function ProgramField({
                 </button>
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-xs">
-                <p className="text-sm">Every project belongs to a program. Pick an existing one or create a new program for this project.</p>
+                <p className="text-sm">Every project belongs to a program; it is required once the project is live. Pick an existing one or create a new program for this project.</p>
               </TooltipContent>
             </Tooltip>
           </div>
@@ -395,7 +408,7 @@ function ProgramField({
           <Controller
             name="program_id"
             control={control}
-            rules={{ required: 'Program is required' }}
+            rules={{ validate: requiredWhenLive(required, 'Required when the project is live') }}
             render={({ field }) => (
               <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
@@ -559,7 +572,7 @@ export default function ProjectForm(): JSX.Element {
     reset,
     control,
     setValue,
-    formState: { errors, isDirty },
+    formState: { errors, isDirty, isSubmitted },
   } = useForm<ProjectFormData>({
     defaultValues: {
       name: '',
@@ -701,12 +714,11 @@ export default function ProjectForm(): JSX.Element {
     }
   };
 
-  const { jiraRequired, githubRequired, needsSlackChannel } = liveRequirements(
-    currentStatus,
-    hasScorecard,
-    hasDependabotAlerts,
-    slackChannelId,
-  );
+  const { programRequired, managerRequired, jiraRequired, githubRequired, needsSlackChannel } =
+    liveRequirements(currentStatus, isBillable, hasScorecard, hasDependabotAlerts, slackChannelId);
+  register('project_manager_id', {
+    validate: requiredWhenLive(managerRequired, 'Required when a billable project is live'),
+  });
 
   const handleFormSubmit = (data: ProjectFormData): void => {
     setApiError(null);
@@ -962,6 +974,7 @@ export default function ProjectForm(): JSX.Element {
                     control={control}
                     programs={programs}
                     errorMessage={errors.program_id?.message}
+                    required={programRequired}
                     isCreating={createProgramMutation.isPending}
                     onCreateProgram={async (name) => {
                       const created = await createProgramMutation.mutateAsync(name);
@@ -972,7 +985,9 @@ export default function ProjectForm(): JSX.Element {
                   {/* Row 3: Project Manager, Status */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="project_manager_id" className="h-5 flex items-center">Project Manager</Label>
+                      <Label htmlFor="project_manager_id" className="h-5 flex items-center">
+                        Project Manager{requiredMark(managerRequired)}
+                      </Label>
                       <Popover open={pmOpen} onOpenChange={setPmOpen}>
                         <PopoverTrigger asChild>
                           <Button
@@ -1003,7 +1018,7 @@ export default function ProjectForm(): JSX.Element {
                                 <CommandItem
                                   value="__none__"
                                   onSelect={() => {
-                                    setValue('project_manager_id', '');
+                                    setValue('project_manager_id', '', { shouldValidate: isSubmitted });
                                     setPmOpen(false);
                                   }}
                                 >
@@ -1015,7 +1030,7 @@ export default function ProjectForm(): JSX.Element {
                                     key={u.id}
                                     value={getFullName(u.first_name, u.last_name, u.email)}
                                     onSelect={() => {
-                                      setValue('project_manager_id', u.id);
+                                      setValue('project_manager_id', u.id, { shouldValidate: isSubmitted });
                                       setPmOpen(false);
                                     }}
                                   >
@@ -1028,6 +1043,9 @@ export default function ProjectForm(): JSX.Element {
                           </Command>
                         </PopoverContent>
                       </Popover>
+                      {errors.project_manager_id && (
+                        <p className="text-sm text-destructive">{errors.project_manager_id.message}</p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="status" className="h-5 flex items-center">Status</Label>

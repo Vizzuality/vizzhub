@@ -19,11 +19,13 @@ class TestFinishedProjectMetricsRestrictions:
     """Test that finished projects only allow end-of-project metrics."""
 
     @pytest_asyncio.fixture
-    async def finished_project(self, db_session: AsyncSession) -> ProjectDB:
-        """Create a finished project."""
+    async def finished_project(self, db_session: AsyncSession, default_program: str) -> ProjectDB:
+        """Create a finished project that may be reopened (live needs a program)."""
         project = ProjectDB(
             id=str(uuid4()),
             name="Finished Integration Project",
+            program_id=default_program,
+            is_billable=False,
             jira_project_key="FIP",
             github_repo="test/finished-project",
             start_date=date.today() - timedelta(days=180),
