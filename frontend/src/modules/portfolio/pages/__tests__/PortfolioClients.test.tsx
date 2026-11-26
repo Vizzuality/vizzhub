@@ -15,6 +15,7 @@ vi.mock('../../hooks/useClients', () => ({
           name: 'Acme Foundation',
           slug: 'acme-foundation',
           code: 'ACME',
+          copper_company_id: 60868145,
           primary_contact: 'Jane Doe',
           is_active: true,
           project_count: 4,
@@ -60,6 +61,7 @@ describe('PortfolioClients', () => {
     mockUsePermission.mockReturnValue(true);
     renderPage();
     expect(screen.getByText('ACME')).toBeInTheDocument();
+    expect(screen.getByText('#60868145')).toBeInTheDocument();
     expect(screen.getByText('Jane Doe')).toBeInTheDocument();
   });
 
