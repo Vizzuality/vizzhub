@@ -8,8 +8,8 @@ vi.mock('../../hooks/useClients', () => ({
 }));
 
 const candidates = [
-  { id: 'a', name: 'Acme', slug: 'acme', is_active: true, project_count: 2, created_at: '', updated_at: '' },
-  { id: 'b', name: 'Acme Inc', slug: 'acme-inc', is_active: true, project_count: 1, created_at: '', updated_at: '' },
+  { id: 'a', name: 'Acme', slug: 'acme', project_count: 2, created_at: '', updated_at: '' },
+  { id: 'b', name: 'Acme Inc', slug: 'acme-inc', project_count: 1, created_at: '', updated_at: '' },
 ];
 
 describe('ClientMergeDialog', () => {

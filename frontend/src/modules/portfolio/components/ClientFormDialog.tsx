@@ -26,7 +26,6 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [primaryContact, setPrimaryContact] = useState('');
-  const [isActive, setIsActive] = useState(true);
   const [copperCompanyId, setCopperCompanyId] = useState<number | null>(null);
   const isEdit = client !== null;
   const saving = create.isPending || update.isPending;
@@ -39,7 +38,6 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
       setName(client?.name ?? '');
       setCode(client?.code ?? '');
       setPrimaryContact(client?.primary_contact ?? '');
-      setIsActive(client?.is_active ?? true);
       setCopperCompanyId(client?.copper_company_id ?? null);
       resetCreate();
       resetUpdate();
@@ -65,7 +63,6 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
           name: trimmed,
           code: code.trim() || null,
           primary_contact: primaryContact.trim() || null,
-          is_active: isActive,
           ...(copperCompanyId === client.copper_company_id
             ? {}
             : { copper_company_id: copperCompanyId }),
@@ -122,16 +119,6 @@ export function ClientFormDialog({ open, onOpenChange, client }: ClientFormDialo
               onChange={setCopperCompanyId}
               clientName={client.name}
             />
-          )}
-          {isEdit && (
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={isActive}
-                onChange={(e) => setIsActive(e.target.checked)}
-              />
-              <span>Active</span>
-            </label>
           )}
           {saveError && (
             <p className="text-sm text-destructive">

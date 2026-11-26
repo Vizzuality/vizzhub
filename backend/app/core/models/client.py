@@ -4,7 +4,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
-from sqlalchemy import BigInteger, Boolean, DateTime, Index, String, text
+from sqlalchemy import BigInteger, DateTime, Index, String, text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -30,7 +30,6 @@ class ClientDB(Base):
     code: Mapped[str | None] = mapped_column(String(255), nullable=True)
     primary_contact: Mapped[str | None] = mapped_column(String(255), nullable=True)
     copper_company_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -44,7 +43,6 @@ class Client(BaseModel):
     code: str | None = None
     primary_contact: str | None = None
     copper_company_id: int | None = None
-    is_active: bool
     created_at: datetime
     updated_at: datetime
     project_count: int = 0
@@ -63,4 +61,3 @@ class ClientUpdate(BaseModel):
     code: str | None = Field(None, max_length=255)
     primary_contact: str | None = Field(None, max_length=255)
     copper_company_id: int | None = Field(None, gt=0)
-    is_active: bool | None = None

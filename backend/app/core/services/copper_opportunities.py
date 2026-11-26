@@ -227,8 +227,7 @@ class _ClientIndex:
 
     @classmethod
     async def load(cls, db: AsyncSession) -> "_ClientIndex":
-        stmt = select(ClientDB).where(ClientDB.is_active.is_(True))
-        rows = (await db.execute(stmt)).scalars().all()
+        rows = (await db.execute(select(ClientDB))).scalars().all()
         return cls(list(rows))
 
     def resolve(

@@ -11,7 +11,6 @@ export interface Client {
   code: string | null;
   primary_contact: string | null;
   copper_company_id: number | null;
-  is_active: boolean;
   project_count: number;
   created_at: string;
   updated_at: string;
@@ -28,7 +27,6 @@ export interface ClientUpdate {
   code?: string | null;
   primary_contact?: string | null;
   copper_company_id?: number | null;
-  is_active?: boolean;
 }
 
 export interface UnusedClient {

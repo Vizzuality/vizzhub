@@ -14,4 +14,3 @@ async def test_project_links_to_client(db_session):
     await db_session.flush()
     await db_session.refresh(project)
     assert project.client_id == client.id
-    assert client.is_active is True

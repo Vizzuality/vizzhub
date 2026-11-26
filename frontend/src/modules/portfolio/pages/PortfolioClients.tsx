@@ -118,8 +118,7 @@ export default function PortfolioClients(): JSX.Element {
                     <th className="text-left font-medium pb-2">Code</th>
                     <th className="text-left font-medium pb-2">Copper ID</th>
                     <th className="text-left font-medium pb-2">Contact</th>
-                    <th className="text-right font-medium pb-2 pr-4">Projects</th>
-                    <th className="text-left font-medium pb-2">Status</th>
+                    <th className="text-right font-medium pb-2">Projects</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -157,20 +156,7 @@ export default function PortfolioClients(): JSX.Element {
                         {c.copper_company_id ? `#${c.copper_company_id}` : '—'}
                       </td>
                       <td className="py-2 text-muted-foreground">{c.primary_contact ?? '—'}</td>
-                      <td className="py-2 text-right tabular-nums pr-4">{c.project_count}</td>
-                      <td className="py-2">
-                        <span className="inline-flex items-center gap-1.5">
-                          <span
-                            className={cn(
-                              'inline-block w-2 h-2 rounded-full shrink-0',
-                              c.is_active ? 'bg-green-500' : 'bg-muted-foreground',
-                            )}
-                          />
-                          <span className="text-foreground">
-                            {c.is_active ? 'Active' : 'Inactive'}
-                          </span>
-                        </span>
-                      </td>
+                      <td className="py-2 text-right tabular-nums">{c.project_count}</td>
                     </tr>
                   ))}
                 </tbody>

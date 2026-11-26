@@ -290,14 +290,13 @@ async def pm_only_client(db_session: AsyncSession) -> AsyncClient:
 
 
 @pytest.mark.asyncio
-async def test_client_options_returns_active_flat_list(
+async def test_client_options_returns_flat_list(
     pm_only_client: AsyncClient, db_session: AsyncSession
 ) -> None:
     db_session.add_all(
         [
             ClientDB(name="Beta Org", slug="beta-org", code="BETA"),
             ClientDB(name="Acme Foundation", slug="acme-foundation", code="ACME"),
-            ClientDB(name="Gone Inc", slug="gone-inc", code="GONE", is_active=False),
         ]
     )
     await db_session.flush()
@@ -306,7 +305,7 @@ async def test_client_options_returns_active_flat_list(
     assert resp.status_code == 200
     body = resp.json()
     names = [c["name"] for c in body]
-    assert names == ["Acme Foundation", "Beta Org"]  # active only, name-sorted
+    assert names == ["Acme Foundation", "Beta Org"]  # name-sorted
     assert body[0]["code"] == "ACME"
     assert set(body[0].keys()) == {"id", "name", "code"}
 

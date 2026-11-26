@@ -108,13 +108,9 @@ async def list_client_options(
     current_user: ProjectManager,
     db: DBSession,
 ) -> list[ClientOption]:
-    """Flat active-client list for the project edit form selector."""
+    """Flat client list for the project edit form selector."""
     rows = (
-        await db.execute(
-            select(ClientDB.id, ClientDB.name, ClientDB.code)
-            .where(ClientDB.is_active.is_(True))
-            .order_by(ClientDB.name)
-        )
+        await db.execute(select(ClientDB.id, ClientDB.name, ClientDB.code).order_by(ClientDB.name))
     ).all()
     return [ClientOption(id=r.id, name=r.name, code=r.code) for r in rows]
 
@@ -221,8 +217,6 @@ async def update_client(
         obj.primary_contact = _clean(payload.primary_contact)
     if "copper_company_id" in payload.model_fields_set:
         await _set_copper_link(db, obj, payload.copper_company_id)
-    if payload.is_active is not None:
-        obj.is_active = payload.is_active
     await db.flush()
     await db.refresh(obj)
     logger.info("client_updated", client_id=str(obj.id), user_id=current_user.user_id)

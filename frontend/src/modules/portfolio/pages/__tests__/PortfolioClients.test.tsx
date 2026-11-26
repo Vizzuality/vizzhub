@@ -17,7 +17,6 @@ vi.mock('../../hooks/useClients', () => ({
           code: 'ACME',
           copper_company_id: 60868145,
           primary_contact: 'Jane Doe',
-          is_active: true,
           project_count: 4,
           created_at: '',
           updated_at: '',

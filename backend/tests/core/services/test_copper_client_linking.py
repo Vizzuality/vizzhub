@@ -112,17 +112,6 @@ async def test_client_missing_from_copper_goes_to_review(db_session):
 
 
 @pytest.mark.asyncio
-async def test_inactive_clients_are_skipped(db_session):
-    merged_away = await _client(db_session, "Old Name", "old-name", is_active=False)
-
-    report = await link_clients_to_copper(db_session, [{"id": 3, "name": "Old Name"}])
-
-    await db_session.refresh(merged_away)
-    assert merged_away.copper_company_id is None
-    assert report.review == []
-
-
-@pytest.mark.asyncio
 async def test_second_run_is_a_no_op(db_session):
     await _client(db_session, "Systemiq", "systemiq")
     companies = [{"id": 77916335, "name": "Systemiq"}]

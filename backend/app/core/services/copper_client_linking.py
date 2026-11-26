@@ -73,9 +73,9 @@ async def link_clients_to_copper(db: AsyncSession, companies: list[dict]) -> Lin
     )
     rows = (
         await db.execute(
-            select(ClientDB, func.coalesce(project_counts.c.n, 0))
-            .outerjoin(project_counts, project_counts.c.client_id == ClientDB.id)
-            .where(ClientDB.is_active.is_(True))
+            select(ClientDB, func.coalesce(project_counts.c.n, 0)).outerjoin(
+                project_counts, project_counts.c.client_id == ClientDB.id
+            )
         )
     ).all()
 
