@@ -106,7 +106,8 @@ async def list_importable_opportunities(
     )
     signed = await copper.search_opportunities(
         pipeline_stage_ids=[stages[SIGNED_STAGE]],
-        status_ids=[OPPORTUNITY_STATUS_WON],
+        # The stage alone means signed: Copper does not flip the status to Won on it.
+        status_ids=[OPPORTUNITY_STATUS_OPEN, OPPORTUNITY_STATUS_WON],
         minimum_stage_change_date=int((now - SIGNED_LOOKBACK).timestamp()),
     )
 

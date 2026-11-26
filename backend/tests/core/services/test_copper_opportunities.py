@@ -92,7 +92,7 @@ async def test_pending_opportunity_prefills_the_project(db_session):
 
 
 @pytest.mark.asyncio
-async def test_searches_open_pending_and_recently_won_signed(db_session):
+async def test_searches_open_pending_and_recent_open_or_won_signed(db_session):
     copper = FakeCopper([])
 
     await list_importable_opportunities(db_session, copper, now=NOW)
@@ -101,7 +101,8 @@ async def test_searches_open_pending_and_recently_won_signed(db_session):
     assert pending["pipeline_stage_ids"] == [HTP]
     assert pending["status_ids"] == [OPPORTUNITY_STATUS_OPEN]
     assert signed["pipeline_stage_ids"] == [SIGNED]
-    assert signed["status_ids"] == [OPPORTUNITY_STATUS_WON]
+    # Moving a deal to Contract Signed does not mark it Won in Copper.
+    assert signed["status_ids"] == [OPPORTUNITY_STATUS_OPEN, OPPORTUNITY_STATUS_WON]
     assert signed["minimum_stage_change_date"] == int(datetime(2026, 5, 29, tzinfo=UTC).timestamp())
 
 
