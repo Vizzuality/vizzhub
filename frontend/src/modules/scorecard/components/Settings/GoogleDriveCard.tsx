@@ -6,7 +6,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/shared/components/ui/card';
-import { Badge } from '@/shared/components/ui/badge';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
@@ -23,6 +22,7 @@ import {
 } from '@/shared/components/ui/alert-dialog';
 import { useDriveConfig, useDisconnectDrive } from '@/modules/iso/hooks/useIso';
 import { useDriveExportStatus, useSaveDriveFolder } from '@/modules/iso-docs/hooks/useDriveExport';
+import { ConnectionStatus } from './ConnectionStatus';
 
 export default function GoogleDriveCard(): JSX.Element {
   const { data: config } = useDriveConfig();
@@ -67,9 +67,7 @@ export default function GoogleDriveCard(): JSX.Element {
               maintaining the folder structure.
             </CardDescription>
           </div>
-          <Badge variant={config?.connected ? 'default' : 'secondary'}>
-            {config?.connected ? 'Connected' : 'Not connected'}
-          </Badge>
+          <ConnectionStatus connected={!!config?.connected} />
         </div>
       </CardHeader>
       <CardContent className="space-y-4">

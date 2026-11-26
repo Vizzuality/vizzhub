@@ -10,7 +10,6 @@ import {
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
-import { Badge } from '@/shared/components/ui/badge';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +25,7 @@ import { CheckCircle, XCircle, Loader2, Eye, EyeOff } from 'lucide-react';
 import { integrationsApi } from '@/core/services/integrations';
 import type { ProviderStatus, SlackTestResult } from '@/core/services/integrations';
 import { invalidateIntegrations } from '@/core/hooks/invalidations';
+import { ConnectionStatus } from './ConnectionStatus';
 
 interface SlackTabProps {
   readonly status?: ProviderStatus;
@@ -88,9 +88,7 @@ export default function SlackTab({ status }: SlackTabProps): JSX.Element {
               app's OAuth & Permissions page.
             </CardDescription>
           </div>
-          <Badge variant={status?.connected ? 'default' : 'secondary'}>
-            {status?.connected ? 'Connected' : 'Not connected'}
-          </Badge>
+          <ConnectionStatus connected={!!status?.connected} />
         </div>
       </CardHeader>
       <CardContent className="space-y-6">

@@ -24,9 +24,9 @@ import {
 import { Loader2 } from 'lucide-react';
 import { integrationsApi } from '@/core/services/integrations';
 import { invalidateIntegrations } from '@/core/hooks/invalidations';
-import { cn } from '@/lib/utils';
 import { getApiErrorDetail } from '@/utils/apiErrors';
 import type { ProviderStatus } from '@/core/services/integrations';
+import { ConnectionStatus } from './ConnectionStatus';
 
 interface CopperCardProps {
   readonly status?: ProviderStatus;
@@ -86,15 +86,7 @@ export default function CopperCard({ status, userEmail }: CopperCardProps): JSX.
               Read opportunities and companies from the Copper CRM.
             </CardDescription>
           </div>
-          <span className="flex items-center gap-2 text-sm text-foreground">
-            <span
-              className={cn(
-                'inline-block w-2 h-2 rounded-full shrink-0',
-                connected ? 'bg-green-500' : 'bg-muted-foreground'
-              )}
-            />
-            {connected ? 'Connected' : 'Not connected'}
-          </span>
+          <ConnectionStatus connected={connected} />
         </div>
       </CardHeader>
       <CardContent className="space-y-4">

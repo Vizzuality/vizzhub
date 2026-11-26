@@ -31,6 +31,7 @@ import {
   useClearGitHubOrg,
 } from '@/modules/iso/hooks/useIso';
 import type { ProviderStatus } from '@/core/services/integrations';
+import { ConnectionStatus } from './ConnectionStatus';
 
 interface GitHubCardProps {
   readonly status?: ProviderStatus;
@@ -137,9 +138,7 @@ export default function GitHubCard({ status }: GitHubCardProps): JSX.Element {
                 {expiryInfo.text}
               </Badge>
             )}
-            <Badge variant={status?.connected ? 'default' : 'secondary'}>
-              {status?.connected ? 'Connected' : 'Not connected'}
-            </Badge>
+            <ConnectionStatus connected={!!status?.connected} />
           </div>
         </div>
       </CardHeader>

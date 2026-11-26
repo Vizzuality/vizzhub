@@ -87,7 +87,7 @@ export function ProjectHeader(): JSX.Element {
         <ProjectHeaderKpis />
         {canManage && (
           <Link to={`/projects/${project.id}/edit`}>
-            <Button type="button" variant="ghost" size="sm" className="border border-input">
+            <Button type="button" variant="outline" size="sm">
               <Pencil className="w-4 h-4 mr-2" /> Edit
             </Button>
           </Link>

@@ -6,7 +6,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/shared/components/ui/card';
-import { Badge } from '@/shared/components/ui/badge';
 import { Button } from '@/shared/components/ui/button';
 import {
   AlertDialog,
@@ -23,6 +22,7 @@ import {
   useIsoConfig,
   useDisconnectGoogleWorkspace,
 } from '@/modules/iso/hooks/useIso';
+import { ConnectionStatus } from './ConnectionStatus';
 
 export default function GoogleWorkspaceCard(): JSX.Element {
   const { data: config } = useIsoConfig();
@@ -55,9 +55,7 @@ export default function GoogleWorkspaceCard(): JSX.Element {
               for ISO 27001 compliance reviews.
             </CardDescription>
           </div>
-          <Badge variant={config?.connected ? 'default' : 'secondary'}>
-            {config?.connected ? 'Connected' : 'Not connected'}
-          </Badge>
+          <ConnectionStatus connected={!!config?.connected} />
         </div>
       </CardHeader>
       <CardContent className="space-y-4">

@@ -110,10 +110,10 @@ export default function MilestonesList({
       )}
       {!readOnly && (
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
           onClick={onEdit}
-          className="mt-4 border border-input"
+          className="mt-4"
         >
           <Pencil className="w-4 h-4 mr-2" />
           {milestones?.length ? 'Edit Milestones' : 'Add Milestones'}

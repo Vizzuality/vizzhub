@@ -8,7 +8,7 @@ interface StatusControlsProps {
 
 export default function StatusControls({ projectId }: StatusControlsProps): JSX.Element {
   return (
-    <Button variant="ghost" size="sm" className="border border-input" asChild>
+    <Button variant="outline" size="sm" asChild>
       <Link to={`/projects/${projectId}/edit`}>
         <Pencil className="w-4 h-4 mr-2" />
         Edit

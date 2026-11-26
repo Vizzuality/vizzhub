@@ -7,7 +7,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/shared/components/ui/card';
-import { Badge } from '@/shared/components/ui/badge';
 import { Button } from '@/shared/components/ui/button';
 import {
   AlertDialog,
@@ -23,6 +22,7 @@ import {
 import { invalidateIntegrations } from '@/core/hooks/invalidations';
 import api from '@/core/services/client';
 import type { ProviderStatus } from '@/core/services/integrations';
+import { ConnectionStatus } from './ConnectionStatus';
 
 interface JiraCardProps {
   readonly status?: ProviderStatus;
@@ -61,9 +61,7 @@ export default function JiraCard({ status }: JiraCardProps): JSX.Element {
               Connect your Jira instance to collect project metrics automatically.
             </CardDescription>
           </div>
-          <Badge variant={status?.connected ? 'default' : 'secondary'}>
-            {status?.connected ? 'Connected' : 'Not connected'}
-          </Badge>
+          <ConnectionStatus connected={!!status?.connected} />
         </div>
       </CardHeader>
       <CardContent className="space-y-4">

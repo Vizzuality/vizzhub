@@ -329,10 +329,9 @@ function HeaderActions({
     return (
       <Button
         type="button"
-        variant="ghost"
+        variant="outline"
         onClick={onReopen}
         disabled={isPending}
-        className="border border-input"
       >
         <RotateCcw className="w-4 h-4 mr-2 text-score-green" />
         {isPending ? 'Updating...' : 'Reopen Project'}
@@ -342,10 +341,9 @@ function HeaderActions({
   return (
     <Button
       type="button"
-      variant="ghost"
+      variant="outline"
       onClick={onMarkFinished}
       disabled={isPending}
-      className="border border-input"
     >
       <CheckCircle className="w-4 h-4 mr-2 text-score-green" />
       {isPending ? 'Updating...' : 'Mark as Finished'}
@@ -883,7 +881,7 @@ export default function ProjectForm(): JSX.Element {
       <div className="max-w-3xl mx-auto p-6">
         <ErrorBanner message="Failed to load project. It may not exist or you may not have access." />
         <div className="mt-4">
-          <Button variant="ghost" onClick={navigateToProjects} className="border border-input">
+          <Button variant="outline" onClick={navigateToProjects}>
             Back to Projects
           </Button>
         </div>
@@ -1520,10 +1518,10 @@ export default function ProjectForm(): JSX.Element {
                   </Button>
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="outline"
                     onClick={handleLeave}
                     disabled={isMutating}
-                    className="w-full border border-input"
+                    className="w-full"
                   >
                     Cancel
                   </Button>
@@ -1533,10 +1531,10 @@ export default function ProjectForm(): JSX.Element {
                       <div className="border-t border-dashed my-2" />
                       <Button
                         type="button"
-                        variant="ghost"
+                        variant="outline"
                         onClick={() => setDeleteDialogOpen(true)}
                         disabled={deleteMutation.isPending}
-                        className="w-full border border-input"
+                        className="w-full"
                       >
                         <Trash2 className="w-4 h-4 mr-2 text-destructive" />
                         {deleteMutation.isPending ? 'Deleting...' : 'Delete Project'}

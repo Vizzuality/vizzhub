@@ -83,7 +83,7 @@ export default function EVMSection({
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-semibold">Budget & Schedule</h2>
           {!evmData && (
-            <Button variant="ghost" size="sm" className="border border-input" asChild>
+            <Button variant="outline" size="sm" asChild>
               <Link to={`/projects/${projectId}/edit`}>
                 <Pencil className="w-4 h-4 mr-2" />
                 Add Budget Data
