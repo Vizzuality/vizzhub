@@ -4,7 +4,7 @@ interface ConnectionStatusProps {
   connected: boolean;
 }
 
-export function ConnectionStatus({ connected }: ConnectionStatusProps): JSX.Element {
+export function ConnectionStatus({ connected }: Readonly<ConnectionStatusProps>): JSX.Element {
   return (
     <span className="flex items-center gap-2 text-sm text-foreground whitespace-nowrap">
       <span
